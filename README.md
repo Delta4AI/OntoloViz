@@ -135,9 +135,9 @@ Screenshots
 ![atc_sample](https://user-images.githubusercontent.com/75040444/213471039-78082a44-1be2-4864-9fd2-540c8f7f23bf.jpg)
 ![mesh_sample](https://user-images.githubusercontent.com/75040444/213471097-5257d612-510a-4f15-b65c-2fba8bf812ea.jpg)
 
-Provided Templates
-==================
-Template files can be found in the `template` folder.
+Templates and Examples
+======================
+Templates and examples can be found in the `template` folder.
 
 #### `pubmed_documents_mapped_to_mesh.tsv`
 Based on the MeSH subtree `C` from 2022. Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) database (title + abstract) and further mapped to the nodes.
@@ -150,6 +150,12 @@ Based on [publicly available clinical trial data](https://clinicaltrials.gov/) r
 
 #### `atc_tree_template.tsv`
 Empty template of the ATC tree based on the manually curated chemical database of bioactive molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads). Can be populated with own values.
+
+#### `drug_sunburst_example.html`
+Sample plot using the `covid_drugs_trial_summary.tsv` template.
+
+#### `phenotype_sunburst_example.html`
+Sample plot using the `covid_drugs_trial_summary.tsv` template.
 
 Thanks to
 =========

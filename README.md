@@ -5,10 +5,11 @@ OntoViz provides a graphical user interface to generate interactive
 visualizations of phenotype and drug ontologies. 
 You might find it useful to quickly visualize your own data for reports 
 or to share the generated plots in .html format with others.
-The GUI can be run by downloading the latest Windows release 
-or by installing the package via PyPi:
+The GUI can be run by downloading the latest Windows executable 
+or by installing and running the package via PyPi:
 
     pip install ontoviz
+    python -c "from ontoviz import run_app; run_app()"
 
 Alternatively, clone this repository locally, install the required dependencies and launch the GUI:
 

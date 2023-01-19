@@ -1452,21 +1452,6 @@ class DrugSunburst(SunburstBase):
         # difference may be introduced by adding customized counts
         # this means that counts for atc codes > level 5 will be overwritten to enable wedge-width 'total'
         self.clear_non_drug_counts()
-
-        # for node in self.atc_tree.values():
-        #     for k, v in sorted(node.items(), key=lambda x: x[1]["level"], reverse=False):
-        #
-        #         # propagate counts up
-        #         if v["level"] != 5:
-        #             # set counts to sum of children, rounded to int
-        #             v["counts"] = sum([_["counts"] for _ in node.values() if _["id"].startswith(v["id"])])
-        #
-        #             # check if re-calculated counts equal rounded imported counts
-        #             if v["imported_counts"] and round(v["counts"], 2) != round(v["imported_counts"], 2):
-        #                 print(f"WARNING - counts corrected for {v['id']}: "
-        #                       f"{v['imported_counts']} > {round(v['counts'], 2)}")
-        #                 v["counts_corrected"] = True
-
         print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for phenotype '{self.phenotype_name}'")
 
     def load_atc_excel(self, fn: str = None, read_settings: bool = True, populate: bool = True):
@@ -1536,21 +1521,6 @@ class DrugSunburst(SunburstBase):
                 if v["level"] == 5:
                     v["color"] = scale[int(v["counts"] / factor)]
 
-        # # traverse levels up (1 -> 4), add counts for parents
-        # for node in self.atc_tree.values():
-        #     for k, v in sorted(node.items(), key=lambda x: x[1]["level"], reverse=False):
-        #         if v["level"] != 5:
-        #             v["counts"] = sum([_["counts"] for _ in node.values() if _["id"].startswith(v["id"])])
-        #             v["imported_counts"] = sum([_["imported_counts"]
-        #                                         for _ in node.values() if _["id"].startswith(v["id"])])
-        #
-        #     # calculate color scale
-        #     factor, scale = self.calculate_color_scale_for_node(node)
-        #
-        #     # apply colors
-        #     for sub_id, v in node.items():
-        #         v["color"] = scale[int(v["counts"] / factor)]
-
         print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for phenotype '{self.phenotype_name}'")
 
     def plot(self):
@@ -1596,10 +1566,10 @@ class DrugSunburst(SunburstBase):
         self.create_sunburst_figure(plot_tree=plot_tree)
 
 
-if __name__ == "__main__":
+def show_help():
     print(" DrugVision - Minimal Reproducible Examples ".center(120, "-"))
     print('''
-from core import PhenotypeSunburst, DrugSunburst
+from ontoviz.core import PhenotypeSunburst, DrugSunburst
 
 """ phenotype sunburst with connected database """
 p = PhenotypeSunburst()
@@ -1625,3 +1595,7 @@ d = DrugSunburst()
 d.populate_atc_from_excel("atc_tree_headache.xlsx")
 d.plot
 ''')
+
+
+if __name__ == "__main__":
+    show_help()    

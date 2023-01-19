@@ -1586,7 +1586,7 @@ class BorderPopup(Toplevel):
         self.destroy()
 
 
-def run():
+def run_app():
     print("Launching Ontology Explorer GUI ..")
     app = App()
 

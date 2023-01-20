@@ -1,9 +1,9 @@
-[![Build Status](https://app.travis-ci.com/Mnikley/OntoViz.svg?branch=master)](https://app.travis-ci.com/Mnikley/OntoViz)
+[![image](https://img.shields.io/pypi/v/ontoviz-bio.svg)](https://pypi.python.org/pypi/ontoviz-bio)
 
-OntoViz
-=======
+OntoloViz
+=========
 
-OntoViz is a graphical user interface for the creation of interactive visualizations of phenotype and drug ontologies.
+OntoloViz is a graphical user interface for the creation of interactive sunburst plots of phenotype and drug ontologies.
 You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
 Take a look at the [screenshot section](#screenshots) or explore examples in `.html` format from the
 provided [templates.zip](https://github.com/Mnikley/OntoViz/releases/download/v1.0.3/templates.zip) archive to get a 
@@ -34,6 +34,8 @@ to integers.
 
 GUI Options
 -----------
+![gui_small](https://user-images.githubusercontent.com/75040444/213717385-adb372a9-d0a4-4861-af9e-3fcb7a3c195d.jpg)
+
 - General
   - **Load File**: load an `.tsv` or `.xlsx` file containing drug- or phenotype-ontology data
   - **Set Color Scale**: define a custom color scale for the sunburst color scaling when color propagation is active
@@ -62,7 +64,7 @@ GUI Options
     - `level`: counts are propagated up to defined level, values above threshold remain unchanged
     - `all`: counts are propagated up to central node, imported values are corrected and overwritten
   - **Level**: controls color- and count-propagation from outer to inner levels up to defined level
-    - affects color propagation when **Color** is set to `specific` or `global`, affects
+    - affects color propagation when **Color** is set to `specific` or `global`
     - affects count propagation when **Counts** is set to `level`
     - drug sunburst: 1 corresponds to the central node, 5 to the outermost node (=drug)
     - phenotype sunburst: 0 corresponds to the central node, 13 to the outermost node
@@ -73,7 +75,7 @@ The phenotype sunburst structure follows the principles of the
 [MeSH tree](https://www.nlm.nih.gov/mesh/intro_trees.html).
 - A Tree ID is defined by a **combination of three numbers or letters**, for example `C01`.
 - Levels are separated by a **dot `.`**, for example `C01.001`.
-- Ontologies **up to thirteen hierarchical levels** were tested, more should be possible though.
+- Ontologies **up to thirteen hierarchical levels** are supported.
 - A single phenotype end-node can be assigned to multiple parent-nodes by specifying the parents tree ids as 
   pipe separated string in the column `Tree ID`.
 - When defining a child element which has no valid parent, the GUI will automatically generate the parent with the 
@@ -127,7 +129,6 @@ Drug Ontology File Structure
 
 Screenshots
 ===========
-![gui](https://user-images.githubusercontent.com/75040444/213483108-0381b4c5-baf4-4489-8f98-b38562dd96d5.jpg)
 ![atc_sample](https://user-images.githubusercontent.com/75040444/213471039-78082a44-1be2-4864-9fd2-540c8f7f23bf.jpg)
 ![mesh_sample](https://user-images.githubusercontent.com/75040444/213471097-5257d612-510a-4f15-b65c-2fba8bf812ea.jpg)
 

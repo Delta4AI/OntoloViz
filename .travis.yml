@@ -1,0 +1,20 @@
+os:
+  - linux
+
+dist: xenial
+
+services:
+  - xvfb
+
+language: python
+
+python:
+  - 3.10
+  - 3.11
+
+before_install:
+  - python -m pip install --upgrade pip
+install:
+  - pip install -r requirements.txt
+
+script: python3 src/ontoviz/app.py || python src/ontoviz/app.py

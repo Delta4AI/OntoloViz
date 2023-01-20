@@ -1,4 +1,4 @@
 et-xmlfile>=1.1.0
-openpyxl>=3.0.10
-plotly>=5.11.0
-tenacity>=8.1.0
+openpyxl>=3.0
+plotly>=5.1
+tenacity>=6.2.0

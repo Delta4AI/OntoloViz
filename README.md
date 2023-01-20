@@ -19,8 +19,8 @@ or by installing and running the package via PyPi (OS independent, requires **Py
 
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
-    git clone https://github.com/Mnikley/OntologyExplorer.git
-    cd OntologyExplorer
+    git clone https://github.com/Mnikley/OntoViz.git
+    cd OntoViz
     pip install -r requirements.txt
     python src/ontoviz/app.py
 

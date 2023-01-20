@@ -1,41 +1,36 @@
 OntoViz
 =======
 
-OntoViz provides a graphical user interface to generate interactive 
-visualizations of phenotype and drug ontologies. 
-You might find it useful to quickly visualize your own data for reports 
-or to share the generated plots in .html format with others.
-The GUI can be run by downloading the latest Windows executable 
-or by installing and running the package via PyPi:
+OntoViz is a graphical user interface for the creation of interactive 
+visualizations of phenotype and drug ontologies.
+You might find it useful to quickly visualize your data for reports 
+or to share the generated plots with collaborators.
+Take a look at the [screenshot section](#screenshots) or download examples 
+in `.html` format from the `templates` folder to get a better understanding 
+of the scope of the package.  
 
-    pip install ontoviz
+Quickstart
+==========
+The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoViz/releases) 
+or by installing and running the package via PyPi (OS independent, requires **Python 3.10+**):
+
+    pip install ontoviz-bio
     python -c "from ontoviz import run_app; run_app()"
 
-Alternatively, clone this repository locally, install the required dependencies and launch the GUI:
+Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
     git clone https://github.com/Mnikley/OntologyExplorer.git
     cd OntologyExplorer
     pip install -r requirements.txt
-    python app.py
-
-
-Dependencies
-============
-
-The application is built with **Python 3.10** and depends on the following packages:
-
-* et-xmlfile==1.1.0
-* openpyxl==3.0.10
-* plotly==5.11.0
-* tenacity==8.1.0
+    python src/ontoviz/app.py
 
 Usage
 =====
 
-The application allows importing of `.tsv` and `.xlsx` files, however the use of `.tsv` and the usage of `tab` as a 
-separator is encouraged. The GUI is able to create two types of sunburt graphics to represent either phenotype or drug 
+The application allows importing `.tsv` and `.xlsx` files, but the use of `.tsv` and `tab` as a 
+separator is recommended. The GUI can create two types of sunburst diagrams to represent either phenotype or drug 
 ontologies, which is determined by the structure of the loaded files. Any numbers entered in the file will be converted 
-to integers. If a snode should be displayed without 
+to integers.
 
 GUI Options
 -----------
@@ -152,8 +147,8 @@ All templates and examples can be found in the `template` folder.
 
 - `phenotype_sunburst_example.html`: sample plot using the `covid_drugs_trial_summary.tsv` template.
 
-Thanks to
-=========
+Special Thanks to
+=================
 
 * Paul Perco, who had the initial idea for this package and provided support throughout the process
 * Andreas Heinzel, who is an overall inspiration regarding all software- and non-software related topics

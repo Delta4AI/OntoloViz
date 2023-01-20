@@ -1,4 +1,4 @@
-[![image](https://img.shields.io/pypi/v/ontoviz-bio.svg)](https://pypi.python.org/pypi/ontoviz-bio)
+[![image](https://img.shields.io/pypi/v/OntoloViz.svg)](https://pypi.python.org/pypi/ontoloviz)
 
 OntoloViz
 =========
@@ -6,23 +6,23 @@ OntoloViz
 OntoloViz is a graphical user interface for the creation of interactive sunburst plots of phenotype and drug ontologies.
 You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
 Take a look at the [screenshot section](#screenshots) or explore examples in `.html` format from the
-provided [templates.zip](https://github.com/Mnikley/OntoViz/releases/download/v1.0.3/templates.zip) archive to get a 
+provided [templates.zip](https://github.com/Mnikley/OntoloViz/releases/download/v1.0.3/templates.zip) archive to get a 
 better understanding of the scope of the package.  
 
 Quickstart
 ==========
-The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoViz/releases) 
+The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoloViz/releases) 
 or by installing and running the package via PyPi (OS independent, requires **Python 3.10+**):
 
-    pip install ontoviz-bio
-    python -c "from ontoviz import run_app; run_app()"
+    pip install ontoloviz
+    python -c "from ontoloviz import run_app; run_app()"
 
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
-    git clone https://github.com/Mnikley/OntoViz.git
-    cd OntoViz
+    git clone https://github.com/Mnikley/OntoloViz.git
+    cd OntoloViz
     pip install -r requirements.txt
-    python src/ontoviz/app.py
+    python src/ontoloviz/app.py
 
 Usage
 =====
@@ -135,7 +135,7 @@ Screenshots
 Templates and Examples
 ======================
 Templates and examples can be found in the provided 
-[templates.zip](https://github.com/Mnikley/OntoViz/releases/download/v1.0.3/templates.zip) archive.
+[templates.zip](https://github.com/Mnikley/OntoloViz/releases/download/v1.0.3/templates.zip) archive.
 
 - `pubmed_documents_mapped_to_mesh.tsv`: based on the [MeSH](https://meshb.nlm.nih.gov/treeView) subtree `C` from 2022. 
   Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) 

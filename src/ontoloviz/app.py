@@ -8,7 +8,7 @@ from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, mes
 from tkinter import Label as LabelOG
 from tkinter import Entry as EntryOG
 from tkinter.ttk import LabelFrame, Frame, Style
-from ontoviz.core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+from ontoloviz.core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
 from threading import Thread
 import time
 import textwrap
@@ -146,7 +146,7 @@ class App(Tk):
     def __init__(self):
         """Main App Initialization"""
         super().__init__()
-        self.title("Ontology Explorer")
+        self.title("OntoloViz GUI")
         # self.iconbitmap("logo.ico")
         # self.wm_minsize(width=400, height=290)
 
@@ -1587,7 +1587,7 @@ class BorderPopup(Toplevel):
 
 
 def run_app():
-    print("Launching Ontology Explorer GUI ..")
+    print("Launching OntoViz Ontology Explorer GUI ..")
     app = App()
 
 

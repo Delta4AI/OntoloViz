@@ -1569,7 +1569,7 @@ class DrugSunburst(SunburstBase):
 def show_help():
     print(" DrugVision - Minimal Reproducible Examples ".center(120, "-"))
     print('''
-from ontoviz.core import PhenotypeSunburst, DrugSunburst
+from ontoloviz.core import PhenotypeSunburst, DrugSunburst
 
 """ phenotype sunburst with connected database """
 p = PhenotypeSunburst()

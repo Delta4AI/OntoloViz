@@ -17,4 +17,4 @@ before_install:
 install:
   - pip install -r requirements.txt
 
-script: python3 src/ontoviz/app.py || python src/ontoviz/app.py
+script: python3 src/ontoloviz/app.py || python src/ontoloviz/app.py

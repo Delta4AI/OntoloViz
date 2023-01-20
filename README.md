@@ -1,13 +1,13 @@
+[![Build Status](https://app.travis-ci.com/Mnikley/OntoViz.svg?branch=master)](https://app.travis-ci.com/Mnikley/OntoViz)
+
 OntoViz
 =======
 
-OntoViz is a graphical user interface for the creation of interactive 
-visualizations of phenotype and drug ontologies.
-You might find it useful to quickly visualize your data for reports 
-or to share the generated plots with collaborators.
-Take a look at the [screenshot section](#screenshots) or download examples 
-in `.html` format from the `templates` folder to get a better understanding 
-of the scope of the package.  
+OntoViz is a graphical user interface for the creation of interactive visualizations of phenotype and drug ontologies.
+You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
+Take a look at the [screenshot section](#screenshots) or explore examples in `.html` format from the
+provided [templates.zip](https://github.com/Mnikley/OntoViz/releases/download/v1.0.3/templates.zip) archive to get a 
+better understanding of the scope of the package.  
 
 Quickstart
 ==========
@@ -133,19 +133,26 @@ Screenshots
 
 Templates and Examples
 ======================
-All templates and examples can be found in the `template` folder.
+Templates and examples can be found in the provided 
+[templates.zip](https://github.com/Mnikley/OntoViz/releases/download/v1.0.3/templates.zip) archive.
 
-- `pubmed_documents_mapped_to_mesh.tsv`: based on the MeSH subtree `C` from 2022. Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) database (title + abstract) and further mapped to the nodes.
+- `pubmed_documents_mapped_to_mesh.tsv`: based on the [MeSH](https://meshb.nlm.nih.gov/treeView) subtree `C` from 2022. 
+  Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) 
+  database (title + abstract) and further mapped to the nodes.
 
--  `mesh_tree_template.tsv`: empty template of the MeSH tree `C` and `F03`. Terms are unique and mapped to all related parent nodes. Can be used to complement with own values.
+-  `mesh_tree_template.tsv`: empty template of the [MeSH](https://meshb.nlm.nih.gov/treeView) tree `C` and `F03`]. 
+  Terms are unique and mapped to all related parent nodes.
 
--  `covid_drugs_trial_summary.tsv`: based on [publicly available clinical trial data](https://clinicaltrials.gov/) related to COVID-19. One count represents one clinical trial.
+-  `covid_drugs_trial_summary.tsv`: based on [publicly available clinical trial data](https://clinicaltrials.gov/) 
+  related to COVID-19. One count represents one clinical trial.
 
-- `atc_tree_template.tsv`: empty template of the ATC tree based on the manually curated chemical database of bioactive molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads). Can be populated with own values.
+- `atc_tree_template.tsv`: empty template of the [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) 
+  tree based on the manually curated chemical database of bioactive 
+  molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads).
 
-- `drug_sunburst_example.html`: sample plot using the `covid_drugs_trial_summary.tsv` template.
+- `drug_sunburst_example.html`: sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.
 
-- `phenotype_sunburst_example.html`: sample plot using the `covid_drugs_trial_summary.tsv` template.
+- `phenotype_sunburst_example.html`: sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.
 
 Special Thanks to
 =================

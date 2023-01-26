@@ -21,3 +21,7 @@ classifiers = [
 "Homepage" = "https://github.com/Mnikley/OntoloViz"
 "Bug Tracker" = "https://github.com/Mnikley/OntoloViz/issues"
 "Releases" = "https://github.com/Mnikley/OntoloViz/releases"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']

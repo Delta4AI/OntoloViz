@@ -259,7 +259,6 @@ class App(Tk):
         # function calls
         self.build_base_ui()
         self.toggle_widgets(enable=False, mode="db")
-        self.mainloop()
 
     def build_base_ui(self):
         """Builds the base graphical UI elements to load a file"""
@@ -1589,6 +1588,7 @@ class BorderPopup(Toplevel):
 def run_app():
     print("Launching OntoViz Ontology Explorer GUI ..")
     app = App()
+    app.mainloop()
 
 
 if __name__ == "__main__":

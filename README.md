@@ -1,4 +1,6 @@
-[![image](https://img.shields.io/pypi/v/OntoloViz.svg)](https://pypi.python.org/pypi/ontoloviz)
+[![Pypi version](https://img.shields.io/pypi/v/OntoloViz.svg)](https://pypi.python.org/pypi/ontoloviz)
+[![Pypi python version](https://img.shields.io/pypi/pyversions/ontoloviz)](https://img.shields.io/pypi/pyversions/ontoloviz)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/5a8acbc6ebf541878336b75a1816beef)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Mnikley/OntoloViz&amp;utm_campaign=Badge_Grade)
 
 OntoloViz
 =========

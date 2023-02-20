@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.5", "3.6", "3.7", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
@@ -24,6 +24,10 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Update packages & setup tkinter
+      run: |
+         apt-get update
+         apt-get install python3-tk -y
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -37,4 +41,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest --maxfail=5
+        pytest

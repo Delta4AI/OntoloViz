@@ -41,7 +41,7 @@ def rgb_to_hex(rgb: tuple = None) -> str:
     return f"#{int(rgb[0]):02X}{int(rgb[1]):02X}{int(rgb[2]):02X}"
 
 
-def generate_color_range(start_color: str = None, stop_color: str = None, values: int = None) -> list[str]:
+def generate_color_range(start_color: str = None, stop_color: str = None, values: int = None) -> list:
     """Calculate color range based on start and stop color and number of values
 
     :param start_color: start color as RGB hex
@@ -329,7 +329,7 @@ class SunburstBase:
         return self.get_entity_id(drug_name, "drug")
 
     def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None, max_level: [str, int] = None,
-                                       count_key: str = "counts") -> tuple[int, list[str]]:
+                                       count_key: str = "counts") -> tuple:
         """Get color scale based on max value of counts of children in a subtree
 
         :param sub_tree: MeSH/ATC subtree dictionary (e.g. mesh_tree['C01']) (e.g. atc_tree['L'])
@@ -403,7 +403,7 @@ class SunburstBase:
 
     # def get_header_from_row(self, row:):
 
-    def export_settings(self, fn: [str, None] = None, wb: Workbook = None, settings: list[tuple] = None) -> str:
+    def export_settings(self, fn: [str, None] = None, wb: Workbook = None, settings: list = None) -> str:
         """Subroutine to write settings to workbook
 
         :param fn: target filename
@@ -448,8 +448,8 @@ class SunburstBase:
         print(f"\tExported to: {os.path.abspath(fn)}")
         return os.path.abspath(fn)
 
-    def export_tree_to_excel(self, fn: str = None, header: list[str] = None, rows: list[tuple] = None,
-                             settings: list[tuple] = None, color_col: int = None) -> str:
+    def export_tree_to_excel(self, fn: str = None, header: list = None, rows: list = None,
+                             settings: list = None, color_col: int = None) -> str:
         """Export Tree to Excel
 
         :param fn: target filename
@@ -487,7 +487,7 @@ class SunburstBase:
         return self.export_settings(fn=fn, wb=wb, settings=settings)
 
     @staticmethod
-    def export_tree_to_tsv(fn: str = None, header: list[str] = None, rows: list[tuple] = None) -> str:
+    def export_tree_to_tsv(fn: str = None, header: list = None, rows: list = None) -> str:
         """Export Tree to TSV
 
         :param fn: target filename
@@ -589,7 +589,7 @@ class SunburstBase:
                         else:
                             plot_tree[k][kk]["color"] = self.s["default_color"]
 
-    def generate_plot_supplements(self, plot_tree: dict = None) -> (list[list[str]], list[list[tuple[int, str]]], str):
+    def generate_plot_supplements(self, plot_tree: dict = None) -> tuple:
         """Generates nested lists for subtrees containing label, percentage, custom data etc. used for sunburst traces
 
         :param plot_tree: dictionary containing trees and nodes
@@ -768,8 +768,8 @@ class SunburstBase:
             fig.show(config=config)
 
     @staticmethod
-    def generate_subplot_figure(cols: int = None, traces: list[Sunburst] = None,
-                                headers: list[str] = None, title: str = None) -> Figure:
+    def generate_subplot_figure(cols: int = None, traces: list = None,
+                                headers: list = None, title: str = None) -> Figure:
         """Generates a subplot figure based on list of Sunburst traces and settings
 
         :param cols: Number of columns

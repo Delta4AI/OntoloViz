@@ -1,3 +1,2 @@
-from .app import *
 from .core import *
-from .tests import *
+from .app import App

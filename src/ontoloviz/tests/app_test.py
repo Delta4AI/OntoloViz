@@ -1,7 +1,7 @@
 import plotly
 
-from src.ontoloviz.core import rgb_to_hex, chunks, generate_color_range, SunburstBase, PhenotypeSunburst, DrugSunburst
-from src.ontoloviz.app import App, BorderPopup, ExportPopup, ColorScalePopup
+from ontoloviz.core import rgb_to_hex, chunks, generate_color_range, SunburstBase, PhenotypeSunburst, DrugSunburst
+from ontoloviz.app import App, BorderPopup, ExportPopup, ColorScalePopup
 from time import sleep
 from threading import Thread
 

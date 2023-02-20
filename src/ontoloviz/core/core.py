@@ -639,26 +639,23 @@ class SunburstBase:
             for kk, vv in v.items():
 
                 # wedge labels
-                match label_mode:
-                    case "all":
-                        wedge_labels.append(vv["label"])
-                    case "propagation":
-                        wedge_labels.append(vv["label"] if vv["level"] >= propagate_lvl else "")
-                    case "drugs":
-                        wedge_labels.append(vv["label"] if vv["level"] == 5 else "")
-                    case "none":
-                        wedge_labels.append("")
+                if label_mode == "all":
+                    wedge_labels.append(vv["label"])
+                elif label_mode == "propagation":
+                    wedge_labels.append(vv["label"] if vv["level"] >= propagate_lvl else "")
+                elif label_mode == "drugs":
+                    wedge_labels.append(vv["label"] if vv["level"] == 5 else "")
+                elif label_mode == "none":
+                    wedge_labels.append("")
 
                 # percentages
-                match propagate_count_mode:
-                    case "off" | "all":
+                if propagate_count_mode in ["off", "all"]:
+                    node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
+                elif propagate_count_mode == "level":
+                    if vv["level"] >= propagate_lvl:
+                        node_percentage = round(vv["imported_counts"] / propagate_threshold_sum * 100)
+                    else:
                         node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
-
-                    case "level":
-                        if vv["level"] >= propagate_lvl:
-                            node_percentage = round(vv["imported_counts"] / propagate_threshold_sum * 100)
-                        else:
-                            node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
 
                 # custom data
                 hover_label = vv["label"] if vv["label"] != "" else "Undefined"
@@ -1180,14 +1177,14 @@ class PhenotypeSunburst(SunburstBase):
                         continue
 
                     # apply count propagation
-                    match self.s["mesh_propagate_counts"]:
-                        case "off":
-                            continue
-                        case "level":
-                            if parent["level"] >= self.s["mesh_propagate_lvl"]:
-                                parent["imported_counts"] += vv["imported_counts"]
-                        case "all":
+                    propagate_mode = self.s["mesh_propagate_counts"]
+                    if propagate_mode == "off":
+                        continue
+                    elif propagate_mode == "level":
+                        if parent["level"] >= self.s["mesh_propagate_lvl"]:
                             parent["imported_counts"] += vv["imported_counts"]
+                    elif propagate_mode == "all":
+                        parent["imported_counts"] += vv["imported_counts"]
 
         # when counts are propagated, begin color propagation
         self.tree_color_propagation(plot_tree=plot_tree, count_key="imported_counts")
@@ -1551,12 +1548,12 @@ class DrugSunburst(SunburstBase):
                     plot_tree[k][vv["parent"]]["counts"] += vv["counts"]
 
                     # propagate counts (overwrite imported counts) if enabled
-                    match self.s["atc_propagate_counts"]:
-                        case "level":
-                            if vv["level"] > self.s["atc_propagate_lvl"]:
-                                plot_tree[k][vv["parent"]]["imported_counts"] += vv["imported_counts"]
-                        case "all":
+                    propagate_mode = self.s["atc_propagate_counts"]
+                    if propagate_mode == "level":
+                        if vv["level"] > self.s["atc_propagate_lvl"]:
                             plot_tree[k][vv["parent"]]["imported_counts"] += vv["imported_counts"]
+                    elif propagate_mode == "all":
+                        plot_tree[k][vv["parent"]]["imported_counts"] += vv["imported_counts"]
 
         # when counts are propagated, begin color propagation
 

@@ -53,9 +53,9 @@ def auto_close_ui_thread(app_instance: App):
 def test_ui():
 	app = App()
 
-	app_auto_close = Thread(target=auto_close_ui_thread, args=[app])
+	app_auto_close = Thread(target=auto_close_ui_thread, args=[app], daemon=True)
 	app_auto_close.start()
-	Thread(target=BorderPopup, args=[app]).start()
-	Thread(target=ExportPopup, args=[app]).start()
-	Thread(target=ColorScalePopup, args=[app]).start()
+	Thread(target=BorderPopup, args=[app], daemon=True).start()
+	Thread(target=ExportPopup, args=[app], daemon=True).start()
+	Thread(target=ColorScalePopup, args=[app], daemon=True).start()
 	app.mainloop()

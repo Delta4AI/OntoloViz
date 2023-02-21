@@ -11,7 +11,6 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
 from plotly.colors import hex_to_rgb, n_colors
 from plotly.graph_objects import Figure, Sunburst
-
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
 
@@ -124,8 +123,8 @@ class SunburstBase:
                         elif len(columns) == 7:
                             file_type = "mesh_tsv"
                         else:
-                            raise ValueError(f"TSV verification failed. "
-                                             f"Expected 6 columns for ATC-tree, 7 columns for MeSH tree")
+                            raise ValueError("TSV verification failed. Expected 6 columns for ATC-tree, "
+                                             "7 columns for MeSH tree")
                         print(f"TSV verified as '{file_type}': {fn}")
                         return file_type
 
@@ -182,9 +181,9 @@ class SunburstBase:
             # resolve booleans
             if k in ["show_border", "export_plot", "mesh_drop_empty_last_child",
                      "atc_propagate_enable", "mesh_propagate_enable"]:
-                if v == "True" or v == "TRUE" or v == "1" or v == 1:
+                if v in ["True", "TRUE", "1", 1]:
                     v = True
-                elif v == "False" or v == "FALSE" or v == "0" or v == 0:
+                elif v in ["False", "FALSE", "0", 0]:
                     v = False
                 else:
                     raise ValueError(f"Illegal value for setting '{k}': '{v}' - boolean required")
@@ -401,8 +400,6 @@ class SunburstBase:
         elif isinstance(self, PhenotypeSunburst):
             return sum([int(vv[count_key]) for k, v in self.mesh_tree.items() for kk, vv in v.items()])
 
-    # def get_header_from_row(self, row:):
-
     def export_settings(self, fn: [str, None] = None, wb: Workbook = None, settings: list = None) -> str:
         """Subroutine to write settings to workbook
 
@@ -470,11 +467,12 @@ class SunburstBase:
         column_widths = [len(_) for _ in header]
         for idx, (width, col_letter) in enumerate(zip(column_widths, ascii_uppercase[:len(column_widths)])):
             max_row_width = len(str(max(rows, key=lambda x: len(str(x[idx])))[idx]))
+            current_col_width = int(width)
             if width <= max_row_width <= 100:
-                width = max_row_width
+                current_col_width = max_row_width
             elif max_row_width > 100:
-                width = 100
-            ws.column_dimensions[col_letter].width = width + 2
+                current_col_width = 100
+            ws.column_dimensions[col_letter].width = current_col_width + 2
 
         # write rows to worksheet, apply color to cells
         for r in rows:
@@ -501,7 +499,7 @@ class SunburstBase:
         try:
             file = open(fn, mode="w", encoding="utf-8")
         except PermissionError:
-            print(f"\tFile already exists - appending timestamp ..")
+            print("\tFile already exists - appending timestamp ..")
             fn = os.path.splitext(fn)[0] + f"_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.tsv"
             file = open(fn, mode="w", encoding="utf-8")
         finally:
@@ -764,7 +762,7 @@ class SunburstBase:
             self.set_thread_status(f"Exported plot to: {abs_path}")
             self.thread_return = abs_path
         else:
-            self.set_thread_status(f"Sunburst created")
+            self.set_thread_status("Sunburst created")
             fig.show(config=config)
 
     @staticmethod
@@ -1166,7 +1164,7 @@ class PhenotypeSunburst(SunburstBase):
 
         # propagate counts up
         if self.s["mesh_propagate_enable"]:
-            self.set_thread_status(f"Propagating counts ..")
+            self.set_thread_status("Propagating counts ..")
             for k, v in plot_tree.items():
                 for kk, vv in v.items():
 
@@ -1270,8 +1268,8 @@ class DrugSunburst(SunburstBase):
         """
         print("Exporting ATC-tree ..")
         if template:
-            fn_base = f"atc_tree_template"
-            header = ["ATC code", "Level", "Label", "Comment", f"Counts [Template Phenotype]", "Color"]
+            fn_base = "atc_tree_template"
+            header = ["ATC code", "Level", "Label", "Comment", "Counts [Template Phenotype]", "Color"]
         else:
             fn_base = f"atc_tree_{self.phenotype_name.lower()}"
             header = ["ATC code", "Level", "Label", "Comment", f"Counts [{self.phenotype_name}]", "Color"]

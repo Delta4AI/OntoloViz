@@ -4,7 +4,7 @@ import json
 from traceback import format_exc
 from re import match
 from functools import partial
-from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, messagebox, simpledialog, ttk, END
+from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, messagebox, ttk, END
 from tkinter import Label as LabelOG
 from tkinter import Entry as EntryOG
 from tkinter.ttk import LabelFrame, Frame, Style
@@ -66,7 +66,7 @@ class ToolTip:
             return
 
         # calculate coordinates
-        x, y, cx, cy = self.widget.bbox("insert")
+        x, y, _cx, cy = self.widget.bbox("insert")
         x = x + self.widget.winfo_rootx() + 57
         y = y + cy + self.widget.winfo_rooty() + 27
 
@@ -109,7 +109,7 @@ def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobu
     if "ALT:" in text:
         text, alt_text = text.split("ALT:")
 
-    def enter(event):
+    def enter(_event):
         try:
             # add 1 space to beginning of each line and at the end; show tooltip
             tt = " {}".format(" \n ".join(text.split("\n"))) if text.find("\n") != -1 else f" {text} "
@@ -118,7 +118,7 @@ def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobu
         except Exception as e:
             print(e)
 
-    def leave(event):
+    def leave(_event):
         tool_tip.hidetip()
 
     widget.bind('<Enter>', enter)
@@ -263,7 +263,7 @@ class App(Tk):
     def build_base_ui(self):
         """Builds the base graphical UI elements to load a file"""
 
-        """ ######################################### Options Frame ############################################# """
+        # ######################################### Options Frame #############################################
 
         options_frm = Frame(self, style="big.TLabelframe")
         options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both", expand=True)
@@ -306,7 +306,7 @@ class App(Tk):
         self.atc_frame = Frame(self)
         self.atc_frame.pack(fill="both")
 
-        """ ###################################### STATUS AT BOTTOM ############################################ """
+        # ###################################### STATUS AT BOTTOM ############################################
 
         self.status_frame = LabelFrame(self, text="Status")
         self.status_frame.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
@@ -320,7 +320,7 @@ class App(Tk):
 
         :param db_functions: if True, database related widgets are generated
         """
-        """ ###################################### PHENOTYPE/MESH SUNBURST ####################################### """
+        # ###################################### PHENOTYPE/MESH SUNBURST #######################################
 
         # top frame
         p_frm = LabelFrame(self.mesh_frame, text="Phenotype Sunburst", style="blue.TLabelframe")
@@ -490,7 +490,7 @@ class App(Tk):
         :param db_functions: if True, database related widgets are generated
         """
 
-        """ ###################################### DRUG/ATC SUNBURST ############################################ """
+        # ###################################### DRUG/ATC SUNBURST ############################################
 
         # top frame
         d_frm = LabelFrame(self.atc_frame, text="Drug Sunburst", style="purple.TLabelframe")
@@ -539,10 +539,11 @@ class App(Tk):
         create_tooltip(atc_label, "Enables/Disables display of labels inside sunburst wedges")
 
         # wedge width
-        atc_wedge_width_label = Label(atc_display_options_frm, text="Wedge Width:", style="purple.TLabel", db_w=True, atc_w=True)
+        atc_wedge_width_label = Label(atc_display_options_frm, text="Wedge Width:", style="purple.TLabel",
+                                      db_w=True, atc_w=True)
         atc_wedge_width_label.pack(side="left", padx=2)
-        atc_wedge_width = Combobox(atc_display_options_frm, textvariable=self.atc_wedge_width_var, state="readonly", width=9,
-                                   values=["total", "remainder"], db_w=True, atc_w=True)
+        atc_wedge_width = Combobox(atc_display_options_frm, textvariable=self.atc_wedge_width_var, state="readonly",
+                                   width=9, values=["total", "remainder"], db_w=True, atc_w=True)
         atc_wedge_width.pack(side="left", padx=2)
         create_tooltip(atc_wedge_width, "Change the sunburst display option from a full outer circle (total)"
                                         " to count-based wedge-widths (remainder)")
@@ -655,7 +656,7 @@ class App(Tk):
 
         :param mode: must be in ['mesh_summary_plot', 'mesh_propagate', 'atc_summary_plot', 'atc_propagate']
         """
-        checkbox, toggle_widgets, var_entry_int_pairs, statuses = None, [], [], []
+        checkbox, toggle_widgets, var_entry_int_pairs = None, [], []
         if mode == "atc_summary_plot":
             checkbox = self.atc_summary_plot_control
             toggle_widgets = [self.atc_summary_plot_cols, self.atc_summary_plot_lbl]
@@ -675,12 +676,19 @@ class App(Tk):
                               self.mesh_propagate_color_lbl, self.mesh_propagate_color,
                               self.mesh_propagate_counts_lbl, self.mesh_propagate_counts]
 
-        if checkbox and checkbox.get():
-            no_out = [e.configure(state="readonly" if isinstance(e, Combobox) else "normal") for e in toggle_widgets]
-            no_out = [te[0].set(int(te[1].get())) for te in var_entry_int_pairs]
-        elif checkbox and not checkbox.get():
-            no_out = [e.configure(state="disabled") for e in toggle_widgets]
-            no_out = [te[0].set(0) for te in var_entry_int_pairs]
+        for widget in toggle_widgets:
+            if checkbox.get():
+                widget.configure(state="readonly" if isinstance(widget, Combobox) else "normal")
+            else:
+                widget.configure(state="disabled")
+
+        for var_entry in var_entry_int_pairs:
+            if checkbox.get():
+                var_entry[0].set(int(var_entry[1].get()))
+            else:
+                var_entry[0].set(0)
+
+        if not checkbox.get():
             self.set_status("")
 
     def toggle_checkbox_widgets(self, mode: str = None, enable: bool = None):
@@ -696,9 +704,8 @@ class App(Tk):
             controller_widgets = [self.atc_propagate_enable, self.atc_summary_plot]
 
         if enable:
-
-            # enable controller widgets
-            no_out = [cw.configure(state="normal") for cw in controller_widgets]
+            for widget in controller_widgets:
+                widget.configure(state="normal")
 
             # call checkbox controller for respective toggling of children
             if mode == "mesh":
@@ -720,7 +727,7 @@ class App(Tk):
         :param mode: String, must be 'mesh' or 'atc'
         """
         failed = False
-        entry, status, target_var, target_value = None, None, None, None
+        entry, target_var, target_value = None, None, None
 
         if mode == "atc":
             entry = self.atc_summary_plot_cols
@@ -958,7 +965,7 @@ class App(Tk):
         populate_tsv = None
         populate_excel = None
         populate_data_source = None
-        fn = None
+        file_name = None
         obj = None
         configure = None
         asset = None
@@ -967,7 +974,7 @@ class App(Tk):
 
         # assign variables based on mode
         if mode == "atc":
-            fn = self.atc_file_loaded
+            file_name = self.atc_file_loaded
             populate_data_source = self.d.populate_atc_from_data_source
             populate_tsv = self.d.populate_atc_from_tsv
             populate_excel = self.d.load_atc_excel
@@ -977,7 +984,7 @@ class App(Tk):
             datasource = self.atc_data_source_var.get()
             cfg_exclude = "mesh_"
         elif mode == "mesh":
-            fn = self.mesh_file_loaded
+            file_name = self.mesh_file_loaded
             populate_data_source = self.p.populate_mesh_from_data_source
             populate_tsv = self.p.populate_mesh_from_tsv
             populate_excel = self.p.load_mesh_excel
@@ -989,11 +996,11 @@ class App(Tk):
 
         # populate tree from Excel or database data
         self.set_status(f"Populating {mode.upper()} tree ..")
-        if fn:
-            if os.path.splitext(fn)[-1] == ".tsv":
-                populate_tsv(fn)
+        if file_name:
+            if os.path.splitext(file_name)[-1] == ".tsv":
+                populate_tsv(file_name)
             else:
-                populate_excel(fn, read_settings=False, populate=True)
+                populate_excel(file_name, read_settings=False, populate=True)
         else:
             if not self.check_init(obj):
                 return
@@ -1019,12 +1026,12 @@ class App(Tk):
         self.set_status("Plot displayed in browser")
 
         # check if thread returned something
-        fn = obj.thread_return
-        if fn:
-            messagebox.showinfo("Export Plot", f"Exported plot to: {fn}")
+        file_name = obj.thread_return
+        if file_name:
+            messagebox.showinfo("Export Plot", f"Exported plot to: {file_name}")
 
         # prompt to overwrite Excel file if settings changed since load
-        if fn and os.path.splitext(fn) == ".xlsx":
+        if file_name and os.path.splitext(file_name) == ".xlsx":
             accepted = ["color_scale", "show_border", "border_color", "border_width"]
             accepted.extend([_ for _ in self.loaded_settings.keys() if _.startswith(mode)])
             modified = {k: (str(self.loaded_settings[k]), str(obj.s[k])) for k in self.loaded_settings.keys()
@@ -1032,10 +1039,10 @@ class App(Tk):
             tmp = "\n".join([f"{k}: '{v[0]}' -> '{v[1]}'" for k, v in modified.items()])
             if modified:
                 overwrite = messagebox.askokcancel(title="Settings changed", message=f"Settings changed, overwrite "
-                                                                                     f"{fn} ?\n\n{tmp}")
+                                                                                     f"{file_name} ?\n\n{tmp}")
                 if overwrite:
                     s = [(k, v) for k, v in obj.s.items() if not k.startswith(cfg_exclude) and k != "default_color"]
-                    out_fn = obj.export_settings(fn=fn, settings=s)
+                    out_fn = obj.export_settings(fn=file_name, settings=s)
                     self.set_status(f"Updated {out_fn}")
 
     @exception_as_popup
@@ -1047,7 +1054,8 @@ class App(Tk):
         self.configure_p()
 
         self.set_status("Populating MeSH-tree ..")
-        self.p.populate_mesh_from_data_source(drug_name=self.mesh_asset_var.get(), data_source=self.mesh_data_source_var.get())
+        self.p.populate_mesh_from_data_source(drug_name=self.mesh_asset_var.get(),
+                                              data_source=self.mesh_data_source_var.get())
 
         ep = ExportPopup(self, "Export as", "Export MeSH-Tree as Excel (remembers settings) or .tsv file")
         selection = ep.selection
@@ -1176,6 +1184,7 @@ class App(Tk):
 class ExportPopup(Toplevel):
     """Popup class with options to export data as Excel, TSV or Cancel"""
     def __init__(self, parent: App = None, title: str = None, message: str = None):
+        """Export Popup init"""
         super().__init__(parent)
         self.title = title
         self.selection = None
@@ -1200,6 +1209,7 @@ class ExportPopup(Toplevel):
         self.wait_window(self)
 
     def select(self, export_mode: str):
+        """Command for buttons 'TSV' and 'Excel'"""
         self.selection = export_mode
         self.destroy()
         return export_mode
@@ -1208,6 +1218,7 @@ class ExportPopup(Toplevel):
 class ColorScalePopup(Toplevel):
     """Popup to set the color scale"""
     def __init__(self, parent: App):
+        """ColorScale Popup init"""
         super().__init__(parent)
         self.title = "Set Color Scale"
         self.resizable(False, False)
@@ -1257,11 +1268,9 @@ class ColorScalePopup(Toplevel):
         """Subroutine to create an entry pair inside a frame and attach it to the list of scale frames"""
         frm = Frame(self.scale_frame)
         frm.pack()
-        idx = len(self.scale_frames)
-        e_pct = Entry(frm, validate="focusout", validatecommand=lambda: self.validate_percentage(e_pct, idx))
+        e_pct = Entry(frm, validate="focusout", validatecommand=lambda: self.validate_percentage(e_pct))
         e_pct.pack(side="left")
         e_pct.insert(0, str(percentage * 100))
-        # e_hex = EntryOG(frm, validate="focusout", validatecommand=lambda: self.validate_hex_color(e_hex))
         e_hex = EntryOG(frm)
         e_hex.bind("<KeyRelease>", partial(self.validate_hex_color, e_hex))
         e_hex.pack(side="right")
@@ -1272,14 +1281,15 @@ class ColorScalePopup(Toplevel):
         self.scale_frames.append(frm)
 
     def rollback_percentage(self, e_pct: Entry, error: str, def_value: str = None) -> False:
+        """Clears percentage entries"""
         e_pct.delete(0, END)
         if def_value:
             e_pct.insert(0, def_value)
         self.status.configure(text=error)
         return False
 
-    def validate_percentage(self, e_pct: Entry, idx: int) -> bool:
-        """Validates inputs in percentage entries"""
+    def validate_percentage(self, e_pct: Entry) -> bool:
+        """Validates percentage entries"""
         try:
             percentage = float(e_pct.get())
         except ValueError:
@@ -1292,9 +1302,10 @@ class ColorScalePopup(Toplevel):
             return self.rollback_percentage(e_pct, "Percentage must be less than 100", def_value="75")
 
         self.status.configure(text="")
-        return False  # always validate
+        return False  # always validates
 
-    def validate_hex_color(self, e_hex: EntryOG, event: object = None) -> False:
+    def validate_hex_color(self, e_hex: EntryOG, _event: object = None) -> False:
+        """Validates hex color"""
         color = e_hex.get()
         if not match("#[a-fA-F0-9]{6}$", color):
             # e_hex.delete(0, END)
@@ -1307,7 +1318,7 @@ class ColorScalePopup(Toplevel):
         r, g, b = hex_to_rgb(color)
         e_hex.configure(foreground=color, background="#000000" if (r*0.299 + g*0.587 + b*0.114) > 186 else "#FFFFFF")
 
-        return False  # always validate
+        return False  # always validates
 
     def increase(self):
         """Adds a new entry pair at the end with default values (100%, black)"""
@@ -1378,20 +1389,11 @@ class ColorScalePopup(Toplevel):
         # destroy popup
         self.destroy()
 
-        # # set propagate to at least 1 if it is currently disabled, show info
-        # if self.parent.atc_file_loaded and self.parent.atc_propagate_var.get() == "off":
-        #     self.parent.atc_propagate_var.set("1")
-        #     messagebox.showinfo(title="Propagation active", message="Enabled ATC propagation (set to 1) to allow "
-        #                                                             "custom colors to be displayed")
-        # elif self.parent.mesh_file_loaded and self.parent.mesh_propagate_up_var.get() == "off":
-        #     self.parent.mesh_propagate_up_var.set("0")
-        #     messagebox.showinfo(title="Propagation active", message="Enabled MeSH propagation (set to 0) to allow "
-        #                                                             "custom colors to be displayed")
-
 
 class BorderPopup(Toplevel):
     """Popup to define Border properties"""
     def __init__(self, parent: App):
+        """Border Popup init"""
         super().__init__(parent)
         self.title = "Border Properties"
         self.parent = parent
@@ -1480,6 +1482,7 @@ class BorderPopup(Toplevel):
         self.wait_window(self)
 
     def validate_hex_color(self) -> False:
+        """Validates hex color"""
         if not match("#[a-fA-F0-9]{6}$", self.hex.get()):
             self.hex.delete(0, END)
             self.status.configure(text="Color code must match hex format")
@@ -1502,12 +1505,12 @@ class BorderPopup(Toplevel):
         return False
 
     def set_hex_from_rgb(self):
-        # only set hex if all rgb values are within range
+        """Writes hex color to entry if RGB is valid and all rgb values are within accepted range"""
         r, g, b = self.red.get(), self.green.get(), self.blue.get()
         for color in [r, g, b]:
             try:
                 color = int(color)
-                assert(0 <= color <= 255)
+                assert 0 <= color <= 255
             except (ValueError, AssertionError):
                 self.error = True
                 return
@@ -1516,11 +1519,12 @@ class BorderPopup(Toplevel):
         self.hex.insert(0, rgb_to_hex((int(r), int(g), int(b))))
         self.preview.configure(foreground=self.hex.get())
 
-    def validate_color(self, wdg, event) -> False:
+    def validate_color(self, wdg, _event) -> False:
+        """Validates RGB color"""
         try:
             entry_value = wdg.get()
             color = int(entry_value)
-            assert(0 <= color <= 255)
+            assert 0 <= color <= 255
 
             # remove preceding zeroes
             if entry_value[0] == "0" and len(entry_value) > 1:
@@ -1539,9 +1543,10 @@ class BorderPopup(Toplevel):
         return False
 
     def validate_opacity(self) -> False:
+        """Validates border opacity"""
         try:
             opacity = float(self.opacity.get())
-            assert (0 <= opacity <= 100)
+            assert 0 <= opacity <= 100
         except (ValueError, AssertionError):
             self.status.configure(text="Opacity must be a float in range 0-100")
             self.error = True
@@ -1552,12 +1557,11 @@ class BorderPopup(Toplevel):
         return False
 
     def validate_width(self) -> False:
+        """Validates border width"""
         try:
             w = float(self.width.get())
-            assert(w >= 0)
+            assert w >= 0
         except (ValueError, AssertionError):
-            # self.width.delete(0, END)
-            # self.width.insert(0, "1")
             self.status.configure(text="Width must be a float >= 0")
             self.error = True
             return False
@@ -1567,12 +1571,13 @@ class BorderPopup(Toplevel):
         return False
 
     def disable(self):
+        """Popup kill event"""
         self.parent.show_border_var.set(False)
         create_tooltip(self.parent.show_border, self.parent.show_border_tt_template)
         self.destroy()
 
     def set(self):
-        # if validation fails, keep popup alive
+        """Hand over variables to parent, keeps Popup alive if validation fails"""
         if self.status["text"] != "" or self.error:
             return
 

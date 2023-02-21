@@ -30,7 +30,7 @@ def rgb_to_hex(rgb: tuple = None) -> str:
     # necessary due to weird behaviour introduced by plotly
     # test = plotly.colors.ncolors(lowcolor=(64, 60, 83), highcolor=(255, 0, 255), n_colors=11001)
     # print(test[-1])
-    if any([False if 0 <= _ < 256 else True for _ in rgb]):
+    if any(False if 0 <= _ < 256 else True for _ in rgb):
         for idx, color in enumerate(rgb):
             if color < 0:
                 tmp = list(rgb)
@@ -1456,23 +1456,23 @@ class DrugSunburst(SunburstBase):
         :param read_settings: If True, settings from Excel will be loaded and applied
         :param populate: If True, ATC tree is loaded and processed
         """
-        wb = load_workbook(fn, read_only=True)
+        work_book = load_workbook(fn, read_only=True)
         self.rollback_atc_tree()
 
         # read & iterate over excel - load settings
         if read_settings:
-            self.read_atc_settings_from_excel(wb=wb)
+            self.read_atc_settings_from_excel(wb=work_book)
 
         # load tree data
         if populate:
             print(f"Loading ATC-tree from {fn} ..")
             try:
-                ws = wb["Tree"]
+                work_sheet = work_book["Tree"]
             except KeyError:
-                ws = wb.worksheets[0]
-            self.process_atc_row_data(row_data=ws.rows)
+                work_sheet = work_book.worksheets[0]
+            self.process_atc_row_data(row_data=work_sheet.rows)
 
-        wb.close()
+        work_book.close()
 
     def populate_atc_from_data_source(self, phenotype_name: str = None, data_source: str = None):
         """Populates the ATC tree from a data source (database)
@@ -1503,20 +1503,21 @@ class DrugSunburst(SunburstBase):
 
         # add drug counts directly based on chembl_id(s) to level 5
         for node in self.atc_tree.values():
-            for v in node.values():
-                if v["level"] == 5:
-                    for chembl_id in v["chembl_ids"]:
+            for val in node.values():
+                if val["level"] == 5:
+                    for chembl_id in val["chembl_ids"]:
                         if chembl_id in self.drug_counts.keys():
-                            v["counts"] += self.drug_counts[chembl_id]
-                            v["imported_counts"] += self.drug_counts[chembl_id]
+                            val["counts"] += self.drug_counts[chembl_id]
+                            val["imported_counts"] += self.drug_counts[chembl_id]
 
             # calculate color scale, apply to level 5 only
             factor, scale = self.calculate_color_scale_for_node(node)
-            for v in node.values():
-                if v["level"] == 5:
-                    v["color"] = scale[int(v["counts"] / factor)]
+            for val in node.values():
+                if val["level"] == 5:
+                    val["color"] = scale[int(val["counts"] / factor)]
 
-        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for phenotype '{self.phenotype_name}'")
+        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts "
+              f"for phenotype '{self.phenotype_name}'")
 
     def plot(self):
         """Generate data for drug sunburst plot"""
@@ -1524,37 +1525,35 @@ class DrugSunburst(SunburstBase):
         self.thread_return = None
 
         # create & sort plot tree
-
-        plot_tree = {k: v for k, v in sorted(self.atc_tree.items())}
+        plot_tree = dict(sorted(self.atc_tree.items()))
 
         # setup counts, propagate if enabled
-        for k, v in plot_tree.items():
-            for kk, vv in v.items():
+        for key, val in plot_tree.items():
+            for inner_val in val.values():
 
                 # set all level 5 nodes to at least self.fake_one if loaded from file
-                if vv["level"] == 5:
-                    if vv["imported_counts"] <= 1:
-                        vv["counts"] = self.fake_one
+                if inner_val["level"] == 5:
+                    if inner_val["imported_counts"] <= 1:
+                        inner_val["counts"] = self.fake_one
 
                 # reset all other levels counts to 0
                 else:
-                    vv["counts"] = 0
+                    inner_val["counts"] = 0
 
             # propagate counts up from level 5 > 1
-            for idx, (kk, vv) in enumerate(sorted(v.items(), key=lambda x: x[1]["level"], reverse=True)):
-                if vv["parent"] != "":
-                    plot_tree[k][vv["parent"]]["counts"] += vv["counts"]
+            for inner_key, inner_val in sorted(val.items(), key=lambda x: x[1]["level"], reverse=True):
+                if inner_val["parent"] != "":
+                    plot_tree[key][inner_val["parent"]]["counts"] += inner_val["counts"]
 
                     # propagate counts (overwrite imported counts) if enabled
                     propagate_mode = self.s["atc_propagate_counts"]
                     if propagate_mode == "level":
-                        if vv["level"] > self.s["atc_propagate_lvl"]:
-                            plot_tree[k][vv["parent"]]["imported_counts"] += vv["imported_counts"]
+                        if inner_val["level"] > self.s["atc_propagate_lvl"]:
+                            plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val["imported_counts"]
                     elif propagate_mode == "all":
-                        plot_tree[k][vv["parent"]]["imported_counts"] += vv["imported_counts"]
+                        plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val["imported_counts"]
 
         # when counts are propagated, begin color propagation
-
         self.tree_color_propagation(plot_tree=plot_tree, count_key="imported_counts")
 
         # create figure
@@ -1562,6 +1561,7 @@ class DrugSunburst(SunburstBase):
 
 
 def show_help():
+    """prints help to console"""
     print(" DrugVision - Minimal Reproducible Examples ".center(120, "-"))
     print('''
 from ontoloviz.core import PhenotypeSunburst, DrugSunburst
@@ -1593,4 +1593,4 @@ d.plot
 
 
 if __name__ == "__main__":
-    show_help()    
+    show_help()

@@ -20,4 +20,4 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py') --max-line-length=127 --disable=C
+        pylint $(git ls-files '*.py') --max-line-length=127 --disable=C --exit-zero

@@ -2,15 +2,12 @@ name: Pylint
 
 on: [push]
 
-env:
-  PYLINT_SCORE: 'none'
-
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -28,4 +25,12 @@ jobs:
     - name: echo test
       run: |
         echo $PYLINT_SCORE
-
+    - name: Create Pylint Badge
+      uses: schneegans/dynamic-badges-action@v1.6.0
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: 303283c4b9026d59cda9e9dd9f697110
+        filename: pylint_badge.json
+        label: Pylint score
+        message: $PYLINT_SCORE
+        color: green

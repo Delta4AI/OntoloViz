@@ -20,7 +20,7 @@ The GUI can be run by downloading the latest [Windows release](https://github.co
 or by installing and running the package via PyPi (OS independent, requires **Python 3.10+**):
 
     pip install ontoloviz
-    python -c "from ontoloviz import run_app; run_app()"
+    python -c "from ontoloviz.app import run_app; run_app()"
 
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 

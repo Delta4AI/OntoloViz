@@ -8,7 +8,10 @@ from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, mes
 from tkinter import Label as LabelOG
 from tkinter import Entry as EntryOG
 from tkinter.ttk import LabelFrame, Frame, Style
-from .core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+try:
+    from core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+except ModuleNotFoundError:
+    from .core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
 from threading import Thread
 import time
 import textwrap

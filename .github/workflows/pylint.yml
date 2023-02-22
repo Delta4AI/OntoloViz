@@ -2,6 +2,9 @@ name: Pylint
 
 on: [push]
 
+env:
+  PYLINT_SCORE: 'none'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,5 +22,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint
     - name: Analysing the code with pylint
+      id: pylint_analysis
       run: |
-        pylint $(git ls-files '*.py') --max-line-length=127 --disable=C --exit-zero
+        echo "PYLINT_SCORE=$(pylint $(git ls-files '*.py') --max-line-length=127 --disable=C,import-error --exit-zero --output-format=text | sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p')" >> $GITHUB_ENV
+    - name: echo test
+      run: |
+        echo $PYLINT_SCORE
+

@@ -27,32 +27,38 @@ class ToggleMixin:
 
 
 class Button(ToggleMixin, ttk.Button):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
 class Entry(ToggleMixin, ttk.Entry):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
 class Combobox(ToggleMixin, ttk.Combobox):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
 class Checkbutton(ToggleMixin, ttk.Checkbutton):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
 class Label(ToggleMixin, ttk.Label):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
 class Radiobutton(ToggleMixin, ttk.Radiobutton):
-    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False, atc_w: bool = False, **kwargs):
+    def __init__(self, master: object = None, db_w: bool = False, mesh_w: bool = False,
+                 atc_w: bool = False, **kwargs):
         super().__init__(master=master, db_w=db_w, mesh_w=mesh_w, atc_w=atc_w, **kwargs)
 
 
@@ -91,7 +97,8 @@ class ToolTip:
             tw.destroy()
 
 
-def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobutton] = None, text: str = None):
+def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobutton] = None,
+                   text: str = None):
     """Create tooltip for any widget.
     Example: create_tooltip(some_widget, text="Test Message")
 
@@ -115,8 +122,10 @@ def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobu
     def enter(_event):
         try:
             # add 1 space to beginning of each line and at the end; show tooltip
-            tt = " {}".format(" \n ".join(text.split("\n"))) if text.find("\n") != -1 else f" {text} "
-            alt = " {}".format(" \n ".join(alt_text.split("\n"))) if alt_text.find("\n") != -1 else f" {alt_text} "
+            tt = str(" {}".format(" \n ".join(text.split("\n")))
+                     if text.find("\n") != -1 else f" {text} ")
+            alt = str(" {}".format(" \n ".join(alt_text.split("\n")))
+                      if alt_text.find("\n") != -1 else f" {alt_text} ")
             tool_tip.showtip(tt, alt)
         except Exception as e:
             print(e)
@@ -128,8 +137,11 @@ def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobu
     widget.bind('<Leave>', leave)
 
 
-def update_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobutton] = None, text: str = None):
-    """Update the text of TopLevel.Label of an open tooltip (if re-creation is not an option, e.g. at checkboxes)"""
+def update_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobutton] = None,
+                   text: str = None):
+    """Update the text of TopLevel.Label of an open tooltip
+    (if re-creation is not an option, e.g. at checkboxes)
+    """
     widget.winfo_children()[0].winfo_children()[0]["text"] = text
 
 
@@ -150,8 +162,7 @@ class App(Tk):
         """Main App Initialization"""
         super().__init__()
         self.title("OntoloViz GUI")
-        # self.iconbitmap("logo.ico")
-        # self.wm_minsize(width=400, height=290)
+        self.resizable(False, False)
 
         # style definitions
         purple = "#9998AF"
@@ -216,7 +227,7 @@ class App(Tk):
         self.mesh_label_var = StringVar(value="all")
         self.mesh_asset_var = StringVar()
         self.mesh_summary_plot_var = IntVar(value=0)  # stores values from entry
-        self.mesh_summary_plot_control = BooleanVar(value=False)  # state of checkbutton, controls enabling of entry
+        self.mesh_summary_plot_control = BooleanVar(value=False)  # controls enabling of entry
         self.mesh_summary_plot = None  # checkbox widget
         self.mesh_summary_plot_cols = None  # entry widget
         self.mesh_summary_plot_lbl = None  # label 'Columns: '
@@ -266,27 +277,29 @@ class App(Tk):
     def build_base_ui(self):
         """Builds the base graphical UI elements to load a file"""
 
-        # ######################################### Options Frame #############################################
+        # ######################################### Options Frame ################################ #
 
         options_frm = Frame(self, style="big.TLabelframe")
         options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both", expand=True)
 
         # load file
-        self.load_file_btn = Button(options_frm, text="Load File", command=self.load_file, style="green.TButton")
+        self.load_file_btn = Button(options_frm, text="Load File", command=self.load_file,
+                                    style="green.TButton")
         self.load_file_btn.pack(side="left", padx=2)
         create_tooltip(self.load_file_btn,
                        "Load an Excel or .tsv file with ATC- or MeSH-tree data."
                        "\n - ATC-Tree: counts for non-drug levels (1-4) will be recalculated and "
                        "overwritten if a parents value does not match all child values."
                        "\n - ATC-Tree: custom colors are not applied when propagation is active"
-                       "\n - Excel files remember settings, while .tsv files always load the default settings")
+                       "\n - Excel files remember settings, .tsv files always load defaults")
 
         # set color scale
-        self.color_scale = Button(options_frm, text="Set Color Scale", db_w=True, mesh_w=True, atc_w=True,
-                                  command=lambda: ColorScalePopup(self))
+        self.color_scale = Button(options_frm, text="Set Color Scale", db_w=True, mesh_w=True,
+                                  atc_w=True, command=lambda: ColorScalePopup(self))
         self.color_scale.pack(side="left", padx=2)
-        self.color_scale_tt_template = "Define a custom color scale for the sunburst.\nRequires active propagation, " \
-                                       "overwrites colors defined in file. \nCurrent scale: "
+        self.color_scale_tt_template = str("Define a custom color scale for the sunburst.\n"
+                                           "Requires active propagation, overwrites colors defined "
+                                           "in file. \nCurrent scale: ")
         create_tooltip(self.color_scale, self.color_scale_tt_template + self.color_scale_var.get())
 
         # show border
@@ -294,14 +307,16 @@ class App(Tk):
                                   db_w=True, mesh_w=True, atc_w=True)
         self.show_border.pack(side="left", padx=2)
         self.show_border_tt_template = "Configure the border drawn around the sunburst wedges"
-        create_tooltip(self.show_border, self.show_border_tt_template + "\nCurrent properties: Color: "
+        create_tooltip(self.show_border,
+                       self.show_border_tt_template + "\nCurrent properties: Color: "
                        + self.border_color.get() + ", Width: " + self.border_width.get())
 
         # export plot
         export_plot = Checkbutton(options_frm, text="Save Plot", variable=self.export_plot_var,
                                   db_w=True, mesh_w=True, atc_w=True)
         export_plot.pack(side="left", padx=2)
-        create_tooltip(export_plot, "Save the generated plots as interactive .html files for later use")
+        create_tooltip(export_plot, "Save the generated plots as interactive .html files "
+                                    "for later use")
 
         self.mesh_frame = Frame(self)
         self.mesh_frame.pack(fill="both")
@@ -309,7 +324,7 @@ class App(Tk):
         self.atc_frame = Frame(self)
         self.atc_frame.pack(fill="both")
 
-        # ###################################### STATUS AT BOTTOM ############################################
+        # ###################################### STATUS AT BOTTOM ################################ #
 
         self.status_frame = LabelFrame(self, text="Status")
         self.status_frame.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
@@ -323,7 +338,7 @@ class App(Tk):
 
         :param db_functions: if True, database related widgets are generated
         """
-        # ###################################### PHENOTYPE/MESH SUNBURST #######################################
+        # ###################################### PHENOTYPE/MESH SUNBURST ######################### #
 
         # top frame
         p_frm = LabelFrame(self.mesh_frame, text="Phenotype Sunburst", style="blue.TLabelframe")
@@ -337,19 +352,22 @@ class App(Tk):
             # asset subframe
             mesh_asset_frm = Frame(mesh_data_frm, style="blue.TFrame")
             mesh_asset_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="blue.TLabel", db_w=True, width=12)
+            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="blue.TLabel",
+                                     db_w=True, width=12)
             mesh_asset_label.pack(side="left", padx=2)
-            mesh_asset = Entry(mesh_asset_frm, db_w=True, textvariable=self.mesh_asset_var, width=40)
+            mesh_asset = Entry(mesh_asset_frm, db_w=True, textvariable=self.mesh_asset_var,
+                               width=40)
             mesh_asset.pack(side="left", padx=(2, 10))
             create_tooltip(mesh_asset, "Enter drug name name (e.g. aspirin, case insensitive)")
 
             # data source subframe
             mesh_data_source_frm = Frame(mesh_data_frm, style="blue.TFrame")
             mesh_data_source_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            mesh_data_source_label = Label(mesh_data_source_frm, text="Data source:", style="blue.TLabel", db_w=True,
-                                           width=12)
+            mesh_data_source_label = Label(mesh_data_source_frm, text="Data source:",
+                                           style="blue.TLabel", db_w=True, width=12)
             mesh_data_source_label.pack(side="left", padx=2)
-            mesh_data_source = Combobox(mesh_data_source_frm, textvariable=self.mesh_data_source_var,
+            mesh_data_source = Combobox(mesh_data_source_frm,
+                                        textvariable=self.mesh_data_source_var,
                                         values=self.mesh_data_sources, state="readonly", db_w=True,
                                         width=max([len(_) for _ in self.mesh_data_sources]))
             mesh_data_source.pack(side="left", padx=2, fill="x", expand=True)
@@ -360,129 +378,168 @@ class App(Tk):
         p_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
 
         # display options subframe
-        mesh_display_options_frm = LabelFrame(p_options_frm, text="Display", style="blue_sub.TLabelframe")
+        mesh_display_options_frm = LabelFrame(p_options_frm, text="Display",
+                                              style="blue_sub.TLabelframe")
         mesh_display_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # drop empty last child
-        mesh_drop_empty = Checkbutton(mesh_display_options_frm, text="Drop empty", variable=self.mesh_drop_empty_var,
-                                      onvalue=True, offvalue=False, style="blue.TCheckbutton", db_w=True, mesh_w=True)
+        mesh_drop_empty = Checkbutton(mesh_display_options_frm, text="Drop empty",
+                                      variable=self.mesh_drop_empty_var, onvalue=True,
+                                      offvalue=False, style="blue.TCheckbutton", db_w=True,
+                                      mesh_w=True)
         mesh_drop_empty.pack(side="left", padx=2)
         create_tooltip(mesh_drop_empty, "Drop nodes who have no further children and 0 counts")
 
         # labels ('all', 'propagate', 'none')
-        mesh_label_label = Label(mesh_display_options_frm, text="Labels:", style="blue.TLabel", db_w=True, mesh_w=True)
+        mesh_label_label = Label(mesh_display_options_frm, text="Labels:", style="blue.TLabel",
+                                 db_w=True, mesh_w=True)
         mesh_label_label.pack(side="left", padx=2)
 
-        mesh_label = Combobox(mesh_display_options_frm, textvariable=self.mesh_label_var, state="readonly", width=11,
-                              values=["all", "propagation", "none"], db_w=True, mesh_w=True, )
+        mesh_label = Combobox(mesh_display_options_frm, textvariable=self.mesh_label_var,
+                              state="readonly", width=11, values=["all", "propagation", "none"],
+                              db_w=True, mesh_w=True)
         mesh_label.pack(side="left", padx=2)
         create_tooltip(mesh_label, "Enables/Disables display of labels inside sunburst wedges")
 
         # summary plot subframe
-        mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Summary Plot", style="blue_sub.TLabelframe")
+        mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Summary Plot",
+                                           style="blue_sub.TLabelframe")
         mesh_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # checkbutton to toggle overview / detailed view
         self.mesh_summary_plot_cols = Entry(mesh_summary_plot_frm, width=2, validate="focusout",
-                                            validatecommand=partial(self.overview_entry_validation, "mesh"))
+                                            validatecommand=partial(self.overview_entry_validation,
+                                                                    "mesh"))
         self.mesh_summary_plot_cols.insert(0, "5")
         self.mesh_summary_plot_cols.configure(state="disabled")
         self.mesh_summary_plot_control.set(False)
-        self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Enable", style="blue.TCheckbutton",
-                                             db_w=True, mesh_w=True, variable=self.mesh_summary_plot_control,
-                                             onvalue=True, offvalue=False,
-                                             command=partial(self.checkbox_controller, "mesh_summary_plot"))
+        self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Enable",
+                                             style="blue.TCheckbutton", db_w=True, mesh_w=True,
+                                             variable=self.mesh_summary_plot_control, onvalue=True,
+                                             offvalue=False,
+                                             command=partial(self.checkbox_controller,
+                                                             "mesh_summary_plot"))
         self.mesh_summary_plot.pack(side="left", padx=2)
-        self.mesh_summary_plot_lbl = Label(mesh_summary_plot_frm, text="Columns: ", style="blue.TLabel")
+        self.mesh_summary_plot_lbl = Label(mesh_summary_plot_frm, text="Columns: ",
+                                           style="blue.TLabel")
         self.mesh_summary_plot_lbl.configure(state="disabled")
         self.mesh_summary_plot_lbl.pack(side="left", padx=2)
         self.mesh_summary_plot_cols.pack(side="left", padx=2)
-        create_tooltip(self.mesh_summary_plot_cols, "Enter amount of columns in range (1..20)ALT:Enable 'Summary Plot' "
-                                                    "to modify amount of columns")
-        create_tooltip(self.mesh_summary_plot, "Select to plot all data in a combined overview (resource intensive, "
-                                               "set Labels to 'none' for faster loading)")
+        create_tooltip(self.mesh_summary_plot_cols,
+                       "Enter amount of columns in range (1..20)ALT:Enable 'Summary Plot' "
+                       "to modify amount of columns")
+        create_tooltip(self.mesh_summary_plot,
+                       "Select to plot all data in a combined overview (resource intensive, "
+                       "set Labels to 'none' for faster loading)")
 
         # propagation subframe
-        mesh_propagate_frm = LabelFrame(p_options_frm, text="Propagation", style="blue_sub.TLabelframe")
+        mesh_propagate_frm = LabelFrame(p_options_frm, text="Propagation",
+                                        style="blue_sub.TLabelframe")
         mesh_propagate_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
         self.mesh_propagate_enabled_control.set(False)
-        self.mesh_propagate_enable = Checkbutton(mesh_propagate_frm, text="Enable", style="blue.TCheckbutton",
-                                                 db_w=True, mesh_w=True, onvalue=True, offvalue=False,
-                                                 variable=self.mesh_propagate_enabled_control,
-                                                 command=partial(self.checkbox_controller, "mesh_propagate"))
+        self.mesh_propagate_enable = Checkbutton(mesh_propagate_frm, text="Enable",
+                                           style="blue.TCheckbutton", db_w=True, mesh_w=True,
+                                           onvalue=True, offvalue=False,
+                                           variable=self.mesh_propagate_enabled_control,
+                                           command=partial(self.checkbox_controller,
+                                                           "mesh_propagate"))
         self.mesh_propagate_enable.pack(side="left", padx=2)
-        create_tooltip(self.mesh_propagate_enable, "Select to enable propagation of counts and colors based "
-                                                   "on ontology level")
+        create_tooltip(self.mesh_propagate_enable,
+                       "Select to enable propagation of counts and colors based on ontology level")
 
         # propagate color specificity
-        self.mesh_propagate_color_lbl = Label(mesh_propagate_frm, text="Color:", style="blue.TLabel")
+        self.mesh_propagate_color_lbl = Label(mesh_propagate_frm, text="Color:",
+                                              style="blue.TLabel")
         self.mesh_propagate_color_lbl.pack(side="left", padx=2)
         self.mesh_propagate_color_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_color_lbl,
                        "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the corresponding tree\n"
+                       "specific: Color scale is based on the max values of the corresponding "
+                       "tree\n"
                        "phenotype: Only the most outer phenotype in a branch is colored\n"
-                       "global: Color scale is based on the maximum values of the entire mesh ontology"
+                       "global: Color scale is based on the max values of the entire mesh ontology"
                        "ALT:Enable 'Propagation' to modify propagation color specificity")
-        self.mesh_propagate_color = Combobox(mesh_propagate_frm, textvariable=self.mesh_propagate_color_var, width=10,
-                                             state="readonly", values=["off", "specific", "global", "phenotype"])
+        self.mesh_propagate_color = Combobox(mesh_propagate_frm,
+                                             textvariable=self.mesh_propagate_color_var,
+                                             width=10,
+                                             state="readonly",
+                                             values=["off", "specific", "global", "phenotype"])
         self.mesh_propagate_color.pack(side="left", padx=2)
         self.mesh_propagate_color.configure(state="disabled")
         create_tooltip(self.mesh_propagate_color,
                        "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the corresponding tree\n"
-                       "global: Color scale is based on the maximum values of the entire mesh ontology\n"
+                       "specific: Color scale is based on the max values of the corresponding "
+                       "tree\n"
+                       "global: Color scale is based on the max values of the entire mesh "
+                       "ontology\n"
                        "phenotype: Only the most outer phenotype in a branch is colored"
                        "ALT:Enable 'Propagation' to modify propagation color specificity")
 
         # propagate counts
-        self.mesh_propagate_counts_lbl = Label(mesh_propagate_frm, text="Counts:", style="blue.TLabel")
+        self.mesh_propagate_counts_lbl = Label(mesh_propagate_frm, text="Counts:",
+                                               style="blue.TLabel")
         self.mesh_propagate_counts_lbl.pack(side="left", padx=2)
         self.mesh_propagate_counts_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_counts_lbl,
                        "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are corrected and overwritten\n"
+                       "level: counts are propagated up to defined level, values above threshold "
+                       "remain unchanged\n"
+                       "all: counts are propagated up to central node, imported values are "
+                       "corrected and overwritten\n"
                        "ALT: Enable 'Propagation' to modify propagation counts")
-        self.mesh_propagate_counts = Combobox(mesh_propagate_frm, textvariable=self.mesh_propagate_counts_var,
-                                              state="readonly", values=["off", "level", "all"], width=4)
+        self.mesh_propagate_counts = Combobox(mesh_propagate_frm,
+                                              textvariable=self.mesh_propagate_counts_var,
+                                              state="readonly",
+                                              values=["off", "level", "all"],
+                                              width=4)
         self.mesh_propagate_counts.pack(side="left", padx=2)
         self.mesh_propagate_counts.configure(state="disabled")
         create_tooltip(self.mesh_propagate_counts,
                        "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are corrected and overwritten\n"
+                       "level: counts are propagated up to defined level, values above threshold "
+                       "remain unchanged\n"
+                       "all: counts are propagated up to central node, imported values are "
+                       "corrected and overwritten\n"
                        "ALT: Enable 'Propagation' to modify propagation counts")
 
         # propagate level
         self.mesh_propagate_lvl_lbl = Label(mesh_propagate_frm, text="Level: ", style="blue.TLabel")
         self.mesh_propagate_lvl_lbl.pack(side="left", padx=2)
         self.mesh_propagate_lvl_lbl.configure(state="disabled")
-        self.mesh_propagate_lvl = Combobox(mesh_propagate_frm, textvariable=self.mesh_propagate_lvl_var, width=3,
-                                           state="readonly", values=[str(_) for _ in range(0, 14, 1)])
+        self.mesh_propagate_lvl = Combobox(mesh_propagate_frm,
+                                           textvariable=self.mesh_propagate_lvl_var,
+                                           width=3,
+                                           state="readonly",
+                                           values=[str(_) for _ in range(0, 14, 1)])
         self.mesh_propagate_lvl.pack(side="left", padx=2)
         self.mesh_propagate_lvl.configure(state="disabled")
-        create_tooltip(self.mesh_propagate_lvl, "Propagate from outer to inner levels up to defined level\n"
-                                                "0 corresponds to the central node, 13 to the outermost node\n"
+        create_tooltip(self.mesh_propagate_lvl, "Propagate from outer to inner levels up to "
+                                                "defined level\n"
+                                                "0 corresponds to the central node, 13 to the "
+                                                "outermost node\n"
                                                 "---\n"
-                                                "affects color propagation when set to 'specific' or 'global'\n"
+                                                "affects color propagation when set to "
+                                                "'specific' or 'global'\n"
                                                 "affects count propagation when set to 'level'"
-                                                "ALT:Enable 'Propagation' to modify propagation level")
+                                                "ALT:Enable 'Propagation' to modify "
+                                                "propagation level")
 
         # run buttons frame
         p_run_frm = Frame(p_frm, style="blue.TFrame")
         p_run_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="x")
 
         # plot button
-        mesh_plot = Button(p_run_frm, text="Plot", style="blue.TButton", command=partial(self.plot, "mesh"),
-                           db_w=True, mesh_w=True)
+        mesh_plot = Button(p_run_frm, text="Plot", style="blue.TButton",
+                           command=partial(self.plot, "mesh"), db_w=True, mesh_w=True)
         mesh_plot.pack(side="right", padx=2)
-        create_tooltip(mesh_plot, "Plot Sunburst based on selected data-source and asset. If Export Plot is checked, "
-                                  "interactive sunburst will be available as .html file for later use")
+        create_tooltip(mesh_plot, "Plot Sunburst based on selected data-source and asset. "
+                                  "If Export Plot is checked, interactive sunburst will be "
+                                  "available as .html file for later use")
 
         if db_functions:
             # export button
-            mesh_export = Button(p_run_frm, text="Export", style="blue.TButton", command=self.mesh_export, db_w=True)
+            mesh_export = Button(p_run_frm, text="Export", style="blue.TButton",
+                                 command=self.mesh_export, db_w=True)
             mesh_export.pack(side="right", padx=2)
             create_tooltip(mesh_export, "Generate Sunburst data without plotting, export to Excel "
                                         "for later use / customization")
@@ -493,7 +550,7 @@ class App(Tk):
         :param db_functions: if True, database related widgets are generated
         """
 
-        # ###################################### DRUG/ATC SUNBURST ############################################
+        # ###################################### DRUG/ATC SUNBURST ############################### #
 
         # top frame
         d_frm = LabelFrame(self.atc_frame, text="Drug Sunburst", style="purple.TLabelframe")
@@ -507,7 +564,8 @@ class App(Tk):
             # asset subframe
             atc_asset_frm = Frame(atc_data_frm, style="purple.TFrame")
             atc_asset_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            atc_asset_label = Label(atc_asset_frm, text="Asset name:", style="purple.TLabel", db_w=True, width=12)
+            atc_asset_label = Label(atc_asset_frm, text="Asset name:", style="purple.TLabel",
+                                    db_w=True, width=12)
             atc_asset_label.pack(side="left", padx=2)
             atc_asset = Entry(atc_asset_frm, db_w=True, textvariable=self.atc_asset_var, width=40)
             atc_asset.pack(side="left", padx=(2, 10))
@@ -516,12 +574,15 @@ class App(Tk):
             # data source subframe
             atc_data_source_frm = Frame(atc_data_frm, style="purple.TFrame")
             atc_data_source_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            atc_data_source_label = Label(atc_data_source_frm, text="Data source:", style="purple.TLabel", db_w=True,
-                                          width=12)
+            atc_data_source_label = Label(atc_data_source_frm, text="Data source:",
+                                          style="purple.TLabel", db_w=True, width=12)
             atc_data_source_label.pack(side="left", padx=2)
-            atc_data_source = Combobox(atc_data_source_frm, textvariable=self.atc_data_source_var,
-                                       values=self.atc_data_sources, state="readonly",
-                                       width=max([len(_) for _ in self.atc_data_sources]), db_w=True)
+            atc_data_source = Combobox(atc_data_source_frm,
+                                       textvariable=self.atc_data_source_var,
+                                       values=self.atc_data_sources,
+                                       state="readonly",
+                                       width=max([len(_) for _ in self.atc_data_sources]),
+                                       db_w=True)
             atc_data_source.pack(side="left", padx=2, fill="x", expand=True)
             create_tooltip(atc_data_source, "Select data source")
 
@@ -530,134 +591,192 @@ class App(Tk):
         d_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
 
         # display options subframe
-        atc_display_options_frm = LabelFrame(d_options_frm, text="Display", style="purple_sub.TLabelframe")
+        atc_display_options_frm = LabelFrame(d_options_frm, text="Display",
+                                             style="purple_sub.TLabelframe")
         atc_display_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # labels
-        atc_label_label = Label(atc_display_options_frm, text="Labels:", style="purple.TLabel", db_w=True, atc_w=True)
+        atc_label_label = Label(atc_display_options_frm, text="Labels:", style="purple.TLabel",
+                                db_w=True, atc_w=True)
         atc_label_label.pack(side="left", padx=2)
-        atc_label = Combobox(atc_display_options_frm, textvariable=self.atc_label_var, state="readonly", width=11,
-                             values=["all", "propagation", "drugs", "none"], db_w=True, atc_w=True)
+        atc_label = Combobox(atc_display_options_frm,
+                             textvariable=self.atc_label_var,
+                             state="readonly",
+                             width=11,
+                             values=["all", "propagation", "drugs", "none"],
+                             db_w=True,
+                             atc_w=True)
         atc_label.pack(side="left", padx=2)
         create_tooltip(atc_label, "Enables/Disables display of labels inside sunburst wedges")
 
         # wedge width
-        atc_wedge_width_label = Label(atc_display_options_frm, text="Wedge Width:", style="purple.TLabel",
-                                      db_w=True, atc_w=True)
+        atc_wedge_width_label = Label(atc_display_options_frm, text="Wedge Width:",
+                                      style="purple.TLabel", db_w=True, atc_w=True)
         atc_wedge_width_label.pack(side="left", padx=2)
-        atc_wedge_width = Combobox(atc_display_options_frm, textvariable=self.atc_wedge_width_var, state="readonly",
-                                   width=9, values=["total", "remainder"], db_w=True, atc_w=True)
+        atc_wedge_width = Combobox(atc_display_options_frm,
+                                   textvariable=self.atc_wedge_width_var,
+                                   state="readonly",
+                                   width=9,
+                                   values=["total", "remainder"],
+                                   db_w=True,
+                                   atc_w=True)
         atc_wedge_width.pack(side="left", padx=2)
-        create_tooltip(atc_wedge_width, "Change the sunburst display option from a full outer circle (total)"
-                                        " to count-based wedge-widths (remainder)")
+        create_tooltip(atc_wedge_width,
+                       "Change the sunburst display option from a full outer circle (total)"
+                       " to count-based wedge-widths (remainder)")
 
         # summary plot subframe
-        atc_summary_plot_frm = LabelFrame(d_options_frm, text="Summary Plot", style="purple_sub.TLabelframe")
+        atc_summary_plot_frm = LabelFrame(d_options_frm, text="Summary Plot",
+                                          style="purple_sub.TLabelframe")
         atc_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # checkbutton to toggle overview / detailed view
         self.atc_summary_plot_cols = Entry(atc_summary_plot_frm, width=2, validate="focusout",
-                                           validatecommand=partial(self.overview_entry_validation, "atc"))
+                                           validatecommand=partial(self.overview_entry_validation,
+                                                                   "atc"))
         self.atc_summary_plot_cols.insert(0, "5")
         self.atc_summary_plot_cols.configure(state="disabled")
         self.atc_summary_plot_control.set(False)
-        self.atc_summary_plot = Checkbutton(atc_summary_plot_frm, text="Enable", style="purple.TCheckbutton",
-                                            db_w=True, atc_w=True, variable=self.atc_summary_plot_control,
-                                            onvalue=True, offvalue=False,
-                                            command=partial(self.checkbox_controller, "atc_summary_plot"))
+        self.atc_summary_plot = Checkbutton(atc_summary_plot_frm,
+                                            text="Enable",
+                                            style="purple.TCheckbutton",
+                                            db_w=True,
+                                            atc_w=True,
+                                            variable=self.atc_summary_plot_control,
+                                            onvalue=True,
+                                            offvalue=False,
+                                            command=partial(self.checkbox_controller,
+                                                            "atc_summary_plot"))
         self.atc_summary_plot.pack(side="left", padx=2)
-        self.atc_summary_plot_lbl = Label(atc_summary_plot_frm, text="Columns: ", style="purple.TLabel")
+        self.atc_summary_plot_lbl = Label(atc_summary_plot_frm, text="Columns: ",
+                                          style="purple.TLabel")
         self.atc_summary_plot_lbl.configure(state="disabled")
         self.atc_summary_plot_lbl.pack(side="left", padx=2)
         self.atc_summary_plot_cols.pack(side="left", padx=2)
-        create_tooltip(self.atc_summary_plot_cols, "Enter amount of columns in range (1..20)ALT:Enable 'Summary Plot' "
-                                                   "to modify amount of columns")
-        create_tooltip(self.atc_summary_plot, "Select to plot all data in a combined overview (resource intensive, "
-                                              "set Labels to 'none' for faster loading)")
+        create_tooltip(self.atc_summary_plot_cols,
+                       "Enter amount of columns in range (1..20)ALT:Enable 'Summary Plot' "
+                       "to modify amount of columns")
+        create_tooltip(self.atc_summary_plot,
+                       "Select to plot all data in a combined overview (resource intensive, "
+                       "set Labels to 'none' for faster loading)")
 
         # propagation subframe
-        atc_propagate_frm = LabelFrame(d_options_frm, text="Propagation", style="purple_sub.TLabelframe")
+        atc_propagate_frm = LabelFrame(d_options_frm, text="Propagation",
+                                       style="purple_sub.TLabelframe")
         atc_propagate_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
         self.atc_propagate_enabled_control.set(False)
-        self.atc_propagate_enable = Checkbutton(atc_propagate_frm, text="Enable", style="purple.TCheckbutton",
-                                                db_w=True, atc_w=True, onvalue=True, offvalue=False,
+        self.atc_propagate_enable = Checkbutton(atc_propagate_frm,
+                                                text="Enable",
+                                                style="purple.TCheckbutton",
+                                                db_w=True,
+                                                atc_w=True,
+                                                onvalue=True,
+                                                offvalue=False,
                                                 variable=self.atc_propagate_enabled_control,
-                                                command=partial(self.checkbox_controller, "atc_propagate"))
+                                                command=partial(self.checkbox_controller,
+                                                                "atc_propagate"))
         self.atc_propagate_enable.pack(side="left", padx=2)
-        create_tooltip(self.atc_propagate_enable, "Select to enable propagation of counts and colors based "
-                                                  "on ontology level")
+        create_tooltip(self.atc_propagate_enable,
+                       "Select to enable propagation of counts and colors based on ontology level")
         # propagate color specificity
-        self.atc_propagate_color_lbl = Label(atc_propagate_frm, text="Color:", style="purple.TLabel")
+        self.atc_propagate_color_lbl = Label(atc_propagate_frm, text="Color:",
+                                             style="purple.TLabel")
         self.atc_propagate_color_lbl.pack(side="left", padx=2)
         self.atc_propagate_color_lbl.configure(state="disabled")
         create_tooltip(self.atc_propagate_color_lbl,
                        "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the corresponding tree\n"
-                       "global: Color scale is based on the maximum values of the entire mesh ontology"
+                       "specific: Color scale is based on the maximum values of the "
+                       "corresponding tree\n"
+                       "global: Color scale is based on the maximum values of the "
+                       "entire mesh ontology"
                        "ALT:Enable 'Propagation' to modify propagation color specificity")
-        self.atc_propagate_color = Combobox(atc_propagate_frm, textvariable=self.atc_propagate_color_var,
-                                            state="readonly", values=["off", "specific", "global"], width=10)
+        self.atc_propagate_color = Combobox(atc_propagate_frm,
+                                            textvariable=self.atc_propagate_color_var,
+                                            state="readonly",
+                                            values=["off", "specific", "global"],
+                                            width=10)
         self.atc_propagate_color.pack(side="left", padx=2)
         self.atc_propagate_color.configure(state="disabled")
         create_tooltip(self.atc_propagate_color,
                        "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the corresponding tree\n"
-                       "global: Color scale is based on the maximum values of the entire mesh ontology"
+                       "specific: Color scale is based on the maximum values of the "
+                       "corresponding tree\n"
+                       "global: Color scale is based on the maximum values of the "
+                       "entire mesh ontology"
                        "ALT:Enable 'Propagation' to modify propagation color specificity")
 
         # propagate counts
-        self.atc_propagate_counts_lbl = Label(atc_propagate_frm, text="Counts:", style="purple.TLabel")
+        self.atc_propagate_counts_lbl = Label(atc_propagate_frm, text="Counts:",
+                                              style="purple.TLabel")
         self.atc_propagate_counts_lbl.pack(side="left", padx=2)
         self.atc_propagate_counts_lbl.configure(state="disabled")
         create_tooltip(self.atc_propagate_counts_lbl,
                        "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are corrected and overwritten\n"
+                       "level: counts are propagated up to defined level, values above threshold "
+                       "remain unchanged\n"
+                       "all: counts are propagated up to central node, imported values are "
+                       "corrected and overwritten\n"
                        "ALT: Enable 'Propagation' to modify propagation counts")
-        self.atc_propagate_counts = Combobox(atc_propagate_frm, textvariable=self.atc_propagate_counts_var,
-                                             state="readonly", values=["off", "level", "all"], width=4)
+        self.atc_propagate_counts = Combobox(atc_propagate_frm,
+                                             textvariable=self.atc_propagate_counts_var,
+                                             state="readonly",
+                                             values=["off", "level", "all"],
+                                             width=4)
         self.atc_propagate_counts.pack(side="left", padx=2)
         self.atc_propagate_counts.configure(state="disabled")
         create_tooltip(self.atc_propagate_counts,
                        "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are corrected and overwritten\n"
+                       "level: counts are propagated up to defined level, values above "
+                       "threshold remain unchanged\n"
+                       "all: counts are propagated up to central node, imported values are "
+                       "corrected and overwritten\n"
                        "ALT: Enable 'Propagation' to modify propagation counts")
 
         # propagate level
         self.atc_propagate_lvl_lbl = Label(atc_propagate_frm, text="Level: ", style="purple.TLabel")
         self.atc_propagate_lvl_lbl.pack(side="left", padx=2)
         self.atc_propagate_lvl_lbl.configure(state="disabled")
-        self.atc_propagate_lvl = Combobox(atc_propagate_frm, textvariable=self.atc_propagate_lvl_var, width=3,
-                                          state="readonly", values=[str(_) for _ in range(0, 6, 1) if _ != 0])
+        self.atc_propagate_lvl = Combobox(atc_propagate_frm,
+                                          textvariable=self.atc_propagate_lvl_var,
+                                          width=3,
+                                          state="readonly",
+                                          values=[str(_) for _ in range(0, 6, 1) if _ != 0])
         self.atc_propagate_lvl.pack(side="left", padx=2)
         self.atc_propagate_lvl.configure(state="disabled")
-        create_tooltip(self.atc_propagate_lvl, "Propagate colors to defined level from outer to inner levels\n"
+        create_tooltip(self.atc_propagate_lvl, "Propagate colors to defined level "
+                                               "from outer to inner levels\n"
                                                "---\n"
-                                               "affects color propagation when set to 'specific' or 'global'\n"
+                                               "affects color propagation when set to "
+                                               "'specific' or 'global'\n"
                                                "affects count propagation when set to 'level'"
-                                               "ALT:Enable 'Propagation' to modify propagation level")
+                                               "ALT:Enable 'Propagation' to modify "
+                                               "propagation level")
 
         # run buttons frame
         d_run_frm = Frame(d_frm, style="purple.TFrame")
         d_run_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="x")
 
         # plot
-        atc_plot = Button(d_run_frm, text="Plot", style="purple.TButton", command=partial(self.plot, "atc"),
+        atc_plot = Button(d_run_frm, text="Plot", style="purple.TButton",
+                          command=partial(self.plot, "atc"),
                           db_w=True, atc_w=True)
         atc_plot.pack(side="right", padx=2)
-        create_tooltip(atc_plot, "Plot Sunburst based on selected data-source and asset. If Export Plot is checked, "
-                                 "interactive sunburst will be available as .html file for later use")
+        create_tooltip(atc_plot,
+                       "Plot Sunburst based on selected data-source and asset. If Export Plot is "
+                       "checked, interactive sunburst will be available as .html file for later "
+                       "use")
 
         if db_functions:
             # export
-            atc_export = Button(d_run_frm, text="Export", style="purple.TButton", command=self.atc_export, db_w=True)
+            atc_export = Button(d_run_frm, text="Export", style="purple.TButton",
+                                command=self.atc_export, db_w=True)
             atc_export.pack(side="right", padx=2)
 
     def checkbox_controller(self, mode: str = None):
         """Toggles widgets based on state of a BooleanVar
 
-        :param mode: must be in ['mesh_summary_plot', 'mesh_propagate', 'atc_summary_plot', 'atc_propagate']
+        :param mode: must be in ['mesh_summary_plot', 'mesh_propagate', 'atc_summary_plot',
+                                 'atc_propagate']
         """
         checkbox, toggle_widgets, var_entry_int_pairs = None, [], []
         if mode == "atc_summary_plot":
@@ -719,7 +838,7 @@ class App(Tk):
                 self.checkbox_controller(mode="atc_propagate")
 
         else:
-            # iterate over controller widgets, disable all children within the controller widgets frame
+            # iterate over controller widgets, disable children within the controller widgets frame
             for cw in controller_widgets:
                 for child in cw.master.winfo_children():
                     child.configure(state="disabled")
@@ -821,13 +940,16 @@ class App(Tk):
             "atc_summary_plot": self.atc_summary_plot_var.get()
         })
 
-    def toggle_widgets(self, enable: bool = None, mode: str = None, dedicated_parent: [Frame, LabelFrame] = None):
+    def toggle_widgets(self, enable: bool = None, mode: str = None,
+                       dedicated_parent: [Frame, LabelFrame] = None):
         """Enables/disables widgets in GUI
 
         :param enable: True to enable, False to disable
-        :param mode: One of ['db', 'mesh', 'atc', 'recent'] - 'recent' requires previous toggling of any other mode
+        :param mode: One of ['db', 'mesh', 'atc', 'recent'] - 'recent' requires previous toggling
+                     of any other mode
         :param dedicated_parent: Used internally to modify deeper levels
         """
+        wdgs = (Button, Checkbutton, Entry, Label, Radiobutton)
         if mode == "recent":
             mode = self.recent_ui_toggle_mode
 
@@ -851,12 +973,14 @@ class App(Tk):
 
             # set state of direct children
             for child in obj.winfo_children():
-                if isinstance(child, (Button, Checkbutton, Entry, Label, Radiobutton)):
-                    if mode == "db" and child.db_w or mode == "mesh" and child.mesh_w \
+                if isinstance(child, wdgs):
+                    if mode == "db" and child.db_w \
+                            or mode == "mesh" and child.mesh_w \
                             or mode == "atc" and child.atc_w:
                         child.configure(state=state)
                 elif isinstance(child, Combobox):
-                    if mode == "db" and child.db_w or mode == "mesh" and child.mesh_w \
+                    if mode == "db" and child.db_w \
+                            or mode == "mesh" and child.mesh_w \
                             or mode == "atc" and child.atc_w:
                         child.configure(state=combo_state)
 
@@ -867,36 +991,42 @@ class App(Tk):
                 # go deeper another level
                 elif isinstance(child, (LabelFrame, Frame)):
                     for child_two in child.winfo_children():
-                        if isinstance(child_two, (Button, Checkbutton, Entry, Label, Radiobutton)):
-                            if mode == "db" and child_two.db_w or mode == "mesh" and child_two.mesh_w \
+                        if isinstance(child_two, wdgs):
+                            if mode == "db" and child_two.db_w \
+                                    or mode == "mesh" and child_two.mesh_w \
                                     or mode == "atc" and child_two.atc_w:
                                 child_two.configure(state=state)
                         elif isinstance(child_two, Combobox):
-                            if mode == "db" and child_two.db_w or mode == "mesh" and child_two.mesh_w \
+                            if mode == "db" and child_two.db_w \
+                                    or mode == "mesh" and child_two.mesh_w \
                                     or mode == "atc" and child_two.atc_w:
                                 child_two.configure(state=combo_state)
 
                         # go deeper another level
                         elif isinstance(child_two, (LabelFrame, Frame)):
                             for child_three in child_two.winfo_children():
-                                if isinstance(child_three, (Button, Checkbutton, Entry, Label, Radiobutton)):
-                                    if mode == "db" and child_three.db_w or mode == "mesh" and child_three.mesh_w \
+                                if isinstance(child_three, wdgs):
+                                    if mode == "db" and child_three.db_w \
+                                            or mode == "mesh" and child_three.mesh_w \
                                             or mode == "atc" and child_three.atc_w:
                                         child_three.configure(state=state)
                                 elif isinstance(child_three, Combobox):
-                                    if mode == "db" and child_three.db_w or mode == "mesh" and child_three.mesh_w \
+                                    if mode == "db" and child_three.db_w \
+                                            or mode == "mesh" and child_three.mesh_w \
                                             or mode == "atc" and child_three.atc_w:
                                         child_three.configure(state=combo_state)
-                                        
+
                                 # go deeper another level
                                 elif isinstance(child_three, (LabelFrame, Frame)):
                                     for child_four in child_three.winfo_children():
-                                        if isinstance(child_four, (Button, Checkbutton, Entry, Label, Radiobutton)):
-                                            if mode == "db" and child_four.db_w or mode == "mesh" and child_four.mesh_w\
+                                        if isinstance(child_four, wdgs):
+                                            if mode == "db" and child_four.db_w \
+                                                    or mode == "mesh" and child_four.mesh_w\
                                                     or mode == "atc" and child_four.atc_w:
                                                 child_four.configure(state=state)
                                         elif isinstance(child_four, Combobox):
-                                            if mode == "db" and child_four.db_w or mode == "mesh" and child_four.mesh_w\
+                                            if mode == "db" and child_four.db_w \
+                                                    or mode == "mesh" and child_four.mesh_w\
                                                     or mode == "atc" and child_four.atc_w:
                                                 child_four.configure(state=combo_state)
 
@@ -922,11 +1052,12 @@ class App(Tk):
     def set_database(self, db: str = None):
         """Prompt to set database, extracts .tar.gz or verifies chosen .db file, sets class variable
 
-        :param db: If path to database is given, only integrity is verified without opening a file dialog
+        :param db: If path to database is given, only integrity is verified without opening a dialog
         """
         if not db:
             db = filedialog.askopenfilename(title="Database", initialdir=os.getcwd(),
-                                            filetypes=[("DrugVision SQLite3 database", ".db .tar.gz"),
+                                            filetypes=[("DrugVision SQLite3 database",
+                                                        ".db .tar.gz"),
                                                        ("All files", "*")])
 
         if not db:
@@ -945,7 +1076,8 @@ class App(Tk):
                 messagebox.showerror("Database", f"Database {db} could not be verified.")
 
         elif db.endswith(".tar.gz"):
-            messagebox.showinfo("Database", "Unpacking database archive .. GUI will be unresponsive until finished")
+            messagebox.showinfo("Database", "Unpacking database archive .. "
+                                            "GUI will be unresponsive until finished")
             with tarfile.open(db, "r:gz") as tar:
                 print(f"Extracting {db} ..")
                 names = tar.getnames()
@@ -955,20 +1087,22 @@ class App(Tk):
                 messagebox.showinfo("Database", f"Successfully extracted {db}")
                 self.set_database(db)
             else:
-                messagebox.showwarning("Database", f"Extracted unknown file: {names[0]} - please select the database "
-                                                   f"manually")
+                messagebox.showwarning("Database", f"Extracted unknown file: {names[0]} - "
+                                                   f"please select the database manually")
                 self.set_database()
 
     @exception_as_popup
     def plot(self, mode: str = None):
-        """Populate tree, update settings of core objects, plot and prompt to overwrite file if Excel was loaded
+        """Populate tree, update settings of core objects, plot and prompt to overwrite file
+        if Excel was loaded
 
         :param mode: Must be in 'atc', 'mesh'
         """
         populate_tsv = None
         populate_excel = None
         populate_data_source = None
-        file_name = None
+        export_tsv = None
+        input_fn = None
         obj = None
         configure = None
         asset = None
@@ -977,20 +1111,22 @@ class App(Tk):
 
         # assign variables based on mode
         if mode == "atc":
-            file_name = self.atc_file_loaded
+            input_fn = self.atc_file_loaded
             populate_data_source = self.d.populate_atc_from_data_source
             populate_tsv = self.d.populate_atc_from_tsv
             populate_excel = self.d.load_atc_excel
+            export_tsv = self.d.export_atc_tree
             obj = self.d
             configure = self.configure_d
             asset = self.atc_asset_var.get()
             datasource = self.atc_data_source_var.get()
             cfg_exclude = "mesh_"
         elif mode == "mesh":
-            file_name = self.mesh_file_loaded
+            input_fn = self.mesh_file_loaded
             populate_data_source = self.p.populate_mesh_from_data_source
             populate_tsv = self.p.populate_mesh_from_tsv
             populate_excel = self.p.load_mesh_excel
+            export_tsv = self.p.export_mesh_tree
             obj = self.p
             configure = self.configure_p
             asset = self.mesh_asset_var.get()
@@ -999,11 +1135,11 @@ class App(Tk):
 
         # populate tree from Excel or database data
         self.set_status(f"Populating {mode.upper()} tree ..")
-        if file_name:
-            if os.path.splitext(file_name)[-1] == ".tsv":
-                populate_tsv(file_name)
+        if input_fn:
+            if os.path.splitext(input_fn)[-1] == ".tsv":
+                populate_tsv(input_fn)
             else:
-                populate_excel(file_name, read_settings=False, populate=True)
+                populate_excel(input_fn, read_settings=False, populate=True)
         else:
             if not self.check_init(obj):
                 return
@@ -1029,23 +1165,34 @@ class App(Tk):
         self.set_status("Plot displayed in browser")
 
         # check if thread returned something
-        file_name = obj.thread_return
-        if file_name:
-            messagebox.showinfo("Export Plot", f"Exported plot to: {file_name}")
+        thread_ret = obj.thread_return
+        if thread_ret:
+            messagebox.showinfo("Export Plot", f"Exported plot to: {thread_ret}")
+
+        # prompt to ask if new template should be generated
+        generate_template = messagebox.askyesno(title="Generate template",
+                                                message="Generate new template for later use ?")
+        if generate_template:
+            template_fn = export_tsv(mode="TSV", template=False)
+            messagebox.showinfo(title="Generate template",
+                                message=f"Generated: {os.path.abspath(template_fn)}")
 
         # prompt to overwrite Excel file if settings changed since load
-        if file_name and os.path.splitext(file_name) == ".xlsx":
+        if input_fn and os.path.splitext(input_fn) == ".xlsx":
             accepted = ["color_scale", "show_border", "border_color", "border_width"]
             accepted.extend([_ for _ in self.loaded_settings.keys() if _.startswith(mode)])
-            modified = {k: (str(self.loaded_settings[k]), str(obj.s[k])) for k in self.loaded_settings.keys()
+            modified = {k: (str(self.loaded_settings[k]), str(obj.s[k]))
+                        for k in self.loaded_settings.keys()
                         if str(obj.s[k]) != str(self.loaded_settings[k]) and k in accepted}
             tmp = "\n".join([f"{k}: '{v[0]}' -> '{v[1]}'" for k, v in modified.items()])
             if modified:
-                overwrite = messagebox.askokcancel(title="Settings changed", message=f"Settings changed, overwrite "
-                                                                                     f"{file_name} ?\n\n{tmp}")
+                overwrite = messagebox.askokcancel(title="Settings changed",
+                                                   message=f"Settings changed, "
+                                                           f"overwrite {input_fn} ?\n\n{tmp}")
                 if overwrite:
-                    s = [(k, v) for k, v in obj.s.items() if not k.startswith(cfg_exclude) and k != "default_color"]
-                    out_fn = obj.export_settings(fn=file_name, settings=s)
+                    s = [(k, v) for k, v in obj.s.items()
+                         if not k.startswith(cfg_exclude) and k != "default_color"]
+                    out_fn = obj.export_settings(fn=input_fn, settings=s)
                     self.set_status(f"Updated {out_fn}")
 
     @exception_as_popup
@@ -1060,14 +1207,15 @@ class App(Tk):
         self.p.populate_mesh_from_data_source(drug_name=self.mesh_asset_var.get(),
                                               data_source=self.mesh_data_source_var.get())
 
-        ep = ExportPopup(self, "Export as", "Export MeSH-Tree as Excel (remembers settings) or .tsv file")
-        selection = ep.selection
-        export_as_template = ep.export_as_template.get()
+        export_popup = ExportPopup(self, "Export as",
+                                   "Export MeSH-Tree as Excel (remembers settings) or .tsv file")
+        selection = export_popup.selection
+        export_as_template = export_popup.export_as_template.get()
 
         if selection:
             self.set_status(f"Exporting MeSH-tree to {selection} ..")
-            fn = self.p.export_mesh_tree(mode=selection, template=export_as_template)
-            messagebox.showinfo("Export", f"Exported MeSH-tree to: {fn}")
+            export_fn = self.p.export_mesh_tree(mode=selection, template=export_as_template)
+            messagebox.showinfo("Export", f"Exported MeSH-tree to: {export_fn}")
 
         self.set_status("")
 
@@ -1083,14 +1231,15 @@ class App(Tk):
         self.d.populate_atc_from_data_source(phenotype_name=self.atc_asset_var.get(),
                                              data_source=self.atc_data_source_var.get())
 
-        ep = ExportPopup(self, "Export as", "Export ATC-Tree as Excel (remember settings) or .tsv file")
-        selection = ep.selection
-        export_as_template = ep.export_as_template.get()
+        export_popup = ExportPopup(self, "Export as",
+                                   "Export ATC-Tree as Excel (remember settings) or .tsv file")
+        selection = export_popup.selection
+        export_as_template = export_popup.export_as_template.get()
 
         if selection:
             self.set_status(f"Exporting ATC-tree to {selection} ..")
-            fn = self.d.export_atc_tree(mode=selection, template=export_as_template)
-            messagebox.showinfo("Export", f"Exported ATC-tree to: {fn}")
+            export_fn = self.d.export_atc_tree(mode=selection, template=export_as_template)
+            messagebox.showinfo("Export", f"Exported ATC-tree to: {export_fn}")
 
         self.set_status("")
 
@@ -1098,14 +1247,15 @@ class App(Tk):
     def load_file(self):
         """Prompt to load Excel/.tsv file
 
-        If file ends on .xlsx: verify file and get tree type based on option in 'Settings' and number of columns
-            in 'Tree' tabs, enable/disable and configure respective widgets
+        If file ends on .xlsx: verify file and get tree type based on option in 'Settings'
+            and number of columns in 'Tree' tabs, enable/disable and configure respective widgets
         """
-        fn = filedialog.askopenfilename(initialdir=os.getcwd(), filetypes=[("Tree Table", ".xlsx .tsv"),
-                                                                           ("SQLite3 database", ".db .tar.gz"),
-                                                                           ("All files", "*")],
-                                        title="Load MeSH/ATC-Tree from file")
-        if not fn:
+        input_fn = filedialog.askopenfilename(initialdir=os.getcwd(),
+                                              filetypes=[("Tree Table", ".xlsx .tsv"),
+                                                         ("SQLite3 database", ".db .tar.gz"),
+                                                         ("All files", "*")],
+                                              title="Load MeSH/ATC-Tree from file")
+        if not input_fn:
             return
 
         # rollback
@@ -1115,12 +1265,12 @@ class App(Tk):
         self.loaded_settings = {}
         obj = None
 
-        if fn.endswith(".db") or fn.endswith(".tar.gz"):
-            self.set_database(fn)
+        if input_fn.endswith(".db") or input_fn.endswith(".tar.gz"):
+            self.set_database(input_fn)
             return
 
         # verify file
-        tree_type = self.p.verify_file(fn)
+        tree_type = self.p.verify_file(input_fn)
 
         # set core object settings, assign functions, set status
         self.set_status("")
@@ -1129,7 +1279,7 @@ class App(Tk):
             self.build_atc_ui(db_functions=False)
             self.update()
             if tree_type == "atc_excel":
-                self.d.load_atc_excel(fn=fn, read_settings=True, populate=False)
+                self.d.load_atc_excel(fn=input_fn, read_settings=True, populate=False)
                 self.atc_data_source_var.set("Excel file")
             elif tree_type == "atc_tsv":
                 self.atc_data_source_var.set("TSV file")
@@ -1140,7 +1290,7 @@ class App(Tk):
             self.build_mesh_ui(db_functions=False)
             self.update()
             if tree_type == "mesh_excel":
-                self.p.load_mesh_excel(fn=fn, read_settings=True, populate=False)
+                self.p.load_mesh_excel(fn=input_fn, read_settings=True, populate=False)
                 self.mesh_data_source_var.set("Excel file")
             elif tree_type == "mesh_tsv":
                 self.mesh_data_source_var.set("TSV file")
@@ -1156,22 +1306,23 @@ class App(Tk):
         self.show_border_var.set(obj.s["show_border"])
         self.border_color.set(obj.s["border_color"])
         self.border_width.set(str(obj.s["border_width"]))
-        create_tooltip(self.show_border, self.show_border_tt_template + "\nCurrent properties: Color: "
-                       + self.border_color.get() + ", Width: " + self.border_width.get())
+        create_tooltip(self.show_border, self.show_border_tt_template
+                       + "\nCurrent properties: Color: " + self.border_color.get()
+                       + ", Width: " + self.border_width.get())
         self.export_plot_var.set(obj.s["export_plot"])
 
         # set specific settings in GUI
         if tree_type.startswith("atc"):
             self.toggle_widgets(enable=True, mode="atc")
-            self.atc_file_loaded = fn
-            self.set_status(f"ATC tree loaded: {fn}")
+            self.atc_file_loaded = input_fn
+            self.set_status(f"ATC tree loaded: {input_fn}")
             if tree_type == "atc_excel":
                 self.atc_label_var.set(obj.s["atc_labels"])
                 self.atc_wedge_width_var.set(obj.s["atc_wedge_width"])
         elif tree_type.startswith("mesh"):
             self.toggle_widgets(enable=True, mode="mesh")
-            self.set_status(f"MeSH tree loaded: {fn}")
-            self.mesh_file_loaded = fn
+            self.set_status(f"MeSH tree loaded: {input_fn}")
+            self.mesh_file_loaded = input_fn
             if tree_type == "mesh_excel":
                 self.mesh_drop_empty_var.set(obj.s["mesh_drop_empty_last_child"])
                 self.mesh_label_var.set(obj.s["mesh_labels"])
@@ -1203,10 +1354,10 @@ class ExportPopup(Toplevel):
         Button(button_frame, text="TSV", command=partial(self.select, "TSV")).pack(side="right")
         Button(button_frame, text="Excel", command=partial(self.select, "Excel")).pack(side="right")
         self.export_as_template = BooleanVar(value=False)
-        cb = Checkbutton(button_frame, text="Create Template", variable=self.export_as_template,
-                         onvalue=True, offvalue=False)
-        cb.pack(side="right")
-        create_tooltip(cb, "Creates an all-white template with 0 counts")
+        check_button = Checkbutton(button_frame, text="Create Template",
+                                   variable=self.export_as_template, onvalue=True, offvalue=False)
+        check_button.pack(side="right")
+        create_tooltip(check_button, "Creates an all-white template with 0 counts")
 
         # freeze mainloop
         self.wait_window(self)
@@ -1230,8 +1381,9 @@ class ColorScalePopup(Toplevel):
         root.pack(padx=10, pady=10)
 
         # informative label
-        Label(root, text="Enter values for an automatic color scale. The first color defines the default color for empt"
-                         "y nodes. Requires active propagation to have an effect.", wraplength=230).pack(pady=(10, 10))
+        Label(root, text="Enter values for an automatic color scale. The first color defines the "
+                         "default color for empty nodes. Requires active propagation to have an "
+                         "effect.", wraplength=230).pack(pady=(10, 10))
 
         # header for scale objects
         scale_header = Frame(root)
@@ -1268,10 +1420,12 @@ class ColorScalePopup(Toplevel):
         self.wait_window(self)
 
     def add_entry_pair(self, percentage: float, hex_color: str):
-        """Subroutine to create an entry pair inside a frame and attach it to the list of scale frames"""
+        """Subroutine to create an entry pair inside a frame and attach it to the list of
+        scale frames"""
         frm = Frame(self.scale_frame)
         frm.pack()
-        e_pct = Entry(frm, validate="focusout", validatecommand=lambda: self.validate_percentage(e_pct))
+        e_pct = Entry(frm, validate="focusout",
+                      validatecommand=lambda: self.validate_percentage(e_pct))
         e_pct.pack(side="left")
         e_pct.insert(0, str(percentage * 100))
         e_hex = EntryOG(frm)
@@ -1299,10 +1453,12 @@ class ColorScalePopup(Toplevel):
             return self.rollback_percentage(e_pct, "Percentage must be in range 0 - 100")
 
         if percentage < 0:
-            return self.rollback_percentage(e_pct, "Percentage must be greater than 0", def_value="25")
+            return self.rollback_percentage(e_pct, "Percentage must be greater than 0",
+                                            def_value="25")
 
         if percentage > 100:
-            return self.rollback_percentage(e_pct, "Percentage must be less than 100", def_value="75")
+            return self.rollback_percentage(e_pct, "Percentage must be less than 100",
+                                            def_value="75")
 
         self.status.configure(text="")
         return False  # always validates
@@ -1318,8 +1474,9 @@ class ColorScalePopup(Toplevel):
         self.status.configure(text="")
 
         # calculate background based on threshold
-        r, g, b = hex_to_rgb(color)
-        e_hex.configure(foreground=color, background="#000000" if (r*0.299 + g*0.587 + b*0.114) > 186 else "#FFFFFF")
+        red, green, blue = hex_to_rgb(color)
+        rgb_cutoff = (red*0.299 + green*0.587 + blue*0.114)
+        e_hex.configure(foreground=color, background="#000000" if rgb_cutoff > 186 else "#FFFFFF")
 
         return False  # always validates
 
@@ -1346,22 +1503,22 @@ class ColorScalePopup(Toplevel):
         percentage_dupe_check = []
         last_index = len(self.scale_frames)
 
-        for sf_idx, sf in enumerate(self.scale_frames):
+        for sf_idx, scale_frame in enumerate(self.scale_frames):
 
             # validate all entries have values
-            for idx, c in enumerate(sf.winfo_children()):
-                if c.get() == "":
+            for idx, scaled_color in enumerate(scale_frame.winfo_children()):
+                if scaled_color.get() == "":
                     self.status.configure(text="All entries require valid values")
                     return
 
                 # validate percentages are increasing
                 if idx == 0:
-                    this_percentage = float(c.get())
+                    this_percentage = float(scaled_color.get())
                     if this_percentage < last_child_percentage:
                         self.status.configure(text="Threshold percentages must increase")
                         return
 
-                    last_child_percentage = float(c.get())
+                    last_child_percentage = float(scaled_color.get())
 
                     # validate percentages are unique
                     if this_percentage in percentage_dupe_check:
@@ -1381,13 +1538,14 @@ class ColorScalePopup(Toplevel):
                         return
 
         tmp_scale = []
-        for sc in self.scale_frames:
-            pct, color = sc.winfo_children()
-            tmp_scale.append([float(pct.get())/100, color.get()])
+        for scale_frame in self.scale_frames:
+            pct, scaled_color = scale_frame.winfo_children()
+            tmp_scale.append([float(pct.get())/100, scaled_color.get()])
 
         # set scale in parent, recreate tooltip
         self.parent.color_scale_var.set(json.dumps(tmp_scale))
-        create_tooltip(self.parent.color_scale, self.parent.color_scale_tt_template + self.parent.color_scale_var.get())
+        create_tooltip(self.parent.color_scale,
+                       self.parent.color_scale_tt_template + self.parent.color_scale_var.get())
 
         # destroy popup
         self.destroy()
@@ -1409,7 +1567,8 @@ class BorderPopup(Toplevel):
         Label(root, text="Change or disable the current border properties.").pack(pady=(10, 10))
 
         # get parents colors
-        r, g, b, opacity = self.parent.border_color.get().replace(" ", "").lstrip("rgba(").rstrip(")").split(",")
+        red, green, blue, opacity = self.parent.border_color.get().\
+            replace(" ", "").lstrip("rgba(").rstrip(")").split(",")
 
         # colors labelframe
         col_frm = LabelFrame(root, text="Colors")
@@ -1422,7 +1581,7 @@ class BorderPopup(Toplevel):
         red_frm.pack(fill="x", expand=True, pady=(5, 2))
         Label(red_frm, text="Red").pack(side="left")
         self.red = Entry(red_frm)
-        self.red.insert(0, r)
+        self.red.insert(0, red)
         self.red.pack(side="right")
         self.red.bind("<KeyRelease>", partial(self.validate_color, self.red))
         
@@ -1431,7 +1590,7 @@ class BorderPopup(Toplevel):
         green_frm.pack(fill="x", expand=True, pady=2)
         Label(green_frm, text="Green").pack(side="left")
         self.green = Entry(green_frm)
-        self.green.insert(0, g)
+        self.green.insert(0, green)
         self.green.pack(side="right")
         self.green.bind("<KeyRelease>", partial(self.validate_color, self.green))
         
@@ -1440,7 +1599,7 @@ class BorderPopup(Toplevel):
         blue_frm.pack(fill="x", expand=True, pady=2)
         Label(blue_frm, text="Blue").pack(side="left")
         self.blue = Entry(blue_frm)
-        self.blue.insert(0, b)
+        self.blue.insert(0, blue)
         self.blue.pack(side="right")
         self.blue.bind("<KeyRelease>", partial(self.validate_color, self.blue))
 
@@ -1459,7 +1618,8 @@ class BorderPopup(Toplevel):
         opacity_frm = Frame(opacity_width_frm)
         opacity_frm.pack(pady=(10, 2))
         Label(opacity_frm, text="Opacity [%]", width=12).pack(side="left", padx=(0, 10))
-        self.opacity = Entry(opacity_frm, validate="focusout", validatecommand=self.validate_opacity)
+        self.opacity = Entry(opacity_frm, validate="focusout",
+                             validatecommand=self.validate_opacity)
         self.opacity.insert(0, str(float(opacity)*100))
         self.opacity.pack(side="right")
 
@@ -1494,13 +1654,13 @@ class BorderPopup(Toplevel):
         self.status.configure(text="")
 
         # set rgb from hex
-        r, g, b = hex_to_rgb(self.hex.get())
+        red, green, blue = hex_to_rgb(self.hex.get())
         self.red.delete(0, END)
-        self.red.insert(0, str(r))
+        self.red.insert(0, str(red))
         self.green.delete(0, END)
-        self.green.insert(0, str(g))
+        self.green.insert(0, str(green))
         self.blue.delete(0, END)
-        self.blue.insert(0, str(b))
+        self.blue.insert(0, str(blue))
 
         # update preview
         self.preview.configure(foreground=self.hex.get())
@@ -1509,8 +1669,8 @@ class BorderPopup(Toplevel):
 
     def set_hex_from_rgb(self):
         """Writes hex color to entry if RGB is valid and all rgb values are within accepted range"""
-        r, g, b = self.red.get(), self.green.get(), self.blue.get()
-        for color in [r, g, b]:
+        red, green, blue = self.red.get(), self.green.get(), self.blue.get()
+        for color in [red, green, blue]:
             try:
                 color = int(color)
                 assert 0 <= color <= 255
@@ -1519,7 +1679,7 @@ class BorderPopup(Toplevel):
                 return
 
         self.hex.delete(0, END)
-        self.hex.insert(0, rgb_to_hex((int(r), int(g), int(b))))
+        self.hex.insert(0, rgb_to_hex((int(red), int(green), int(blue))))
         self.preview.configure(foreground=self.hex.get())
 
     def validate_color(self, wdg, _event) -> False:
@@ -1562,8 +1722,8 @@ class BorderPopup(Toplevel):
     def validate_width(self) -> False:
         """Validates border width"""
         try:
-            w = float(self.width.get())
-            assert w >= 0
+            width = float(self.width.get())
+            assert width >= 0
         except (ValueError, AssertionError):
             self.status.configure(text="Width must be a float >= 0")
             self.error = True
@@ -1584,12 +1744,15 @@ class BorderPopup(Toplevel):
         if self.status["text"] != "" or self.error:
             return
 
-        bc = f"rgba({self.red.get()},{self.green.get()},{self.blue.get()},{float(self.opacity.get())/100})"
-        self.parent.border_color.set(bc)
+        border_color = str(f"rgba({self.red.get()},{self.green.get()},"
+                           f"{self.blue.get()},{float(self.opacity.get())/100})")
+        self.parent.border_color.set(border_color)
         self.parent.border_width.set(self.width.get())
         self.parent.show_border_var.set(True)
-        create_tooltip(self.parent.show_border, self.parent.show_border_tt_template + "\nCurrent properties: Color: "
-                       + self.parent.border_color.get() + ", Width: " + self.parent.border_width.get())
+        create_tooltip(self.parent.show_border,
+                       self.parent.show_border_tt_template + "\nCurrent properties: Color: "
+                       + self.parent.border_color.get()
+                       + ", Width: " + self.parent.border_width.get())
         self.destroy()
 
 

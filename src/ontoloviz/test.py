@@ -1,12 +1,10 @@
-import sys
+from .core import rgb_to_hex, chunks, generate_color_range
+from .core import SunburstBase, PhenotypeSunburst, DrugSunburst
+from .app import App, BorderPopup, ExportPopup, ColorScalePopup
 from time import sleep
 from threading import Thread
 import tkinter
 import plotly
-
-sys.path.append("src")
-from ontoloviz.core import rgb_to_hex, chunks, generate_color_range, SunburstBase, PhenotypeSunburst, DrugSunburst
-from ontoloviz.app import App, BorderPopup, ExportPopup, ColorScalePopup
 
 
 def test_rgb_to_hex():

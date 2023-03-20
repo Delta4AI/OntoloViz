@@ -702,7 +702,7 @@ class SunburstBase:
         config = {"displaylogo": False,
                   "responsive": True,
                   "scrollZoom": True,
-                  "displayModeBar": False,
+                  "displayModeBar": True,
                   "showLink": False}
 
         # generate headers

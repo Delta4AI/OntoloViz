@@ -1,8 +1,8 @@
+from time import sleep
+from threading import Thread
 from .core import rgb_to_hex, chunks, generate_color_range
 from .core import SunburstBase, PhenotypeSunburst, DrugSunburst
 from .app import App, BorderPopup, ExportPopup, ColorScalePopup
-from time import sleep
-from threading import Thread
 import tkinter
 import plotly
 
@@ -14,7 +14,8 @@ def test_rgb_to_hex():
 
 def test_rgb_to_hex_negative_rgb_value():
     """Test utility function rgb_to_hex when error-prone array is passed"""
-    color_array = plotly.colors.n_colors(lowcolor=(64, 60, 83), highcolor=(255, 0, 255), n_colors=11001)
+    color_array = plotly.colors.n_colors(lowcolor=(64, 60, 83), highcolor=(255, 0, 255),
+                                         n_colors=11001)
     negative_rgb_tuple = color_array[-1]
     assert rgb_to_hex(rgb=negative_rgb_tuple) == "#FE00FF"
 

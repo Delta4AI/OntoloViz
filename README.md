@@ -17,16 +17,19 @@ better understanding of the scope of the package.
 Quickstart
 ==========
 The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoloViz/releases) 
-or by installing and running the package via PyPi (OS independent, requires **Python 3.10+**):
+or by installing the package via PyPi (OS independent, requires **Python 3.7+**):
 
     pip install ontoloviz
-    python -c "from ontoloviz.app import run_app; run_app()"
+
+After the installation you can run the GUI from the command line with the following command:
+
+    ontoloviz
 
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
     git clone https://github.com/Mnikley/OntoloViz.git
     cd OntoloViz
-    pip install -r requirements.txt
+    pip install plotly>=5 openpyxl>=3
     python src/ontoloviz/app.py
 
 Usage

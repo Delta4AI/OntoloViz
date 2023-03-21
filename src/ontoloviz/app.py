@@ -121,11 +121,11 @@ def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobu
     def enter(_event):
         try:
             # add 1 space to beginning of each line and at the end; show tooltip
-            tt = str(" {}".format(" \n ".join(text.split("\n")))
-                     if text.find("\n") != -1 else f" {text} ")
-            alt = str(" {}".format(" \n ".join(alt_text.split("\n")))
-                      if alt_text.find("\n") != -1 else f" {alt_text} ")
-            tool_tip.showtip(tt, alt)
+            tt_text = str(" {}".format(" \n ".join(text.split("\n")))
+                          if text.find("\n") != -1 else f" {text} ")
+            tt_alt_text = str(" {}".format(" \n ".join(alt_text.split("\n")))
+                              if alt_text.find("\n") != -1 else f" {alt_text} ")
+            tool_tip.showtip(tt_text, tt_alt_text)
         except Exception as e:
             print(e)
 
@@ -160,12 +160,12 @@ class App(Tk):
     def __init__(self):
         """Main App Initialization"""
         super().__init__()
-        self.title("OntoloViz GUI")
+        self.title("OntoloViz")
         self.resizable(False, False)
 
         # style definitions
         purple = "#9998AF"
-        blue = "#8CA6D9"
+        red = "#8CA6D9"
         green = "#A6D98C"
         bold_normal = ("Arial", 9, "bold")
         bold_large = ("Arial", 10, "bold")
@@ -174,15 +174,15 @@ class App(Tk):
         self.style.configure("big.TButton", font=bold_normal)
         self.style.configure("green.TButton", font=bold_large, background=green)
         self.style.configure("big.TLabelframe", font=bold_large)
-        self.style.configure("blue.TLabelframe", background=blue)
-        self.style.configure("blue.TLabelframe.Label", font=bold_large, background=blue)
-        self.style.configure("blue_sub.TLabelframe", background=blue)
-        self.style.configure("blue_sub.TLabelframe.Label", background=blue)
-        self.style.configure("blue.TFrame", background=blue)
-        self.style.configure("blue.TLabel", background=blue)
-        self.style.configure("blue.TButton", font=bold_large, background=blue)
-        self.style.configure("blue.TCheckbutton", background=blue, activebackground=blue)
-        self.style.configure("blue.TRadiobutton", background=blue, activebackground=blue)
+        self.style.configure("red.TLabelframe", background=red)
+        self.style.configure("red.TLabelframe.Label", font=bold_large, background=red)
+        self.style.configure("red_sub.TLabelframe", background=red)
+        self.style.configure("red_sub.TLabelframe.Label", background=red)
+        self.style.configure("red.TFrame", background=red)
+        self.style.configure("red.TLabel", background=red)
+        self.style.configure("red.TButton", font=bold_large, background=red)
+        self.style.configure("red.TCheckbutton", background=red, activebackground=red)
+        self.style.configure("red.TRadiobutton", background=red, activebackground=red)
         self.style.configure("purple.TLabelframe", background=purple)
         self.style.configure("purple.TLabelframe.Label", font=bold_large, background=purple)
         self.style.configure("purple_sub.TLabelframe", background=purple)
@@ -192,7 +192,7 @@ class App(Tk):
         self.style.configure("purple.TButton", font=bold_large, background=purple)
         self.style.configure("purple.TCheckbutton", background=purple, activebackground=purple)
         self.style.configure("purple.TRadiobutton", background=purple, activebackground=purple)
-        self.style.configure("header_blue.TLabel", font=bold_xlarge, foreground="#396DD6")
+        self.style.configure("header_red.TLabel", font=bold_xlarge, foreground="#396DD6")
         self.style.configure("header_purple.TLabel", font=bold_xlarge, foreground="#706CB5")
 
         # core variables
@@ -340,18 +340,18 @@ class App(Tk):
         # ###################################### PHENOTYPE/MESH SUNBURST ######################### #
 
         # top frame
-        p_frm = LabelFrame(self.mesh_frame, text="Phenotype Sunburst", style="blue.TLabelframe")
+        p_frm = LabelFrame(self.mesh_frame, text="Phenotype Sunburst", style="red.TLabelframe")
         p_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         if db_functions:
             # query data frame
-            mesh_data_frm = LabelFrame(p_frm, text="Query Data", style="blue_sub.TLabelframe")
+            mesh_data_frm = LabelFrame(p_frm, text="Query Data", style="red_sub.TLabelframe")
             mesh_data_frm.pack(ipadx=2, ipady=2, padx=4, pady=2, anchor="w")
 
             # asset subframe
-            mesh_asset_frm = Frame(mesh_data_frm, style="blue.TFrame")
+            mesh_asset_frm = Frame(mesh_data_frm, style="red.TFrame")
             mesh_asset_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="blue.TLabel",
+            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="red.TLabel",
                                      db_w=True, width=12)
             mesh_asset_label.pack(side="left", padx=2)
             mesh_asset = Entry(mesh_asset_frm, db_w=True, textvariable=self.mesh_asset_var,
@@ -360,10 +360,10 @@ class App(Tk):
             create_tooltip(mesh_asset, "Enter drug name name (e.g. aspirin, case insensitive)")
 
             # data source subframe
-            mesh_data_source_frm = Frame(mesh_data_frm, style="blue.TFrame")
+            mesh_data_source_frm = Frame(mesh_data_frm, style="red.TFrame")
             mesh_data_source_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
             mesh_data_source_label = Label(mesh_data_source_frm, text="Data source:",
-                                           style="blue.TLabel", db_w=True, width=12)
+                                           style="red.TLabel", db_w=True, width=12)
             mesh_data_source_label.pack(side="left", padx=2)
             mesh_data_source = Combobox(mesh_data_source_frm,
                                         textvariable=self.mesh_data_source_var,
@@ -373,24 +373,24 @@ class App(Tk):
             create_tooltip(mesh_data_source, "Select data source")
 
         # frame for options
-        p_options_frm = Frame(p_frm, style="blue.TFrame")
+        p_options_frm = Frame(p_frm, style="red.TFrame")
         p_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
 
         # display options subframe
         mesh_display_options_frm = LabelFrame(p_options_frm, text="Display",
-                                              style="blue_sub.TLabelframe")
+                                              style="red_sub.TLabelframe")
         mesh_display_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # drop empty last child
         mesh_drop_empty = Checkbutton(mesh_display_options_frm, text="Drop empty",
                                       variable=self.mesh_drop_empty_var, onvalue=True,
-                                      offvalue=False, style="blue.TCheckbutton", db_w=True,
+                                      offvalue=False, style="red.TCheckbutton", db_w=True,
                                       mesh_w=True)
         mesh_drop_empty.pack(side="left", padx=2)
         create_tooltip(mesh_drop_empty, "Drop nodes who have no further children and 0 counts")
 
         # labels ('all', 'propagate', 'none')
-        mesh_label_label = Label(mesh_display_options_frm, text="Labels:", style="blue.TLabel",
+        mesh_label_label = Label(mesh_display_options_frm, text="Labels:", style="red.TLabel",
                                  db_w=True, mesh_w=True)
         mesh_label_label.pack(side="left", padx=2)
 
@@ -402,7 +402,7 @@ class App(Tk):
 
         # summary plot subframe
         mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Summary Plot",
-                                           style="blue_sub.TLabelframe")
+                                           style="red_sub.TLabelframe")
         mesh_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # checkbutton to toggle overview / detailed view
@@ -413,14 +413,14 @@ class App(Tk):
         self.mesh_summary_plot_cols.configure(state="disabled")
         self.mesh_summary_plot_control.set(False)
         self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Enable",
-                                             style="blue.TCheckbutton", db_w=True, mesh_w=True,
+                                             style="red.TCheckbutton", db_w=True, mesh_w=True,
                                              variable=self.mesh_summary_plot_control, onvalue=True,
                                              offvalue=False,
                                              command=partial(self.checkbox_controller,
                                                              "mesh_summary_plot"))
         self.mesh_summary_plot.pack(side="left", padx=2)
         self.mesh_summary_plot_lbl = Label(mesh_summary_plot_frm, text="Columns: ",
-                                           style="blue.TLabel")
+                                           style="red.TLabel")
         self.mesh_summary_plot_lbl.configure(state="disabled")
         self.mesh_summary_plot_lbl.pack(side="left", padx=2)
         self.mesh_summary_plot_cols.pack(side="left", padx=2)
@@ -433,22 +433,22 @@ class App(Tk):
 
         # propagation subframe
         mesh_propagate_frm = LabelFrame(p_options_frm, text="Propagation",
-                                        style="blue_sub.TLabelframe")
+                                        style="red_sub.TLabelframe")
         mesh_propagate_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
         self.mesh_propagate_enabled_control.set(False)
         self.mesh_propagate_enable = Checkbutton(mesh_propagate_frm, text="Enable",
-                                           style="blue.TCheckbutton", db_w=True, mesh_w=True,
-                                           onvalue=True, offvalue=False,
-                                           variable=self.mesh_propagate_enabled_control,
-                                           command=partial(self.checkbox_controller,
-                                                           "mesh_propagate"))
+                                                 style="red.TCheckbutton", db_w=True, mesh_w=True,
+                                                 onvalue=True, offvalue=False,
+                                                 variable=self.mesh_propagate_enabled_control,
+                                                 command=partial(self.checkbox_controller,
+                                                                 "mesh_propagate"))
         self.mesh_propagate_enable.pack(side="left", padx=2)
         create_tooltip(self.mesh_propagate_enable,
                        "Select to enable propagation of counts and colors based on ontology level")
 
         # propagate color specificity
         self.mesh_propagate_color_lbl = Label(mesh_propagate_frm, text="Color:",
-                                              style="blue.TLabel")
+                                              style="red.TLabel")
         self.mesh_propagate_color_lbl.pack(side="left", padx=2)
         self.mesh_propagate_color_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_color_lbl,
@@ -476,7 +476,7 @@ class App(Tk):
 
         # propagate counts
         self.mesh_propagate_counts_lbl = Label(mesh_propagate_frm, text="Counts:",
-                                               style="blue.TLabel")
+                                               style="red.TLabel")
         self.mesh_propagate_counts_lbl.pack(side="left", padx=2)
         self.mesh_propagate_counts_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_counts_lbl,
@@ -502,7 +502,7 @@ class App(Tk):
                        "ALT: Enable 'Propagation' to modify propagation counts")
 
         # propagate level
-        self.mesh_propagate_lvl_lbl = Label(mesh_propagate_frm, text="Level: ", style="blue.TLabel")
+        self.mesh_propagate_lvl_lbl = Label(mesh_propagate_frm, text="Level: ", style="red.TLabel")
         self.mesh_propagate_lvl_lbl.pack(side="left", padx=2)
         self.mesh_propagate_lvl_lbl.configure(state="disabled")
         self.mesh_propagate_lvl = Combobox(mesh_propagate_frm,
@@ -524,11 +524,11 @@ class App(Tk):
                                                 "propagation level")
 
         # run buttons frame
-        p_run_frm = Frame(p_frm, style="blue.TFrame")
+        p_run_frm = Frame(p_frm, style="red.TFrame")
         p_run_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="x")
 
         # plot button
-        mesh_plot = Button(p_run_frm, text="Plot", style="blue.TButton",
+        mesh_plot = Button(p_run_frm, text="Plot", style="red.TButton",
                            command=partial(self.plot, "mesh"), db_w=True, mesh_w=True)
         mesh_plot.pack(side="right", padx=2)
         create_tooltip(mesh_plot, "Plot Sunburst based on selected data-source and asset. "
@@ -537,7 +537,7 @@ class App(Tk):
 
         if db_functions:
             # export button
-            mesh_export = Button(p_run_frm, text="Export", style="blue.TButton",
+            mesh_export = Button(p_run_frm, text="Export", style="red.TButton",
                                  command=self.mesh_export, db_w=True)
             mesh_export.pack(side="right", padx=2)
             create_tooltip(mesh_export, "Generate Sunburst data without plotting, export to Excel "

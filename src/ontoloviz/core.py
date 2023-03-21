@@ -85,7 +85,8 @@ class SunburstBase:
         # entity lookup tables
         self.drug_lookup = {_[0]: _[1] for _ in self.query("SELECT drug_name, id FROM drug_lookup")}
         self.drug_lookup_reverse = {v: k for k, v in self.drug_lookup.items()}
-        self.phenotype_lookup = {_[0]: _[1] for _ in self.query("SELECT phenotype_name, id FROM phenotype_lookup")}
+        self.phenotype_lookup = {_[0]: _[1] for _ in self.query("SELECT phenotype_name, id "
+                                                                "FROM phenotype_lookup")}
         self.phenotype_lookup_reverse = {v: k for k, v in self.phenotype_lookup.items()}
 
     def verify_db(self, fn: str = None) -> bool:
@@ -93,10 +94,12 @@ class SunburstBase:
 
         :returns: True if database contains all required columns
         """
-        ret = self.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", database=fn)
-        required_columns = ['pheno_indirect_semantic', 'pheno_indirect_explicit', 'pheno_direct_explicit',
-                            'pheno_direct_semantic', 'drug_atc', 'phenotype_lookup', 'drug_lt', 'mesh_tree',
-                            'drug_lookup']
+        ret = self.query("SELECT name FROM sqlite_master "
+                         "WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+                         database=fn)
+        required_columns = ['pheno_indirect_semantic', 'pheno_indirect_explicit',
+                            'pheno_direct_explicit', 'pheno_direct_semantic', 'drug_atc',
+                            'phenotype_lookup', 'drug_lt', 'mesh_tree', 'drug_lookup']
         if set([_[0] for _ in ret]) == set(required_columns):
             print("Database verified")
             return True
@@ -123,37 +126,41 @@ class SunburstBase:
                         elif len(columns) == 7:
                             file_type = "mesh_tsv"
                         else:
-                            raise ValueError("TSV verification failed. Expected 6 columns for ATC-tree, "
-                                             "7 columns for MeSH tree")
+                            raise ValueError("TSV verification failed. Expected 6 columns for "
+                                             "ATC-tree, 7 columns for MeSH tree")
                         print(f"TSV verified as '{file_type}': {fn}")
                         return file_type
 
         else:
-            wb = load_workbook(fn, read_only=True)
+            workbook = load_workbook(fn, read_only=True)
 
-            # key = key in 'Settings' tab which must be true; value = number of columns to verify in 'Tree' tab
+            # key equals 'Settings' tab in excel; value = number of columns to verify in 'Tree' tab
             req = {"mesh_excel": 7, "atc_excel": 6}
 
             # check for mesh_excel/atc_excel = True in 'Settings' tab
             try:
-                file_type = [r[0].value for r in wb["Settings"].rows if r[0].value in req.keys() and r[1].value == True]
+                file_type = [r[0].value for r in workbook["Settings"].rows
+                             if r[0].value in req.keys() and r[1].value == True]
                 if not file_type:
                     raise KeyError("Excel verification failed: no valid Setting"
                                    " for keys 'mesh_excel' or 'atc_excel' found.")
             # in case tab 'Settings' does not exist
-            except KeyError:
+            except KeyError as exc:
                 # classify solely based on column number in first sheet
-                cols = wb.worksheets[0].max_column
+                cols = workbook.worksheets[0].max_column
                 if cols not in req.values():
-                    raise ValueError("Excel verification without settings failed: Amount of columns does not match any"
-                                     f" known configuration!\nThis files columns: {cols}\nPossible values: {req}")
+                    raise ValueError(
+                        "Excel verification without settings failed: Amount of columns does not "
+                        "match any known configuration!\nThis files columns: "
+                        f"{cols}\nPossible values: {req}\nException: {exc}") from exc
                 flipped_req = {v: k for k, v in req.items()}
                 return flipped_req[cols] + "_no_settings"
 
             # check for number of columns in 'Tree' tab
-            if wb["Tree"].max_column != req[file_type[0]]:
-                raise ValueError(f"Excel verification failed: Columns in tab 'Tree' do not match expected number. "
-                                 f"Expected: {req[file_type[0]]}, actual: {wb['Tree'].max_column}")
+            if workbook["Tree"].max_column != req[file_type[0]]:
+                raise ValueError("Excel verification failed: Columns in tab 'Tree' do not match "
+                                 "expected number. Expected: "
+                                 f"{req[file_type[0]]}, actual: {workbook['Tree'].max_column}")
 
             print(f"Excel verified as '{file_type[0]}': {fn}")
             return file_type[0]
@@ -174,64 +181,72 @@ class SunburstBase:
 
     def set_settings(self, settings: dict = None):
         """Verifies/converts settings, example call: self.set_settings({'show_border': 'True'})"""
-        for k, v in settings.items():
-            if k not in self.s.keys():
-                raise KeyError(f"Illegal settings key used: '{k}'")
+        for _k, _v in settings.items():
+            if _k not in self.s.keys():
+                raise KeyError(f"Illegal settings key used: '{_k}'")
 
             # resolve booleans
-            if k in ["show_border", "export_plot", "mesh_drop_empty_last_child",
+            if _k in ["show_border", "export_plot", "mesh_drop_empty_last_child",
                      "atc_propagate_enable", "mesh_propagate_enable"]:
-                if v in ["True", "TRUE", "1", 1]:
-                    v = True
-                elif v in ["False", "FALSE", "0", 0]:
-                    v = False
+                if _v in ["True", "TRUE", "1", 1]:
+                    _v = True
+                elif _v in ["False", "FALSE", "0", 0]:
+                    _v = False
                 else:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - boolean required")
+                    raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - boolean required")
 
             # resolve ints
-            if k in ["atc_propagate_lvl", "mesh_propagate_lvl"]:
+            if _k in ["atc_propagate_lvl", "mesh_propagate_lvl"]:
                 try:
-                    v = int(v)
+                    _v = int(_v)
                 except ValueError:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - integer required")
+                    raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - integer required")
 
             # resolve floats
-            if k in ["border_width"]:
+            if _k in ["border_width"]:
                 try:
-                    v = float(v)
+                    _v = float(_v)
                 except ValueError:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - integer or float required")
+                    raise ValueError(
+                        f"Illegal value for setting '{_k}': '{_v}' - integer or float required")
 
             # custom resolves
-            if k == "atc_labels" and v not in ["all", "propagation", "drugs", "none"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - "
+            if _k == "atc_labels" and _v not in ["all", "propagation", "drugs", "none"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - "
                                  f"valid are 'all', 'propagation', 'drugs', 'none'")
 
-            if k == "mesh_labels" and v not in ["all", "propagation", "none"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'all', 'propagation', 'none'")
+            if _k == "mesh_labels" and _v not in ["all", "propagation", "none"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'all', 'propagation', 'none'")
 
-            if k == "atc_wedge_width" and v not in ["total", "remainder"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'total', 'remainder'")
+            if _k == "atc_wedge_width" and _v not in ["total", "remainder"]:
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid are 'total', 'remainder'")
 
-            if k == "default_color" and not match("#[a-fA-F0-9]{6}$", v):
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid format is '#FFFFFF'")
+            if _k == "default_color" and not match("#[a-fA-F0-9]{6}$", _v):
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid format is '#FFFFFF'")
 
-            if k in ["atc", "mesh_summary_plot"] and (v < 0 or v > 20):
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are integers > 0 and < 20")
+            if _k in ["atc", "mesh_summary_plot"] and (_v < 0 or _v > 20):
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid are integers > 0 and < 20")
 
-            if k == "atc_propagate_color" and v not in ["specific", "global", "off"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'specific', 'global' and 'off'")
+            if _k == "atc_propagate_color" and _v not in ["specific", "global", "off"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'specific', 'global' and 'off'")
 
-            if k == "mesh_propagate_color" and v not in ["specific", "global", "off", "phenotype"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - "
-                                 f"valid are 'specific', 'global', 'phenotype' and 'off'")
+            if _k == "mesh_propagate_color" and _v not in ["specific", "global", "off", "phenotype"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'specific', 'global', 'phenotype' and 'off'")
 
-            if k in ["atc_propagate_counts", "mesh_propagate_counts"] and v not in ["off", "level", "all"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'off', 'level' and 'all'")
+            if _k in ["atc_propagate_counts", "mesh_propagate_counts"] \
+                    and _v not in ["off", "level", "all"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'off', 'level' and 'all'")
 
             # apply setting
-            self.s[k] = v
-            print(f"Loaded setting: {k} - {v}")
+            self.s[_k] = _v
+            print(f"Loaded setting: {_k} - {_v}")
 
     def init_settings(self):
         """Initializes settings with default values"""
@@ -275,7 +290,8 @@ class SunburstBase:
         :returns: List of tuples
 
         Example call:
-          ret = query("test.db", "SELECT {} FROM {} WHERE {}=?".format("col1", "test_table", "col2"), ["value1"])
+          ret = query("test.db", "SELECT {} FROM {} WHERE {}=?"
+                .format("col1", "test_table", "col2"), ["value1"])
         """
         if not query_args:
             query_args = []
@@ -307,7 +323,8 @@ class SunburstBase:
         if matches and name == matches[0]:
             return lookup[matches[0]]
         elif matches:
-            raise ValueError(f"Could not resolve {entity_type} '{entity_name}', did you mean: {matches} ?")
+            raise ValueError(f"Could not resolve {entity_type} '{entity_name}', "
+                             f"did you mean: {matches} ?")
         else:
             raise ValueError(f"Could not resolve {entity_type} '{entity_name}'")
 
@@ -327,8 +344,8 @@ class SunburstBase:
         """
         return self.get_entity_id(drug_name, "drug")
 
-    def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None, max_level: [str, int] = None,
-                                       count_key: str = "counts") -> tuple:
+    def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None,
+                                       max_level: [str, int] = None, count_key: str = "counts") -> tuple:
         """Get color scale based on max value of counts of children in a subtree
 
         :param sub_tree: MeSH/ATC subtree dictionary (e.g. mesh_tree['C01']) (e.g. atc_tree['L'])

@@ -8,7 +8,8 @@ from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, mes
 from tkinter import Label as LabelOG
 from tkinter import Entry as EntryOG
 from tkinter.ttk import LabelFrame, Frame, Style
-from .core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+from ontoloviz.core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+# TODO: revert to from .core import ..
 from threading import Thread
 import time
 import textwrap
@@ -65,33 +66,34 @@ class ToolTip:
         self.widget = widget
         self.tip_window = None
         self.id = None
-        self.x = self.y = 0
+        self.tt_x = self.tt_y = 0
 
     def showtip(self, text: str = None, alt_text: str = None):
+        """Calculate coordinates, create Toplevel, add Label with text to ToolTip"""
         if self.tip_window or not text:
             return
 
         # calculate coordinates
-        x, y, _cx, cy = self.widget.bbox("insert")
-        x = x + self.widget.winfo_rootx() + 57
-        y = y + cy + self.widget.winfo_rooty() + 27
+        tt_x, tt_y, _cx, _cy = self.widget.bbox("insert")
+        tt_x = tt_x + self.widget.winfo_rootx() + 57
+        tt_y = tt_y + _cy + self.widget.winfo_rooty() + 27
 
         # create Toplevel
-        self.tip_window = tw = Toplevel(self.widget)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry("+%d+%d" % (x, y))
+        self.tip_window = tt_window = Toplevel(self.widget)
+        tt_window.wm_overrideredirect(True)
+        tt_window.wm_geometry(f"+{tt_x}+{tt_y}")
 
         # add Label with text
         tmp = text if str(self.widget['state']) != "disabled" else alt_text
-        label = Label(tw, text=tmp, justify="left", relief="solid", borderwidth=0.5)
+        label = Label(tt_window, text=tmp, justify="left", relief="solid", borderwidth=0.5)
         label.pack(ipadx=1)
 
     def hidetip(self):
-        # destroy Toplevel
-        tw = self.tip_window
+        """Destroy Toplevel of ToolTip"""
+        tt_window = self.tip_window
         self.tip_window = None
-        if tw:
-            tw.destroy()
+        if tt_window:
+            tt_window.destroy()
 
 
 def create_tooltip(widget: [Label, Checkbutton, Combobox, Entry, Button, Radiobutton] = None,

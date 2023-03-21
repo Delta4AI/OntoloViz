@@ -164,9 +164,10 @@ class App(Tk):
         self.resizable(False, False)
 
         # style definitions
-        purple = "#9998AF"
-        red = "#8CA6D9"
+        purple = "#403C53"
+        red = "#C33D35"
         green = "#A6D98C"
+        white = "#FFFFFF"
         bold_normal = ("Arial", 9, "bold")
         bold_large = ("Arial", 10, "bold")
         bold_xlarge = ("Arial", 16, "bold")
@@ -177,20 +178,23 @@ class App(Tk):
         self.style.configure("red.TLabelframe", background=red)
         self.style.configure("red.TLabelframe.Label", font=bold_large, background=red)
         self.style.configure("red_sub.TLabelframe", background=red)
-        self.style.configure("red_sub.TLabelframe.Label", background=red)
+        self.style.configure("red_sub.TLabelframe.Label", background=red, font=bold_normal)
         self.style.configure("red.TFrame", background=red)
         self.style.configure("red.TLabel", background=red)
         self.style.configure("red.TButton", font=bold_large, background=red)
         self.style.configure("red.TCheckbutton", background=red, activebackground=red)
         self.style.configure("red.TRadiobutton", background=red, activebackground=red)
         self.style.configure("purple.TLabelframe", background=purple)
-        self.style.configure("purple.TLabelframe.Label", font=bold_large, background=purple)
+        self.style.configure("purple.TLabelframe.Label", font=bold_large, background=purple,
+                             foreground=white)
         self.style.configure("purple_sub.TLabelframe", background=purple)
-        self.style.configure("purple_sub.TLabelframe.Label", background=purple)
+        self.style.configure("purple_sub.TLabelframe.Label", background=purple, foreground=white,
+                             font=bold_normal)
         self.style.configure("purple.TFrame", background=purple)
-        self.style.configure("purple.TLabel", background=purple)
+        self.style.configure("purple.TLabel", background=purple, foreground=white)
         self.style.configure("purple.TButton", font=bold_large, background=purple)
-        self.style.configure("purple.TCheckbutton", background=purple, activebackground=purple)
+        self.style.configure("purple.TCheckbutton", background=purple, activebackground=purple,
+                             foreground=white)
         self.style.configure("purple.TRadiobutton", background=purple, activebackground=purple)
         self.style.configure("header_red.TLabel", font=bold_xlarge, foreground="#396DD6")
         self.style.configure("header_purple.TLabel", font=bold_xlarge, foreground="#706CB5")
@@ -1315,6 +1319,7 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="atc")
             self.atc_file_loaded = input_fn
             self.set_status(f"ATC tree loaded: {input_fn}")
+            self.title("OntoloViz - Drug Mode")
             if tree_type == "atc_excel":
                 self.atc_label_var.set(obj.s["atc_labels"])
                 self.atc_wedge_width_var.set(obj.s["atc_wedge_width"])
@@ -1322,6 +1327,7 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="mesh")
             self.set_status(f"MeSH tree loaded: {input_fn}")
             self.mesh_file_loaded = input_fn
+            self.title("OntoloViz - Phenotype Mode")
             if tree_type == "mesh_excel":
                 self.mesh_drop_empty_var.set(obj.s["mesh_drop_empty_last_child"])
                 self.mesh_label_var.set(obj.s["mesh_labels"])

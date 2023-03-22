@@ -16,7 +16,7 @@ better understanding of the scope of the package.
 
 Quickstart
 ==========
-The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoloViz/releases) 
+The GUI can be run by downloading the latest [release](https://github.com/Mnikley/OntoloViz/releases) 
 or by installing the package via PyPi (OS independent, requires **Python 3.7+**):
 
     pip install ontoloviz
@@ -25,6 +25,8 @@ After the installation you can run the GUI from the command line with the follow
 
     ontoloviz
 
+Empty templates or pre-populated examples can be found in the `templates.zip` file in the 
+[release](https://github.com/Mnikley/OntoloViz/releases) section as well.
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
     git clone https://github.com/Mnikley/OntoloViz.git

@@ -30,9 +30,17 @@ Empty templates or pre-populated examples can be found in the `templates.zip` fi
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
     git clone https://github.com/Mnikley/OntoloViz.git
-    cd OntoloViz
+    
+    # optional: install and activate venv
+    python -m venv  # python3 on linux
+    venv\scripts\activate  # source venv/bin/activate on linux
+    
+    # install dependencies
     pip install plotly>=5 openpyxl>=3
-    python src/ontoloviz/app.py
+    
+    # launch GUI
+    cd OntoloViz/src
+    python -c "from ontoloviz import run_app; run_app()"
 
 Usage
 =====

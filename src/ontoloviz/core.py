@@ -612,9 +612,11 @@ class SunburstBase:
         :return: tuple of lists containing labels and percentages for each node in each subtree
         """
         label_mode, propagate_count_mode, propagate_lvl, hover_template = None, None, None, None
+        propagate_color_mode = None
         if isinstance(self, PhenotypeSunburst):
             label_mode = self.s["mesh_labels"]
             propagate_count_mode = self.s["mesh_propagate_counts"]
+            propagate_color_mode = self.s["mesh_propagate_color"]
             propagate_lvl = self.s["mesh_propagate_lvl"]
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
@@ -630,6 +632,7 @@ class SunburstBase:
         elif isinstance(self, DrugSunburst):
             label_mode = self.s["atc_labels"]
             propagate_count_mode = self.s["atc_propagate_counts"]
+            propagate_color_mode = self.s["atc_propagate_color"]
             propagate_lvl = self.s["atc_propagate_lvl"]
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
@@ -639,7 +642,11 @@ class SunburstBase:
                               "%{customdata[5]}"
                               "<extra></extra>")
 
-        # labels and percentages
+        # get max counts to adapt percentages in case global colors are used
+        global_sum = int(sum([max(_["imported_counts"] for _ in sub.values())
+                              for sub in plot_tree.values()]))
+
+        # populate labels and percentages
         labels, custom_data = [], []
         for k, v in plot_tree.items():
             wedge_labels, custom_tuples, node_percentage = [], [], None
@@ -665,26 +672,33 @@ class SunburstBase:
                     wedge_labels.append("")
 
                 # percentages
-                if propagate_count_mode in ["off", "all"]:
-                    node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
-                elif propagate_count_mode == "level":
-                    if vv["level"] >= propagate_lvl:
-                        node_percentage = round(vv["imported_counts"] / propagate_threshold_sum * 100)
-                    else:
+                if propagate_color_mode == "global":
+                    node_percentage = round(vv["imported_counts"] / global_sum * 100, 1)
+                else:
+                    if propagate_count_mode in ["off", "all"]:
                         node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
+                    elif propagate_count_mode == "level":
+                        if vv["level"] >= propagate_lvl:
+                            node_percentage = round(
+                                vv["imported_counts"] / propagate_threshold_sum * 100)
+                        else:
+                            node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
 
                 # custom data
                 hover_label = vv["label"] if vv["label"] != "" else "Undefined"
                 count = int(vv["imported_counts"])
                 node_id = vv["id"]
                 child_sum = sum([1 for z in v.keys() if z.startswith(vv["id"]) and z != vv["id"]])
-                comment = "<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65)) if vv["comment"] else ""
+                comment = str("<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65))
+                              if vv["comment"] else "")
 
                 if isinstance(self, PhenotypeSunburst):
-                    custom_tuples.append((hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
-                                          "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
+                    custom_tuples.append(
+                        (hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
+                         "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
                 elif isinstance(self, DrugSunburst):
-                    custom_tuples.append((hover_label, count, node_percentage, node_id, child_sum, comment))
+                    custom_tuples.append(
+                        (hover_label, count, node_percentage, node_id, child_sum, comment))
 
             custom_data.append(custom_tuples)
             labels.append(wedge_labels)
@@ -707,7 +721,8 @@ class SunburstBase:
             parents=[_["parent"] for _ in v.values()],
             values=[_["counts"] for _ in v.values()],
             ids=[_["id"] for _ in v.values()],
-            branchvalues="remainder" if isinstance(self, PhenotypeSunburst) else self.s["atc_wedge_width"],
+            branchvalues=str("remainder" if isinstance(self, PhenotypeSunburst)
+                             else self.s["atc_wedge_width"]),
             customdata=custom_data[idx],
             hovertemplate=hover_template,
             marker={'colors': [_["color"] for _ in v.values()],
@@ -1161,7 +1176,6 @@ class PhenotypeSunburst(SunburstBase):
         plot_tree = {}
         parent_whitelist = set()
         drop_count = 0
-        subtrees_removed = 0
 
         # create copy of tree
         # first level keys are sorted C01, C02

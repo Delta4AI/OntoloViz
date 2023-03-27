@@ -166,23 +166,29 @@ class App(Tk):
         self.resizable(False, False)
         self.minsize(400, 80)
 
+        # highres settings for screenshot
+        # import ctypes
+        # ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        # self.tk.call("tk", "scaling", 2)
+
         # style definitions
-        primary_bg = "#6C6E97"
-        primary_fg = "#000000"
-        secondary_bg = "#E87E6B"
-        secondary_fg = "#000000"
+        primary_bg = "#403C53"
+        primary_fg = "#FFFFFF"
+        secondary_bg = "#C33D35"
+        secondary_fg = "#FFFFFF"
+        dark_bg = "#2E2D32"
+        dark_fg = "#FFFFFF"
         success = "#6BBE92"
-        grey = "#E4E3EA"
         bold_normal = ("Arial", 9, "bold")
         bold_large = ("Arial", 10, "bold")
-        self.configure(background=grey)
+        self.configure(background=dark_bg)
         self.style = Style()
         self.style.configure("success.TButton", font=bold_large, background=success)
-        self.style.configure("big.TButton", font=bold_normal, background=grey)
-        self.style.configure("big.TFrame", background=grey)
-        self.style.configure("big.TLabelframe", font=bold_large, background=grey, relief="ridge")
-        self.style.configure("big.TLabelframe.Label", background=grey)
-        self.style.configure("big.TLabel", background=grey)
+        self.style.configure("dark.TButton", font=bold_normal, background=dark_bg)
+        self.style.configure("dark.TFrame", background=dark_bg)
+        self.style.configure("dark.TLabelframe", font=bold_large, background=dark_bg, relief="ridge")
+        self.style.configure("dark.TLabelframe.Label", background=dark_bg, foreground=dark_fg)
+        self.style.configure("dark.TLabel", background=dark_bg, foreground=dark_fg)
         self.style.configure("secondary.TLabelframe", background=secondary_bg, relief="ridge")
         self.style.configure("secondary.TLabelframe.Label", font=bold_large,
                              background=secondary_bg, foreground=secondary_fg)
@@ -306,7 +312,7 @@ class App(Tk):
 
         # ######################################### LOAD FRAME AT TOP ############################ #
 
-        load_frm = Frame(self, style="big.TFrame")
+        load_frm = Frame(self, style="dark.TFrame")
         load_frm.pack(ipadx=2, ipady=2, fill="both", expand=True)
 
         self.load_file_btn = Button(load_frm, text="Load File", command=self.load_file,
@@ -321,16 +327,16 @@ class App(Tk):
 
         # ####################################### MESH/DRUG FRAMES ############################### #
 
-        self.mesh_frame = Frame(self, style="big.TFrame")
+        self.mesh_frame = Frame(self, style="dark.TFrame")
         self.mesh_frame.pack(fill="both")
-        self.atc_frame = Frame(self, style="big.TFrame")
+        self.atc_frame = Frame(self, style="dark.TFrame")
         self.atc_frame.pack(fill="both")
 
         # ###################################### STATUS AT BOTTOM ################################ #
 
-        self.status_frame = LabelFrame(self, text="Status", style="big.TLabelframe")
+        self.status_frame = LabelFrame(self, text="Status", style="dark.TLabelframe")
         self.status_frame.pack(ipadx=2, ipady=2, fill="both")
-        status = Label(self.status_frame, textvariable=self.status_var, style="big.TLabel")
+        status = Label(self.status_frame, textvariable=self.status_var, style="dark.TLabel")
         status.pack(side="right", padx=2)
 
     def build_mesh_ui(self, db_functions: bool = None):
@@ -959,7 +965,7 @@ class App(Tk):
         """Set global status in GUI
         :param text: Text to display as status message
         """
-        self.status_var.set("\n".join(textwrap.wrap(text, 75)))
+        self.status_var.set("\n".join(textwrap.wrap(text, 65)))
         self.update()
 
     def configure_p(self):
@@ -1099,9 +1105,9 @@ class App(Tk):
         self.mesh_frame.pack(fill="both")
         self.atc_frame = Frame(self)
         self.atc_frame.pack(fill="both")
-        self.status_frame = LabelFrame(self, text="Status", style="big.TLabelframe")
+        self.status_frame = LabelFrame(self, text="Status", style="dark.TLabelframe")
         self.status_frame.pack(ipadx=2, ipady=2, fill="both")
-        status = Label(self.status_frame, textvariable=self.status_var, style="big.TLabel")
+        status = Label(self.status_frame, textvariable=self.status_var, style="dark.TLabel")
         status.pack(padx=2)
         self.update()
 
@@ -1391,7 +1397,7 @@ class App(Tk):
             self.loaded_settings = {k: v for k, v in obj.s.items()}
 
         # reset button style
-        self.load_file_btn.configure(style="big.TButton")
+        self.load_file_btn.configure(style="dark.TButton")
 
 
 class ExportPopup(Toplevel):

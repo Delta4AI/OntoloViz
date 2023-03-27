@@ -605,7 +605,8 @@ class SunburstBase:
                             plot_tree[k][kk]["color"] = self.s["default_color"]
 
     def generate_plot_supplements(self, plot_tree: dict = None) -> tuple:
-        """Generates nested lists for subtrees containing label, percentage, custom data etc. used for sunburst traces
+        """Generates nested lists for subtrees containing label, percentage, custom data;
+         creates filtered plot tree based on drop empty setting
 
         :param plot_tree: dictionary containing trees and nodes
         :return: tuple of lists containing labels and percentages for each node in each subtree
@@ -687,7 +688,7 @@ class SunburstBase:
 
             custom_data.append(custom_tuples)
             labels.append(wedge_labels)
-        
+
         return labels, custom_data, hover_template
 
     def create_sunburst_figure(self, plot_tree: dict = None):
@@ -709,10 +710,10 @@ class SunburstBase:
             branchvalues="remainder" if isinstance(self, PhenotypeSunburst) else self.s["atc_wedge_width"],
             customdata=custom_data[idx],
             hovertemplate=hover_template,
-            marker=dict(colors=[_["color"] for _ in v.values()],
-                        colorscale="RdBu",
-                        line=dict(color=self.s["border_color"], width=self.s["border_width"])
-                        if self.s["show_border"] else None)
+            marker={'colors': [_["color"] for _ in v.values()],
+                    'colorscale': "RdBu",
+                    'line': {'color': self.s["border_color"],
+                             'width': self.s["border_width"]} if self.s["show_border"] else None}
         ) for idx, v in enumerate(plot_tree.values())]
 
         # plot configuration
@@ -723,23 +724,28 @@ class SunburstBase:
                   "showLink": False}
 
         # generate headers
-        headers, summary_plot, title, fn = None, None, None, None
+        headers, summary_plot, title, file_name = None, None, None, None
         if isinstance(self, PhenotypeSunburst):
-            headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())]
+            headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())
+                       if k in plot_tree.keys()]
             summary_plot = self.s["mesh_summary_plot"]
-            title = "Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)] + f" for {self.drug_name}"
-            fn = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
+            title = str("Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)]
+                        + f" for {self.drug_name}")
+            file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
         elif isinstance(self, DrugSunburst):
-            headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())]
+            headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())
+                       if k in plot_tree.keys()]
             summary_plot = self.s["atc_summary_plot"]
-            title = "Drug Sunburst" + ["", " Overview"][bool(summary_plot)] + f" for {self.phenotype_name}"
-            fn = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
+            title = str("Drug Sunburst" + ["", " Overview"][bool(summary_plot)]
+                        + f" for {self.phenotype_name}")
+            file_name = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
 
         # create figure
         self.set_thread_status("Creating figure ..")
         if summary_plot != 0:
             # figure for overview plot
-            fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers, title=title)
+            fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers,
+                                               title=title)
         else:
             # figure for specific plots - create buttons
             buttons = []
@@ -774,8 +780,8 @@ class SunburstBase:
 
         # save / plot figure
         if self.s["export_plot"]:
-            plotly_plot(fig, config=config, filename=fn)
-            abs_path = os.path.abspath(fn)
+            plotly_plot(fig, config=config, filename=file_name)
+            abs_path = os.path.abspath(file_name)
             self.set_thread_status(f"Exported plot to: {abs_path}")
             self.thread_return = abs_path
         else:
@@ -1155,9 +1161,19 @@ class PhenotypeSunburst(SunburstBase):
         plot_tree = {}
         parent_whitelist = set()
         drop_count = 0
+        subtrees_removed = 0
 
-        # create copy of tree (first level keys are sorted C01, C02 ... inner keys are sorted by level (outer to inner))
+        # create copy of tree
+        # first level keys are sorted C01, C02
+        # inner keys are sorted by level (outer to inner)
         for k, v in sorted(self.mesh_tree.items()):
+
+            # if all values of sub-tree are zero, skip copy
+            if self.s["mesh_drop_empty_last_child"] and all(_['counts'] == self.zero
+                                                            for _ in v.values()):
+                self.set_thread_status(f"Skipping sub-tree {k} without values")
+                continue
+
             if k not in plot_tree.keys():
                 plot_tree[k] = {}
             for kk, vv in sorted(v.items(), key=lambda x: x[1]["level"], reverse=True):
@@ -1171,7 +1187,8 @@ class PhenotypeSunburst(SunburstBase):
                 # add childs parent id to parent_whitelist to not remove empty parents
                 parent_whitelist.add(vv["parent"])
 
-                # copy node, set counts to at least self.fake_one to ensure all nodes (0-counts) are displayed
+                # copy node, set counts to at least self.fake_one
+                # to ensure all nodes (0-counts) are displayed
                 plot_tree[k][kk] = vv
                 plot_tree[k][kk]["counts"] = vv["counts"] if vv["counts"] >= 1 else self.fake_one
                 plot_tree[k][kk]["imported_counts"] = counts

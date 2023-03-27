@@ -52,6 +52,7 @@ to integers.
 
 GUI Options
 -----------
+> **_NOTE:_**  screenshots are outdated as of V1.5.3
 ![gui_small](https://user-images.githubusercontent.com/75040444/213717385-adb372a9-d0a4-4861-af9e-3fcb7a3c195d.jpg)
 
 - General

@@ -85,7 +85,8 @@ class SunburstBase:
         # entity lookup tables
         self.drug_lookup = {_[0]: _[1] for _ in self.query("SELECT drug_name, id FROM drug_lookup")}
         self.drug_lookup_reverse = {v: k for k, v in self.drug_lookup.items()}
-        self.phenotype_lookup = {_[0]: _[1] for _ in self.query("SELECT phenotype_name, id FROM phenotype_lookup")}
+        self.phenotype_lookup = {_[0]: _[1] for _ in self.query("SELECT phenotype_name, id "
+                                                                "FROM phenotype_lookup")}
         self.phenotype_lookup_reverse = {v: k for k, v in self.phenotype_lookup.items()}
 
     def verify_db(self, fn: str = None) -> bool:
@@ -93,10 +94,12 @@ class SunburstBase:
 
         :returns: True if database contains all required columns
         """
-        ret = self.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", database=fn)
-        required_columns = ['pheno_indirect_semantic', 'pheno_indirect_explicit', 'pheno_direct_explicit',
-                            'pheno_direct_semantic', 'drug_atc', 'phenotype_lookup', 'drug_lt', 'mesh_tree',
-                            'drug_lookup']
+        ret = self.query("SELECT name FROM sqlite_master "
+                         "WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+                         database=fn)
+        required_columns = ['pheno_indirect_semantic', 'pheno_indirect_explicit',
+                            'pheno_direct_explicit', 'pheno_direct_semantic', 'drug_atc',
+                            'phenotype_lookup', 'drug_lt', 'mesh_tree', 'drug_lookup']
         if set([_[0] for _ in ret]) == set(required_columns):
             print("Database verified")
             return True
@@ -123,37 +126,41 @@ class SunburstBase:
                         elif len(columns) == 7:
                             file_type = "mesh_tsv"
                         else:
-                            raise ValueError("TSV verification failed. Expected 6 columns for ATC-tree, "
-                                             "7 columns for MeSH tree")
+                            raise ValueError("TSV verification failed. Expected 6 columns for "
+                                             "ATC-tree, 7 columns for MeSH tree")
                         print(f"TSV verified as '{file_type}': {fn}")
                         return file_type
 
         else:
-            wb = load_workbook(fn, read_only=True)
+            workbook = load_workbook(fn, read_only=True)
 
-            # key = key in 'Settings' tab which must be true; value = number of columns to verify in 'Tree' tab
+            # key equals 'Settings' tab in excel; value = number of columns to verify in 'Tree' tab
             req = {"mesh_excel": 7, "atc_excel": 6}
 
             # check for mesh_excel/atc_excel = True in 'Settings' tab
             try:
-                file_type = [r[0].value for r in wb["Settings"].rows if r[0].value in req.keys() and r[1].value == True]
+                file_type = [r[0].value for r in workbook["Settings"].rows
+                             if r[0].value in req.keys() and r[1].value == True]
                 if not file_type:
                     raise KeyError("Excel verification failed: no valid Setting"
                                    " for keys 'mesh_excel' or 'atc_excel' found.")
             # in case tab 'Settings' does not exist
-            except KeyError:
+            except KeyError as exc:
                 # classify solely based on column number in first sheet
-                cols = wb.worksheets[0].max_column
+                cols = workbook.worksheets[0].max_column
                 if cols not in req.values():
-                    raise ValueError("Excel verification without settings failed: Amount of columns does not match any"
-                                     f" known configuration!\nThis files columns: {cols}\nPossible values: {req}")
+                    raise ValueError(
+                        "Excel verification without settings failed: Amount of columns does not "
+                        "match any known configuration!\nThis files columns: "
+                        f"{cols}\nPossible values: {req}\nException: {exc}") from exc
                 flipped_req = {v: k for k, v in req.items()}
                 return flipped_req[cols] + "_no_settings"
 
             # check for number of columns in 'Tree' tab
-            if wb["Tree"].max_column != req[file_type[0]]:
-                raise ValueError(f"Excel verification failed: Columns in tab 'Tree' do not match expected number. "
-                                 f"Expected: {req[file_type[0]]}, actual: {wb['Tree'].max_column}")
+            if workbook["Tree"].max_column != req[file_type[0]]:
+                raise ValueError("Excel verification failed: Columns in tab 'Tree' do not match "
+                                 "expected number. Expected: "
+                                 f"{req[file_type[0]]}, actual: {workbook['Tree'].max_column}")
 
             print(f"Excel verified as '{file_type[0]}': {fn}")
             return file_type[0]
@@ -174,64 +181,72 @@ class SunburstBase:
 
     def set_settings(self, settings: dict = None):
         """Verifies/converts settings, example call: self.set_settings({'show_border': 'True'})"""
-        for k, v in settings.items():
-            if k not in self.s.keys():
-                raise KeyError(f"Illegal settings key used: '{k}'")
+        for _k, _v in settings.items():
+            if _k not in self.s.keys():
+                raise KeyError(f"Illegal settings key used: '{_k}'")
 
             # resolve booleans
-            if k in ["show_border", "export_plot", "mesh_drop_empty_last_child",
+            if _k in ["show_border", "export_plot", "mesh_drop_empty_last_child",
                      "atc_propagate_enable", "mesh_propagate_enable"]:
-                if v in ["True", "TRUE", "1", 1]:
-                    v = True
-                elif v in ["False", "FALSE", "0", 0]:
-                    v = False
+                if _v in ["True", "TRUE", "1", 1]:
+                    _v = True
+                elif _v in ["False", "FALSE", "0", 0]:
+                    _v = False
                 else:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - boolean required")
+                    raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - boolean required")
 
             # resolve ints
-            if k in ["atc_propagate_lvl", "mesh_propagate_lvl"]:
+            if _k in ["atc_propagate_lvl", "mesh_propagate_lvl"]:
                 try:
-                    v = int(v)
+                    _v = int(_v)
                 except ValueError:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - integer required")
+                    raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - integer required")
 
             # resolve floats
-            if k in ["border_width"]:
+            if _k in ["border_width"]:
                 try:
-                    v = float(v)
+                    _v = float(_v)
                 except ValueError:
-                    raise ValueError(f"Illegal value for setting '{k}': '{v}' - integer or float required")
+                    raise ValueError(
+                        f"Illegal value for setting '{_k}': '{_v}' - integer or float required")
 
             # custom resolves
-            if k == "atc_labels" and v not in ["all", "propagation", "drugs", "none"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - "
+            if _k == "atc_labels" and _v not in ["all", "propagation", "drugs", "none"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' - "
                                  f"valid are 'all', 'propagation', 'drugs', 'none'")
 
-            if k == "mesh_labels" and v not in ["all", "propagation", "none"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'all', 'propagation', 'none'")
+            if _k == "mesh_labels" and _v not in ["all", "propagation", "none"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'all', 'propagation', 'none'")
 
-            if k == "atc_wedge_width" and v not in ["total", "remainder"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'total', 'remainder'")
+            if _k == "atc_wedge_width" and _v not in ["total", "remainder"]:
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid are 'total', 'remainder'")
 
-            if k == "default_color" and not match("#[a-fA-F0-9]{6}$", v):
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid format is '#FFFFFF'")
+            if _k == "default_color" and not match("#[a-fA-F0-9]{6}$", _v):
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid format is '#FFFFFF'")
 
-            if k in ["atc", "mesh_summary_plot"] and (v < 0 or v > 20):
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are integers > 0 and < 20")
+            if _k in ["atc", "mesh_summary_plot"] and (_v < 0 or _v > 20):
+                raise ValueError(
+                    f"Illegal value for setting '{_k}': '{_v}' - valid are integers > 0 and < 20")
 
-            if k == "atc_propagate_color" and v not in ["specific", "global", "off"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'specific', 'global' and 'off'")
+            if _k == "atc_propagate_color" and _v not in ["specific", "global", "off"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'specific', 'global' and 'off'")
 
-            if k == "mesh_propagate_color" and v not in ["specific", "global", "off", "phenotype"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - "
-                                 f"valid are 'specific', 'global', 'phenotype' and 'off'")
+            if _k == "mesh_propagate_color" and _v not in ["specific", "global", "off", "phenotype"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'specific', 'global', 'phenotype' and 'off'")
 
-            if k in ["atc_propagate_counts", "mesh_propagate_counts"] and v not in ["off", "level", "all"]:
-                raise ValueError(f"Illegal value for setting '{k}': '{v}' - valid are 'off', 'level' and 'all'")
+            if _k in ["atc_propagate_counts", "mesh_propagate_counts"] \
+                    and _v not in ["off", "level", "all"]:
+                raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
+                                 "- valid are 'off', 'level' and 'all'")
 
             # apply setting
-            self.s[k] = v
-            print(f"Loaded setting: {k} - {v}")
+            self.s[_k] = _v
+            print(f"Loaded setting: {_k} - {_v}")
 
     def init_settings(self):
         """Initializes settings with default values"""
@@ -275,7 +290,8 @@ class SunburstBase:
         :returns: List of tuples
 
         Example call:
-          ret = query("test.db", "SELECT {} FROM {} WHERE {}=?".format("col1", "test_table", "col2"), ["value1"])
+          ret = query("test.db", "SELECT {} FROM {} WHERE {}=?"
+                .format("col1", "test_table", "col2"), ["value1"])
         """
         if not query_args:
             query_args = []
@@ -307,7 +323,8 @@ class SunburstBase:
         if matches and name == matches[0]:
             return lookup[matches[0]]
         elif matches:
-            raise ValueError(f"Could not resolve {entity_type} '{entity_name}', did you mean: {matches} ?")
+            raise ValueError(f"Could not resolve {entity_type} '{entity_name}', "
+                             f"did you mean: {matches} ?")
         else:
             raise ValueError(f"Could not resolve {entity_type} '{entity_name}'")
 
@@ -327,8 +344,8 @@ class SunburstBase:
         """
         return self.get_entity_id(drug_name, "drug")
 
-    def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None, max_level: [str, int] = None,
-                                       count_key: str = "counts") -> tuple:
+    def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None,
+                                       max_level: [str, int] = None, count_key: str = "counts") -> tuple:
         """Get color scale based on max value of counts of children in a subtree
 
         :param sub_tree: MeSH/ATC subtree dictionary (e.g. mesh_tree['C01']) (e.g. atc_tree['L'])
@@ -588,15 +605,18 @@ class SunburstBase:
                             plot_tree[k][kk]["color"] = self.s["default_color"]
 
     def generate_plot_supplements(self, plot_tree: dict = None) -> tuple:
-        """Generates nested lists for subtrees containing label, percentage, custom data etc. used for sunburst traces
+        """Generates nested lists for subtrees containing label, percentage, custom data;
+         creates filtered plot tree based on drop empty setting
 
         :param plot_tree: dictionary containing trees and nodes
         :return: tuple of lists containing labels and percentages for each node in each subtree
         """
         label_mode, propagate_count_mode, propagate_lvl, hover_template = None, None, None, None
+        propagate_color_mode = None
         if isinstance(self, PhenotypeSunburst):
             label_mode = self.s["mesh_labels"]
             propagate_count_mode = self.s["mesh_propagate_counts"]
+            propagate_color_mode = self.s["mesh_propagate_color"]
             propagate_lvl = self.s["mesh_propagate_lvl"]
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
@@ -612,6 +632,7 @@ class SunburstBase:
         elif isinstance(self, DrugSunburst):
             label_mode = self.s["atc_labels"]
             propagate_count_mode = self.s["atc_propagate_counts"]
+            propagate_color_mode = self.s["atc_propagate_color"]
             propagate_lvl = self.s["atc_propagate_lvl"]
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
@@ -621,7 +642,11 @@ class SunburstBase:
                               "%{customdata[5]}"
                               "<extra></extra>")
 
-        # labels and percentages
+        # get max counts to adapt percentages in case global colors are used
+        global_sum = int(sum([max(_["imported_counts"] for _ in sub.values())
+                              for sub in plot_tree.values()]))
+
+        # populate labels and percentages
         labels, custom_data = [], []
         for k, v in plot_tree.items():
             wedge_labels, custom_tuples, node_percentage = [], [], None
@@ -647,30 +672,37 @@ class SunburstBase:
                     wedge_labels.append("")
 
                 # percentages
-                if propagate_count_mode in ["off", "all"]:
-                    node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
-                elif propagate_count_mode == "level":
-                    if vv["level"] >= propagate_lvl:
-                        node_percentage = round(vv["imported_counts"] / propagate_threshold_sum * 100)
-                    else:
+                if propagate_color_mode == "global":
+                    node_percentage = round(vv["imported_counts"] / global_sum * 100, 1)
+                else:
+                    if propagate_count_mode in ["off", "all"]:
                         node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
+                    elif propagate_count_mode == "level":
+                        if vv["level"] >= propagate_lvl:
+                            node_percentage = round(
+                                vv["imported_counts"] / propagate_threshold_sum * 100)
+                        else:
+                            node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
 
                 # custom data
                 hover_label = vv["label"] if vv["label"] != "" else "Undefined"
                 count = int(vv["imported_counts"])
                 node_id = vv["id"]
                 child_sum = sum([1 for z in v.keys() if z.startswith(vv["id"]) and z != vv["id"]])
-                comment = "<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65)) if vv["comment"] else ""
+                comment = str("<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65))
+                              if vv["comment"] else "")
 
                 if isinstance(self, PhenotypeSunburst):
-                    custom_tuples.append((hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
-                                          "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
+                    custom_tuples.append(
+                        (hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
+                         "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
                 elif isinstance(self, DrugSunburst):
-                    custom_tuples.append((hover_label, count, node_percentage, node_id, child_sum, comment))
+                    custom_tuples.append(
+                        (hover_label, count, node_percentage, node_id, child_sum, comment))
 
             custom_data.append(custom_tuples)
             labels.append(wedge_labels)
-        
+
         return labels, custom_data, hover_template
 
     def create_sunburst_figure(self, plot_tree: dict = None):
@@ -689,13 +721,14 @@ class SunburstBase:
             parents=[_["parent"] for _ in v.values()],
             values=[_["counts"] for _ in v.values()],
             ids=[_["id"] for _ in v.values()],
-            branchvalues="remainder" if isinstance(self, PhenotypeSunburst) else self.s["atc_wedge_width"],
+            branchvalues=str("remainder" if isinstance(self, PhenotypeSunburst)
+                             else self.s["atc_wedge_width"]),
             customdata=custom_data[idx],
             hovertemplate=hover_template,
-            marker=dict(colors=[_["color"] for _ in v.values()],
-                        colorscale="RdBu",
-                        line=dict(color=self.s["border_color"], width=self.s["border_width"])
-                        if self.s["show_border"] else None)
+            marker={'colors': [_["color"] for _ in v.values()],
+                    'colorscale': "RdBu",
+                    'line': {'color': self.s["border_color"],
+                             'width': self.s["border_width"]} if self.s["show_border"] else None}
         ) for idx, v in enumerate(plot_tree.values())]
 
         # plot configuration
@@ -706,23 +739,28 @@ class SunburstBase:
                   "showLink": False}
 
         # generate headers
-        headers, summary_plot, title, fn = None, None, None, None
+        headers, summary_plot, title, file_name = None, None, None, None
         if isinstance(self, PhenotypeSunburst):
-            headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())]
+            headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())
+                       if k in plot_tree.keys()]
             summary_plot = self.s["mesh_summary_plot"]
-            title = "Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)] + f" for {self.drug_name}"
-            fn = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
+            title = str("Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)]
+                        + f" for {self.drug_name}")
+            file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
         elif isinstance(self, DrugSunburst):
-            headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())]
+            headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())
+                       if k in plot_tree.keys()]
             summary_plot = self.s["atc_summary_plot"]
-            title = "Drug Sunburst" + ["", " Overview"][bool(summary_plot)] + f" for {self.phenotype_name}"
-            fn = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
+            title = str("Drug Sunburst" + ["", " Overview"][bool(summary_plot)]
+                        + f" for {self.phenotype_name}")
+            file_name = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
 
         # create figure
         self.set_thread_status("Creating figure ..")
         if summary_plot != 0:
             # figure for overview plot
-            fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers, title=title)
+            fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers,
+                                               title=title)
         else:
             # figure for specific plots - create buttons
             buttons = []
@@ -757,8 +795,8 @@ class SunburstBase:
 
         # save / plot figure
         if self.s["export_plot"]:
-            plotly_plot(fig, config=config, filename=fn)
-            abs_path = os.path.abspath(fn)
+            plotly_plot(fig, config=config, filename=file_name)
+            abs_path = os.path.abspath(file_name)
             self.set_thread_status(f"Exported plot to: {abs_path}")
             self.thread_return = abs_path
         else:
@@ -1139,8 +1177,17 @@ class PhenotypeSunburst(SunburstBase):
         parent_whitelist = set()
         drop_count = 0
 
-        # create copy of tree (first level keys are sorted C01, C02 ... inner keys are sorted by level (outer to inner))
+        # create copy of tree
+        # first level keys are sorted C01, C02
+        # inner keys are sorted by level (outer to inner)
         for k, v in sorted(self.mesh_tree.items()):
+
+            # if all values of sub-tree are zero, skip copy
+            if self.s["mesh_drop_empty_last_child"] and all(_['counts'] == self.zero
+                                                            for _ in v.values()):
+                self.set_thread_status(f"Skipping sub-tree {k} without values")
+                continue
+
             if k not in plot_tree.keys():
                 plot_tree[k] = {}
             for kk, vv in sorted(v.items(), key=lambda x: x[1]["level"], reverse=True):
@@ -1154,7 +1201,8 @@ class PhenotypeSunburst(SunburstBase):
                 # add childs parent id to parent_whitelist to not remove empty parents
                 parent_whitelist.add(vv["parent"])
 
-                # copy node, set counts to at least self.fake_one to ensure all nodes (0-counts) are displayed
+                # copy node, set counts to at least self.fake_one
+                # to ensure all nodes (0-counts) are displayed
                 plot_tree[k][kk] = vv
                 plot_tree[k][kk]["counts"] = vv["counts"] if vv["counts"] >= 1 else self.fake_one
                 plot_tree[k][kk]["imported_counts"] = counts

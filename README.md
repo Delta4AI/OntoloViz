@@ -10,7 +10,7 @@ OntoloViz
 
 OntoloViz is a graphical user interface for the creation of interactive sunburst plots of phenotype and drug ontologies.
 You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
-Take a look at the [screenshot section](#screenshots) or explore examples in `.html` format from the
+Take a look at the [screenshot and demos section](#screenshots-and-demos) or explore examples in `.html` format from the
 provided [templates.zip](https://github.com/Mnikley/OntoloViz/releases/download/v1.0.3/templates.zip) archive to get a 
 better understanding of the scope of the package.  
 
@@ -52,25 +52,20 @@ to integers.
 
 GUI Options
 -----------
-> **_NOTE:_**  screenshots are outdated as of V1.5.3
-![gui_small](https://user-images.githubusercontent.com/75040444/213717385-adb372a9-d0a4-4861-af9e-3fcb7a3c195d.jpg)
+<img height=250px alt="gui_small" src="https://user-images.githubusercontent.com/75040444/228182954-fb48a953-ec56-46db-81ad-816d9f356206.png">
 
+- **Load File**: load an `.tsv` or `.xlsx` file containing drug- or phenotype-ontology data
 - General
-  - **Load File**: load an `.tsv` or `.xlsx` file containing drug- or phenotype-ontology data
   - **Set Color Scale**: define a custom color scale for the sunburst color scaling when color propagation is active
   - **Set Border**: configures the border properties drawn around sunburst wedges
-  - **Save Plot**: when enabled, an interactive `.html` file is generated for later use
 - Display
-  - **Drop empty** (phenotype sunburst only): drops nodes who have no further children and 0 counts
-  - **Labels**: controls display of labels inside sunburst wedges, available options:
+  - **Drop empty nodes** (phenotype sunburst only): drops nodes who have no further children and 0 counts
+  - **Wedge Width** (drug sunburst only): switch from full outer circle (total) to count-based wedge widths (remainder)
+  - **Display Labels**: controls display of labels inside sunburst wedges, available options:
     - `all`
     - `propagation`
     - `drugs` (drug sunburst only)
     - `none`
-- Summary Plot
-  - **Enable**: displays all available subtrees in a single view (resource intensive, set Labels to `none` 
-    for faster loading)
-  - **Columns**: defines the amount of columns when summary plot is enabled
 - Propagation
   - **Enable**: enables count- and color propagation from child to parent nodes
   - **Color**: controls color propagation by the options:
@@ -87,6 +82,12 @@ GUI Options
     - affects count propagation when **Counts** is set to `level`
     - drug sunburst: 1 corresponds to the central node, 5 to the outermost node (=drug)
     - phenotype sunburst: 0 corresponds to the central node, 13 to the outermost node
+- Summary Plot
+  - **Enable**: displays all available subtrees in a single view
+    (resource intensive, set Labels to `none` for faster loading)
+  - **Columns**: defines the amount of columns when summary plot is enabled
+- **Save**: when enabled, an interactive `.html` file is generated for later use
+- **Plot**: Process and generate plot, opens in a Browser window
 
 Phenotype Sunbursts
 -------------------
@@ -146,10 +147,6 @@ Drug Ontology File Structure
 | 4            | Counts [Name] | Required count for wedge weights, `Name` will be used as figure title          |
 | 5            | Color         | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF` |
 
-Screenshots
-===========
-![atc_sample](https://user-images.githubusercontent.com/75040444/213471039-78082a44-1be2-4864-9fd2-540c8f7f23bf.jpg)
-![mesh_sample](https://user-images.githubusercontent.com/75040444/213471097-5257d612-510a-4f15-b65c-2fba8bf812ea.jpg)
 
 Templates and Examples
 ======================
@@ -174,9 +171,40 @@ Templates and examples can be found in the provided
 
 - `phenotype_sunburst_example.html`: sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.
 
+Screenshots and Demos
+=====================
+<img width="90%" alt="demo_creation_of_template" src="https://user-images.githubusercontent.com/75040444/228224565-af02a994-00c7-4572-b1da-f1eeec8b6f8f.gif">
+
+> **_Demo 1:_** Minimal example for creating a phenotype based ontology
+
+<img width="90%" alt="demo_creation_of_template" src="https://user-images.githubusercontent.com/75040444/228226839-2ed34f87-7a7d-498a-9f16-fd940d05c18d.gif">
+
+> **_Demo 2:_** Showcase of some of the features available in OntoloViz (used template: <a href="https://github.com/Mnikley/OntoloViz/files/11088919/test_tree.zip">test_tree.zip</a>)
+
+<img width="90%" alt="drug_single" src="https://user-images.githubusercontent.com/75040444/228172370-a042b9d1-81af-4172-8b41-4f8c9e9287b7.png">
+
+> **_Screenshot 1:_**  Drug sunburst plot with enabled labels, counts propagated up to level 3
+
+<img width="90%" alt="phenotype_overview" src="https://user-images.githubusercontent.com/75040444/228174582-82aaad41-f3d8-4152-8161-b8f9b1dfec67.png">
+
+> **_Screenshot 2:_**  Summary phenotype sunburst plot with tooltip, counts propagated up to the central node, color coded
+
+<table>
+    <tr>
+        <td>
+            <img height=300px alt="color_scale" src="https://user-images.githubusercontent.com/75040444/228183209-6a591a3c-8729-45c9-a73b-817dce9252c1.png">
+        </td>
+        <td>
+            <img height=300px alt="color_scale" src="https://user-images.githubusercontent.com/75040444/228183234-e6aecf82-64b4-4737-b5c3-95eb87b0fb59.png">
+        </td>
+    </tr>
+</table>
+
+> **_Screenshot 3 & 4:_**  Left: define automatic color scales based on defined counts with thresholds and hex color codes, Right: define border properties (width, opacity, colors) or disable them entirely
+
 Special Thanks to
 =================
 
-* Paul Perco, who had the initial idea for this package and provided support throughout the process
-* Andreas Heinzel, who is an overall inspiration regarding all software- and non-software related topics
-* The Delta4 GmbH team for providing various helpful inputs
+* Paul Perco, who had the initial idea for this package and provided support throughout the entire process
+* Andreas Heinzel, for inspiration regarding architectural- and software-related topics
+* The Delta4 GmbH team for providing helpful inputs

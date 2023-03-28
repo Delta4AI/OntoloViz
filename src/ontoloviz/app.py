@@ -179,8 +179,8 @@ class App(Tk):
         dark_bg = "#2E2D32"
         dark_fg = "#FFFFFF"
         success = "#6BBE92"
-        bold_normal = ("Arial", 9, "bold")
-        bold_large = ("Arial", 10, "bold")
+        bold_normal = ("Arial", 8, "bold")
+        bold_large = ("Arial", 9, "bold")
         self.configure(background=dark_bg)
         self.style = Style()
         self.style.configure("success.TButton", font=bold_large, background=success)
@@ -774,7 +774,6 @@ class App(Tk):
                                                "ALT:Enable 'Propagation' to modify "
                                                "propagation level")
 
-
         # summary plot subframe
         atc_summary_plot_frm = LabelFrame(d_options_frm, text="Summary Plot",
                                           style="primary_sub.TLabelframe")
@@ -1117,7 +1116,7 @@ class App(Tk):
         :param db_path: If path to database is given, only integrity is verified without opening a dialog
         """
         if not db_path:
-            db_path = filedialog.askopenfilename(title="Database", initialdir=os.getcwd(),
+            db_path = filedialog.askopenfilename(title="Database",
                                                  filetypes=[("DrugVision SQLite3 database",
                                                              ".db .tar.gz"),
                                                             ("All files", "*")])
@@ -1313,8 +1312,7 @@ class App(Tk):
         If file ends on .xlsx: verify file and get tree type based on option in 'Settings'
             and number of columns in 'Tree' tabs, enable/disable and configure respective widgets
         """
-        input_fn = filedialog.askopenfilename(initialdir=os.getcwd(),
-                                              filetypes=[("Tree Table", ".xlsx .tsv"),
+        input_fn = filedialog.askopenfilename(filetypes=[("Tree Table", ".xlsx .tsv"),
                                                          ("SQLite3 database", ".db .tar.gz"),
                                                          ("All files", "*")],
                                               title="Load MeSH/ATC-Tree from file")
@@ -1439,7 +1437,7 @@ class ColorScalePopup(Toplevel):
     def __init__(self, parent: App):
         """ColorScale Popup init"""
         super().__init__(parent)
-        self.title = "Set Color Scale"
+        self.title("Set Color Scale")
         self.resizable(False, False)
         self.parent = parent
         root = Frame(self)
@@ -1448,7 +1446,7 @@ class ColorScalePopup(Toplevel):
         # informative label
         Label(root, text="Enter values for an automatic color scale. The first color defines the "
                          "default color for empty nodes. Requires active propagation to have an "
-                         "effect.", wraplength=230).pack(pady=(10, 10))
+                         "effect.", wraplength=400).pack(pady=(10, 10))
 
         # header for scale objects
         scale_header = Frame(root)
@@ -1621,7 +1619,7 @@ class BorderPopup(Toplevel):
     def __init__(self, parent: App):
         """Border Popup init"""
         super().__init__(parent)
-        self.title = "Border Properties"
+        self.title("Set Border Properties")
         self.parent = parent
         self.resizable(False, False)
         self.error = False

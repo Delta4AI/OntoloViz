@@ -16,7 +16,7 @@ better understanding of the scope of the package.
 
 Quickstart
 ==========
-The GUI can be run by downloading the latest [Windows release](https://github.com/Mnikley/OntoloViz/releases) 
+The GUI can be run by downloading the latest [release](https://github.com/Mnikley/OntoloViz/releases) 
 or by installing the package via PyPi (OS independent, requires **Python 3.7+**):
 
     pip install ontoloviz
@@ -25,12 +25,22 @@ After the installation you can run the GUI from the command line with the follow
 
     ontoloviz
 
+Empty templates or pre-populated examples can be found in the `templates.zip` file in the 
+[release](https://github.com/Mnikley/OntoloViz/releases) section as well.
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
     git clone https://github.com/Mnikley/OntoloViz.git
-    cd OntoloViz
+    
+    # optional: install and activate venv
+    python -m venv  # python3 on linux
+    venv\scripts\activate  # source venv/bin/activate on linux
+    
+    # install dependencies
     pip install plotly>=5 openpyxl>=3
-    python src/ontoloviz/app.py
+    
+    # launch GUI
+    cd OntoloViz/src
+    python -c "from ontoloviz import run_app; run_app()"
 
 Usage
 =====
@@ -42,6 +52,7 @@ to integers.
 
 GUI Options
 -----------
+> **_NOTE:_**  screenshots are outdated as of V1.5.3
 ![gui_small](https://user-images.githubusercontent.com/75040444/213717385-adb372a9-d0a4-4861-af9e-3fcb7a3c195d.jpg)
 
 - General

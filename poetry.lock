@@ -28,6 +28,18 @@ files = [
 et-xmlfile = "*"
 
 [[package]]
+name = "packaging"
+version = "23.0"
+description = "Core utilities for Python packages"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "packaging-23.0-py3-none-any.whl", hash = "sha256:714ac14496c3e68c99c29b00845f7a2b85f3bb6f1078fd9f72fd20f0570002b2"},
+    {file = "packaging-23.0.tar.gz", hash = "sha256:b6ad297f8907de0fa2fe1ccbd26fdaf387f5f47c7275fedf8cce89f99446cf97"},
+]
+
+[[package]]
 name = "plotly"
 version = "5.13.1"
 description = "An open-source, interactive data visualization library for Python"
@@ -60,4 +72,4 @@ doc = ["reno", "sphinx", "tornado (>=4.5)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "cbb54c53d26d76f66b4106112ee6c19e980c745d738152d56437a46b13169b75"
+content-hash = "f6ee94915d30a9d1f4f6b99f0bdb5594e49dc5c90f14dc2fc0f5f8d8a1fb7398"

@@ -46,8 +46,8 @@ Usage
 
 The application allows importing `.tsv` and `.xlsx` files, but the use of `.tsv` and `tab` as a 
 separator is recommended. The GUI can create two types of sunburst diagrams to represent either phenotype or drug 
-ontologies, which is determined by the structure of the loaded files. Any numbers entered in the file will be converted 
-to integers.
+ontologies, which is determined by the structure of the loaded files. Any numbers entered in the input file will be converted 
+to integers and decimal points will be rounded.
 
 GUI Options
 -----------
@@ -96,10 +96,8 @@ The phenotype sunburst structure follows the principles of the
 - Levels are separated by a **dot `.`**, for example `C01.001`.
 - Ontologies **up to thirteen hierarchical levels** are supported.
 - A single phenotype end-node can be assigned to multiple parent-nodes by specifying the parents tree ids as 
-  pipe separated string in the column `Tree ID`.
-- When defining a child element which has no valid parent, the GUI will automatically generate the parent with the 
-  default color and a 0 value. This will happen recursively. For example, if the input file defines a node with the 
-  id `123.001.001`, but the nodes `123` and `123.001` are non-existent, they will be created.
+  a pipe separated string in the column `Tree ID`, for example `C01.001.001|C02.001.001`.
+- If a child element is defined without a valid parent node existing, the GUI generates all parent elements with the default color and value 0. For example, the node `123.001` is automatically generated if only the child node `123.001.001` was defined. This works only if at least the most central node `123` was defined manually.
 - Counts entered in the file will be converted to integers. If a node should be displayed without counts, use `0`.
 - The loaded file must contain **7 columns** and follow the below structure to be correctly recognized:
 

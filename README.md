@@ -1,7 +1,7 @@
 [![Pypi version](https://img.shields.io/pypi/v/OntoloViz.svg)](https://pypi.python.org/pypi/ontoloviz)
 [![Pypi python version](https://img.shields.io/pypi/pyversions/ontoloviz)](https://img.shields.io/pypi/pyversions/ontoloviz)
 [![Python package](https://github.com/Delta4AI/OntoloViz/actions/workflows/python-package.yml/badge.svg)](https://github.com/Delta4AI/OntoloViz/actions/workflows/python-package.yml)
-[![pylint-badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Delta4AI/303283c4b9026d59cda9e9dd9f697110/raw/pylint_badge.json)](https://github.com/Delta4AI/OntoloViz/actions/workflows/pylint.yml)
+[![pylint-badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/MNikley/303283c4b9026d59cda9e9dd9f697110/raw/pylint_badge.json)](https://github.com/Delta4AI/OntoloViz/actions/workflows/pylint.yml)
 <!--- documentation for pylint-badge: https://github.com/marketplace/actions/dynamic-badges --->
 
 OntoloViz

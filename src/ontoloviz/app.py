@@ -289,6 +289,7 @@ class App(Tk):
         self.load_file_btn = None
         self.atc_file_loaded = ""
         self.mesh_file_loaded = ""
+        self.performance_warning_shown = False
 
         # various templates
         self.alt_text_db = "This functionality requires a valid database"
@@ -1208,6 +1209,14 @@ class App(Tk):
 
         # update settings of core object based on current GUI configuration
         configure()
+
+        # show warning once in case labels and summary plot is enabled
+        if not self.performance_warning_shown and obj.s[f"{mode}_summary_plot"] and obj.s[f"{mode}_labels"] == "all":
+            messagebox.showwarning(title="Performance of plot",
+                                   message="Displaying very large ontologies as a summary plot and displaying all "
+                                           "associated labels may result in longer loading times and less responsive "
+                                           "interaction in the browser.")
+            self.performance_warning_shown = True
 
         # launch plot creation as thread
         thread = Thread(target=obj.plot, args=())

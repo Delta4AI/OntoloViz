@@ -1,9 +1,8 @@
 [![Pypi version](https://img.shields.io/pypi/v/OntoloViz.svg)](https://pypi.python.org/pypi/ontoloviz)
 [![Pypi python version](https://img.shields.io/pypi/pyversions/ontoloviz)](https://img.shields.io/pypi/pyversions/ontoloviz)
-[![Python package](https://github.com/Mnikley/OntoloViz/actions/workflows/python-package.yml/badge.svg)](https://github.com/Mnikley/OntoloViz/actions/workflows/python-package.yml)
-[![pylint-badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Mnikley/303283c4b9026d59cda9e9dd9f697110/raw/pylint_badge.json)](https://github.com/Mnikley/OntoloViz/actions/workflows/pylint.yml)
+[![Python package](https://github.com/Delta4AI/OntoloViz/actions/workflows/python-package.yml/badge.svg)](https://github.com/Delta4AI/OntoloViz/actions/workflows/python-package.yml)
+[![pylint-badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Delta4AI/303283c4b9026d59cda9e9dd9f697110/raw/pylint_badge.json)](https://github.com/Delta4AI/OntoloViz/actions/workflows/pylint.yml)
 <!--- documentation for pylint-badge: https://github.com/marketplace/actions/dynamic-badges --->
-<!--- [![Codacy Badge](https://app.codacy.com/project/badge/Grade/5a8acbc6ebf541878336b75a1816beef)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Mnikley/OntoloViz&amp;utm_campaign=Badge_Grade) --->
 
 OntoloViz
 =========
@@ -11,12 +10,12 @@ OntoloViz
 OntoloViz is a graphical user interface for the creation of interactive sunburst plots of phenotype and drug ontologies.
 You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
 Take a look at the [screenshot and demos section](#screenshots-and-demos) or explore examples in `.html` format from the
-provided [templates.zip](https://github.com/Mnikley/OntoloViz/releases/download/v1.0.3/templates.zip) archive to get a 
+provided [templates.zip](https://github.com/Delta4AI/OntoloViz/releases/download/v1.0.3/templates.zip) archive to get a 
 better understanding of the scope of the package.  
 
 Quickstart
 ==========
-The GUI can be run by downloading the latest [release](https://github.com/Mnikley/OntoloViz/releases) 
+The GUI can be run by downloading the latest [release](https://github.com/Delta4AI/OntoloViz/releases) 
 or by installing the package via PyPi (OS independent, requires **Python 3.7+**):
 
     pip install ontoloviz
@@ -26,10 +25,10 @@ After the installation you can run the GUI from the command line with the follow
     ontoloviz
 
 Empty templates or pre-populated examples can be found in the `templates.zip` file in the 
-[release](https://github.com/Mnikley/OntoloViz/releases) section as well.
+[release](https://github.com/Delta4AI/OntoloViz/releases) section as well.
 Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
 
-    git clone https://github.com/Mnikley/OntoloViz.git
+    git clone https://github.com/Delta4AI/OntoloViz.git
     
     # optional: install and activate venv
     python -m venv  # python3 on linux
@@ -151,7 +150,7 @@ Drug Ontology File Structure
 Templates and Examples
 ======================
 Templates and examples can be found in the provided 
-[templates.zip](https://github.com/Mnikley/OntoloViz/releases/download/v1.0.3/templates.zip) archive.
+[templates.zip](https://github.com/Delta4AI/OntoloViz/releases/download/v1.0.3/templates.zip) archive.
 
 - `pubmed_documents_mapped_to_mesh.tsv`: based on the [MeSH](https://meshb.nlm.nih.gov/treeView) subtree `C` from 2022. 
   Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) 
@@ -179,7 +178,7 @@ Screenshots and Demos
 
 <img width="90%" alt="demo_creation_of_template" src="https://user-images.githubusercontent.com/75040444/228226839-2ed34f87-7a7d-498a-9f16-fd940d05c18d.gif">
 
-> **_Demo 2:_** Showcase of some of the features available in OntoloViz (used template: <a href="https://github.com/Mnikley/OntoloViz/files/11088919/test_tree.zip">test_tree.zip</a>)
+> **_Demo 2:_** Showcase of some of the features available in OntoloViz (used template: <a href="https://github.com/Delta4AI/OntoloViz/files/11088919/test_tree.zip">test_tree.zip</a>)
 
 <img width="90%" alt="drug_single" src="https://user-images.githubusercontent.com/75040444/228172370-a042b9d1-81af-4172-8b41-4f8c9e9287b7.png">
 

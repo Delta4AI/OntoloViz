@@ -736,7 +736,13 @@ class SunburstBase:
                   "responsive": True,
                   "scrollZoom": True,
                   "displayModeBar": True,
-                  "showLink": False}
+                  "showLink": False,
+                  "toImageButtonOptions": {
+                      "format": "png",  # one of png, svg, jpeg, webp
+                      "height": None,  # download at the currently-rendered size by setting height and width to None
+                      "width": None,
+                      "scale": 3  # Multiply title/legend/axis/canvas sizes by this factor
+                  }}
 
         # generate headers
         headers, summary_plot, title, file_name = None, None, None, None

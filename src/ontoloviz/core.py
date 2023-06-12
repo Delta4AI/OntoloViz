@@ -40,7 +40,8 @@ def rgb_to_hex(rgb: tuple = None) -> str:
     return f"#{int(rgb[0]):02X}{int(rgb[1]):02X}{int(rgb[2]):02X}"
 
 
-def generate_color_range(start_color: str = None, stop_color: str = None, values: int = None) -> list:
+def generate_color_range(start_color: str = None, stop_color: str = None,
+                         values: int = None) -> list:
     """Calculate color range based on start and stop color and number of values
 
     :param start_color: start color as RGB hex
@@ -235,7 +236,8 @@ class SunburstBase:
                 raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
                                  "- valid are 'specific', 'global' and 'off'")
 
-            if _k == "mesh_propagate_color" and _v not in ["specific", "global", "off", "phenotype"]:
+            if _k == "mesh_propagate_color" and _v not in ["specific", "global",
+                                                           "off", "phenotype"]:
                 raise ValueError(f"Illegal value for setting '{_k}': '{_v}' "
                                  "- valid are 'specific', 'global', 'phenotype' and 'off'")
 
@@ -345,16 +347,19 @@ class SunburstBase:
         return self.get_entity_id(drug_name, "drug")
 
     def calculate_color_scale_for_node(self, sub_tree: dict = None, max_val: int = None,
-                                       max_level: [str, int] = None, count_key: str = "counts") -> tuple:
+                                       max_level: [str, int] = None,
+                                       count_key: str = "counts") -> tuple:
         """Get color scale based on max value of counts of children in a subtree
 
         :param sub_tree: MeSH/ATC subtree dictionary (e.g. mesh_tree['C01']) (e.g. atc_tree['L'])
         :param max_val: calculates color scale based on given value
-        :param max_level: calculates max_val only up to given level, or up to last level when 'last' is given
-        :param count_key: key from node to consider for max counts (ATC sunburst requires displayed_counts)
-        :returns: tuple, where first index is factor
-                  second index is List of hex colors for all available counts, where index = amount of counts,
-                    in case factorization is True, amount of colors are divided by 10 to speed up code
+        :param max_level: calculates max_val only up to given level, or up to last level
+            when 'last' is given
+        :param count_key: key from node to consider for max counts
+            (ATC sunburst requires displayed_counts)
+        :returns: tuple, where first index is factor, second index is List of hex colors for all
+            available counts, where index = amount of counts, in case factorization is True, amount
+            of colors are divided by 10 to speed up code
         """
         factor = 1
         try:
@@ -367,9 +372,11 @@ class SunburstBase:
 
                     # calculate maxima based on level
                     if isinstance(max_level, int):
-                        max_val = max([_[count_key] for _ in sub_tree.values() if _["level"] >= max_level])
+                        max_val = max([_[count_key] for _ in sub_tree.values()
+                                       if _["level"] >= max_level])
 
-                    # calculate maxima based on most outer nodes; only works for keys with C.C (dot) annotation
+                    # calculate maxima based on most outer nodes
+                    # only works for keys with C.C (dot) annotation
                     elif isinstance(max_level, str):
                         whitelist = set()
                         max_val = 0
@@ -403,7 +410,8 @@ class SunburstBase:
             high_cutoff = int(max_val * upper_limit)
             scale.extend(generate_color_range(lower_color, upper_color, high_cutoff - low_cutoff))
 
-        self.set_thread_status(f"Generating color scale for {int(max_val)} (factor: {factor}) values ..")
+        self.set_thread_status(f"Generating color scale for {int(max_val)} "
+                               f"(factor: {factor}) values ..")
         return factor, scale
 
     def get_total_counts(self, count_key: str = "counts") -> float:
@@ -413,11 +421,14 @@ class SunburstBase:
         :returns: sum of all values of children's count_key
         """
         if isinstance(self, DrugSunburst):
-            return sum([int(vv[count_key]) for k, v in self.atc_tree.items() for kk, vv in v.items()])
+            return sum([int(vv[count_key]) for k, v in self.atc_tree.items()
+                        for kk, vv in v.items()])
         elif isinstance(self, PhenotypeSunburst):
-            return sum([int(vv[count_key]) for k, v in self.mesh_tree.items() for kk, vv in v.items()])
+            return sum([int(vv[count_key]) for k, v in self.mesh_tree.items()
+                        for kk, vv in v.items()])
 
-    def export_settings(self, fn: [str, None] = None, wb: Workbook = None, settings: list = None) -> str:
+    def export_settings(self, fn: [str, None] = None, wb: Workbook = None,
+                        settings: list = None) -> str:
         """Subroutine to write settings to workbook
 
         :param fn: target filename
@@ -439,7 +450,8 @@ class SunburstBase:
             try:
                 ws.append(s)
             except ValueError:
-                ws.append(tuple(str(_) for _ in s))  # for [[0, '#FFFFFF'], [0.2, '#403C53'], [1, '#C33D35']]
+                # for [[0, '#FFFFFF'], [0.2, '#403C53'], [1, '#C33D35']]
+                ws.append(tuple(str(_) for _ in s))
 
         return self.save_workbook(fn=fn, wb=wb)
 
@@ -470,7 +482,8 @@ class SunburstBase:
         :param header: header row as list of strings
         :param rows: data rows in tab 'Tree' as list of tuples
         :param settings: settings rows in tab 'Settings' as list of tuples
-        :param color_col: index (starts with 1) of column to colorize in 'Tree' tab based on hex-code in cell
+        :param color_col: index (starts with 1) of column to colorize in 'Tree' tab
+            based on hex-code in cell
 
         :returns: absolute path of exported Excel file
         """
@@ -480,9 +493,10 @@ class SunburstBase:
         ws.title = "Tree"
         ws.append(header)
 
-        # set column widths based maxvalue of the cells (lower-limit = header length, upper-limit = 100)
-        column_widths = [len(_) for _ in header]
-        for idx, (width, col_letter) in enumerate(zip(column_widths, ascii_uppercase[:len(column_widths)])):
+        # set column widths based maxvalue of the cells
+        # (lower-limit = header length, upper-limit = 100)
+        col_width = [len(_) for _ in header]
+        for idx, (width, col_letter) in enumerate(zip(col_width, ascii_uppercase[:len(col_width)])):
             max_row_width = len(str(max(rows, key=lambda x: len(str(x[idx])))[idx]))
             current_col_width = int(width)
             if width <= max_row_width <= 100:
@@ -492,9 +506,10 @@ class SunburstBase:
             ws.column_dimensions[col_letter].width = current_col_width + 2
 
         # write rows to worksheet, apply color to cells
-        for r in rows:
-            ws.append(r)
-            ws.cell(row=ws.max_row, column=color_col).fill = PatternFill(fgColor=r[color_col-1].lstrip("#"),
+        for row in rows:
+            ws.append(row)
+            fg_col = row[color_col-1].lstrip("#")
+            ws.cell(row=ws.max_row, column=color_col).fill = PatternFill(fgColor=fg_col,
                                                                          fill_type="solid")
 
         # append settings to second tab, write & close workbook
@@ -554,20 +569,23 @@ class SunburstBase:
 
             # calculate global color scale on type 'global'
             if propagation_type == "global":
-                max_counts = max(_["imported_counts"] for d in plot_tree.values() for _ in d.values()
-                                 if _["level"] >= max_level)
+                max_counts = max(_["imported_counts"] for d in plot_tree.values()
+                                 for _ in d.values() if _["level"] >= max_level)
                 factor, scale = self.calculate_color_scale_for_node(max_val=max_counts)
 
             # calculate individual color scales for each sub tree on type 'specific'
             elif propagation_type == "specific":
                 for k, v in plot_tree.items():
-                    factor, scale = self.calculate_color_scale_for_node(v, max_level=max_level, count_key=count_key)
+                    factor, scale = self.calculate_color_scale_for_node(v, max_level=max_level,
+                                                                        count_key=count_key)
                     specific_scales.append((factor, scale))
 
-            # calculate individual color scales based on the most outer phenotypes of each sub-tree on type 'phenotype'
+            # calculate individual color scales based on the most outer phenotypes
+            # of each sub-tree on type 'phenotype'
             elif propagation_type == "phenotype":
                 for k, v in plot_tree.items():
-                    factor, scale = self.calculate_color_scale_for_node(v, max_level="last", count_key=count_key)
+                    factor, scale = self.calculate_color_scale_for_node(v, max_level="last",
+                                                                        count_key=count_key)
                     specific_scales.append((factor, scale))
 
             # iterate over nodes, apply color if level is in accepted range
@@ -871,7 +889,7 @@ class PhenotypeSunburst(SunburstBase):
         self.mesh_tree = dict()
         self.mesh_to_tree_id = dict()  # 1:N mesh to mesh-tree-ids
 
-    def init(self, database: str = None):
+    def init(self, database: str = None) -> None:
         """Manual database initialization routine
 
         :param database: path to database
@@ -883,7 +901,7 @@ class PhenotypeSunburst(SunburstBase):
 
         self.is_init = True
 
-    def init_mesh_tree(self):
+    def init_mesh_tree(self) -> None:
         """Initializes and loads MeSH-tree without counts and default color into memory"""
         # load base mesh tree
         self.mesh_tree = {k[0]: {} for k in self.query("SELECT id FROM mesh_tree WHERE level = 0")}
@@ -905,9 +923,6 @@ class PhenotypeSunburst(SunburstBase):
         for main_id, node in self.mesh_tree.items():
             for node_id, node_data in node.items():
 
-                # add children
-                # node_data["child_ids"] = [c for c in node.keys() if c.startswith(node_id) and c != node_id]
-
                 # populate mesh_to_tree_id lookup
                 mesh_id = node_data["mesh_id"]
                 if mesh_id not in self.mesh_to_tree_id.keys():
@@ -926,10 +941,12 @@ class PhenotypeSunburst(SunburstBase):
         print("Exporting MeSH-tree ..")
         if template:
             fn_base = "mesh_tree_template"
-            header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment", f"Counts [Template Drug]", "Color"]
+            header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
+                      f"Counts [Template Drug]", "Color"]
         else:
             fn_base = f"mesh_tree_{self.drug_name.lower()}"
-            header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment", f"Counts [{self.drug_name}]", "Color"]
+            header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
+                      f"Counts [{self.drug_name}]", "Color"]
 
         # get unique rows based on MeSH-id
         unique_rows = set()
@@ -959,7 +976,8 @@ class PhenotypeSunburst(SunburstBase):
 
         if mode == "Excel":
             # get general & mesh-related settings
-            settings = [(k, v) for k, v in self.s.items() if not k.startswith("atc_") and k != "default_color"]
+            settings = [(k, v) for k, v in self.s.items()
+                        if not k.startswith("atc_") and k != "default_color"]
 
             # write to .xlsx file, return filename
             return self.export_tree_to_excel(fn_base + ".xlsx", header, unique_rows, settings, 7)
@@ -968,7 +986,7 @@ class PhenotypeSunburst(SunburstBase):
             # write to .tsv file, return filename
             return self.export_tree_to_tsv(fn_base + ".tsv", header, unique_rows)
 
-    def read_mesh_settings_from_excel(self, wb: Workbook = None, fn: str = None):
+    def read_mesh_settings_from_excel(self, wb: Workbook = None, fn: str = None) -> None:
         """Read settings from excel and apply to core object
 
         :param wb: Workbook object
@@ -981,7 +999,7 @@ class PhenotypeSunburst(SunburstBase):
         settings = {r[0].value: r[1].value for r in ws_settings.rows}
         self.set_settings(settings)
 
-    def check_mesh_parent(self, parent: str, main_id: str):
+    def check_mesh_parent(self, parent: str, main_id: str) -> None:
         """Creates artificial parent node if not existent > checks parent's parent availability"""
         if parent and parent not in self.mesh_tree[main_id].keys():
             parents_parent = parent.rsplit(".", 1)[0]
@@ -1000,7 +1018,7 @@ class PhenotypeSunburst(SunburstBase):
             # check next parents existance
             self.check_mesh_parent(parents_parent, main_id)
 
-    def process_mesh_row_data(self, row_data: [io.TextIOWrapper, object]):
+    def process_mesh_row_data(self, row_data: [io.TextIOWrapper, object]) -> None:
         """Process a .tsv or Excel file row by row
 
         row_data: either rows of a Worksheet (e.g. wb["Tree"].rows) or a file IO wrapper
@@ -1009,7 +1027,8 @@ class PhenotypeSunburst(SunburstBase):
 
             # get drug name, skip header
             if idx == 0:
-                drug_name = [_.value for _ in row][-2] if isinstance(row, tuple) else row.rstrip("\n").split("\t")[-2]
+                drug_name = [_.value for _ in row][-2] \
+                    if isinstance(row, tuple) else row.rstrip("\n").split("\t")[-2]
                 if "Counts [" in drug_name:
                     drug_name = drug_name.split("Counts [")[-1].rstrip("]")
                 self.drug_name = drug_name
@@ -1033,7 +1052,8 @@ class PhenotypeSunburst(SunburstBase):
             if isinstance(counts, str):
                 counts = int(counts)
 
-            # set zero-counts to arbitrary low number to ensure display (value must be >0); if cell is empty, set to 0
+            # set zero-counts to arbitrary low number to ensure display (value must be >0)
+            # if cell is empty, set to 0
             if counts == 0 or counts == 0.0 or counts is None or counts == "":
                 counts = self.zero  # rounded to 0 in plot
 
@@ -1071,9 +1091,10 @@ class PhenotypeSunburst(SunburstBase):
             # update phenotype counts
             self.phenotype_counts[name] = counts
 
-        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for drug '{self.drug_name}'")
+        print(f"\tAdded {self.get_total_counts(count_key='counts')} "
+              f"counts for drug '{self.drug_name}'")
 
-    def populate_mesh_from_tsv(self, fn: str = None, **kwargs):
+    def populate_mesh_from_tsv(self, fn: str = None, **kwargs) -> None:
         """Populate MeSH tree from tsv data
 
         :param fn: path to .tsv file
@@ -1083,7 +1104,8 @@ class PhenotypeSunburst(SunburstBase):
         with open(fn, mode="r", encoding="utf-8") as f:
             self.process_mesh_row_data(f)
 
-    def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True, populate: bool = True):
+    def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True,
+                        populate: bool = True) -> None:
         """Load data from MeSH-specific Excel file; Allows new nodes to be added, color/count modifications;
 
          :param fn: path to Excel file containing MeSH-id, counts, color, ..
@@ -1108,7 +1130,7 @@ class PhenotypeSunburst(SunburstBase):
 
         wb.close()
 
-    def rollback_mesh_tree(self):
+    def rollback_mesh_tree(self) -> None:
         """Clears counts and resets color of mesh-tree"""
         for main_id, node in self.mesh_tree.items():
             for sub_node, v in node.items():
@@ -1120,10 +1142,11 @@ class PhenotypeSunburst(SunburstBase):
         self.drug_name = None
 
     def populate_mesh_from_data_source(self, drug_name: str = None,
-                                       data_source: str = "Utilization Tuple: Semantic Direct"):
+                                       data_source: str = "Utilization Tuple: Semantic Direct") -> None:
         """Populates the MeSH tree from a data source (database)
 
-        :param drug_name: If string with drug-name is given, fetch phenotype counts and repopulate tree
+        :param drug_name: If string with drug-name is given, fetch phenotype counts
+            and repopulate tree
         :param data_source: Data source as string (handed over from GUI)
             Possible values:
                 "Utilization Tuple: Semantic Direct"
@@ -1131,7 +1154,8 @@ class PhenotypeSunburst(SunburstBase):
                 "Utilization Tuple: Explicit Direct"
                 "Utilization Tuple: Explicit Indirect"
             Explanation:
-                "semantic" considers text-mined associations, while "explicit" is based on expert-rated annotation
+                "semantic" considers text-mined associations, while "explicit" is based
+                    on expert-rated annotation
                 "indirect" includes known targets and markers for selected drug <> phenotype pairs
         """
         print(f"Populating MeSH tree from data source: {data_source} ..")
@@ -1142,8 +1166,10 @@ class PhenotypeSunburst(SunburstBase):
 
         # resolve data source
         qry = None
-        if data_source in ["Utilization Tuple: Semantic Direct", "Utilization Tuple: Semantic Indirect",
-                           "Utilization Tuple: Explicit Direct", "Utilization Tuple: Explicit Indirect"]:
+        if data_source in ["Utilization Tuple: Semantic Direct",
+                           "Utilization Tuple: Semantic Indirect",
+                           "Utilization Tuple: Explicit Direct",
+                           "Utilization Tuple: Explicit Indirect"]:
             if "Semantic" in data_source:
                 semantic = True
             else:
@@ -1154,7 +1180,8 @@ class PhenotypeSunburst(SunburstBase):
             else:
                 indirect = False
 
-            target_db = "pheno_" + ["direct", "indirect"][indirect] + "_" + ["explicit", "semantic"][semantic]
+            target_db = str("pheno_" + ["direct", "indirect"][indirect] + "_"
+                            + ["explicit", "semantic"][semantic])
             qry = "SELECT phenotype_id, cnt FROM {} WHERE drug_asset=?".format(target_db)
 
         # fetch phenotype counts
@@ -1179,9 +1206,10 @@ class PhenotypeSunburst(SunburstBase):
             for child_id, v in node.items():
                 v["color"] = scale[int(v["counts"] / factor)]
 
-        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for drug '{self.drug_name}'")
+        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for "
+              f"drug '{self.drug_name}'")
 
-    def plot(self):
+    def plot(self) -> None:
         """Generate data for phenotype sunburst plot"""
         self.set_thread_status("Creating phenotype sunburst ..")
         self.thread_return = None
@@ -1206,7 +1234,8 @@ class PhenotypeSunburst(SunburstBase):
                 
                 # drop empty nodes
                 counts = vv["counts"]
-                if self.s["mesh_drop_empty_last_child"] and counts == self.zero and vv["id"] not in parent_whitelist:
+                if self.s["mesh_drop_empty_last_child"] and counts == self.zero and vv["id"] \
+                        not in parent_whitelist:
                     drop_count += 1
                     continue
 
@@ -1266,7 +1295,7 @@ class DrugSunburst(SunburstBase):
         self.chembl_to_id = dict()
         self.chembl_to_drug_name = dict()
 
-    def init(self, database: str = None):
+    def init(self, database: str = None) -> None:
         """Manual database initialization routine
 
         :param database: path to database
@@ -1278,7 +1307,7 @@ class DrugSunburst(SunburstBase):
 
         self.is_init = True
 
-    def init_atc_tree(self):
+    def init_atc_tree(self) -> None:
         """Initializes and loads ATC-tree without counts and default color into memory"""
 
         # populate atc_tree base-levels from level 1 codes
@@ -1296,7 +1325,8 @@ class DrugSunburst(SunburstBase):
             self.chembl_to_drug_name[chembl_id] = drug_name
 
         # populate atc_tree sub-trees
-        for row in self.query("SELECT * FROM drug_atc WHERE chembl_id IN (SELECT chembl_id FROM drug_lookup)"):
+        for row in self.query("SELECT * FROM drug_atc WHERE chembl_id IN "
+                              "(SELECT chembl_id FROM drug_lookup)"):
             chembl_id, drug_name, levels, descriptions = row[0], row[1], row[2:7], row[7:]
             level_one = levels[0]
             labels = (*descriptions, drug_name)
@@ -1322,17 +1352,20 @@ class DrugSunburst(SunburstBase):
     def export_atc_tree(self, mode: str = "Excel", template: bool = False) -> str:
         """Export level 5 ATC entries to Excel; Identifier is the ATC code
 
-        :param mode: defines whether to create an Excel or .tsv file (filename: atc_tree_{phenotype_name}.xlsx/tsv
+        :param mode: defines whether to create an Excel or .tsv file
+            (filename: atc_tree_{phenotype_name}.xlsx/tsv)
         :param template: if True, a template is created (all-white, 0 counts)
         :returns: absolute path of generated Excel file
         """
         print("Exporting ATC-tree ..")
         if template:
             fn_base = "atc_tree_template"
-            header = ["ATC code", "Level", "Label", "Comment", "Counts [Template Phenotype]", "Color"]
+            header = ["ATC code", "Level", "Label", "Comment",
+                      "Counts [Template Phenotype]", "Color"]
         else:
             fn_base = f"atc_tree_{self.phenotype_name.lower()}"
-            header = ["ATC code", "Level", "Label", "Comment", f"Counts [{self.phenotype_name}]", "Color"]
+            header = ["ATC code", "Level", "Label", "Comment",
+                      f"Counts [{self.phenotype_name}]", "Color"]
 
         # get unique rows based on ATC code
         unique_rows = set()
@@ -1350,7 +1383,8 @@ class DrugSunburst(SunburstBase):
 
         if mode == "Excel":
             # get general & atc-related settings
-            settings = [(k, v) for k, v in self.s.items() if not k.startswith("mesh_") and k != "default_color"]
+            settings = [(k, v) for k, v in self.s.items()
+                        if not k.startswith("mesh_") and k != "default_color"]
 
             # write to file, return filename
             return self.export_tree_to_excel(fn_base + ".xlsx", header, unique_rows, settings, 6)
@@ -1359,7 +1393,7 @@ class DrugSunburst(SunburstBase):
             # write to .tsv file, return filename
             return self.export_tree_to_tsv(fn_base + ".tsv", header, unique_rows)
 
-    def rollback_atc_tree(self, hard_reset: bool = False):
+    def rollback_atc_tree(self, hard_reset: bool = False) -> None:
         """Reset counts / colors of ATC tree"""
         if hard_reset:
             self.atc_tree = dict()
@@ -1373,14 +1407,14 @@ class DrugSunburst(SunburstBase):
         self.drug_counts = dict()
         self.phenotype_name = None
 
-    def clear_non_drug_counts(self):
+    def clear_non_drug_counts(self) -> None:
         """Clears ATC counts for level 1-4"""
         for node in self.atc_tree.values():
             for v in node.values():
                 if v["level"] != 5:
                     v["counts"] = self.zero
 
-    def read_atc_settings_from_excel(self, wb: Workbook = None, fn: str = None):
+    def read_atc_settings_from_excel(self, wb: Workbook = None, fn: str = None) -> None:
         """Read settings from excel and apply to core object
 
         :param wb: Workbook object
@@ -1395,16 +1429,17 @@ class DrugSunburst(SunburstBase):
         if settings["atc_propagate_to_level"] != -1:
             popup = Tk()
             popup.withdraw()
-            messagebox.showwarning("Propagation warning", "WARNING - propagation active - custom colors will be "
-                                                          "overwritten! Set 'atc_propagate_to_level' to '1' to "
-                                                          "enable display of custom colors")
+            messagebox.showwarning("Propagation warning",
+                                   "WARNING - propagation active - custom colors will be "
+                                   "overwritten! Set 'atc_propagate_to_level' to '1' to "
+                                   "enable display of custom colors")
             popup.destroy()
             print("WARNING - propagation active - custom colors will be overwritten! "
                   "Set atc_propagate_to_level to 1 to prevent")
 
         self.set_settings(settings)
 
-    def populate_atc_from_tsv(self, fn: str = None, **kwargs):
+    def populate_atc_from_tsv(self, fn: str = None, **kwargs) -> None:
         """Populate ATC tree from tsv data
 
         :param fn: path to .tsv file
@@ -1414,7 +1449,7 @@ class DrugSunburst(SunburstBase):
         with open(fn, mode="r", encoding="utf-8") as f:
             self.process_atc_row_data(f)
 
-    def check_atc_parent(self, parent: str, tree_id: str, parents_level: int):
+    def check_atc_parent(self, parent: str, tree_id: str, parents_level: int) -> None:
         """Creates artificial parent node if not existent > checks parent's parent availability"""
         if parent and parent != "" and parent not in self.atc_tree[tree_id].keys():
             parents_parent = parent[:-2] if parents_level in [5, 2] else parent[:-1]
@@ -1433,7 +1468,7 @@ class DrugSunburst(SunburstBase):
             # check next parents existence
             self.check_atc_parent(parents_parent, tree_id, parents_level-1)
 
-    def process_atc_row_data(self, row_data: [io.TextIOWrapper, object]):
+    def process_atc_row_data(self, row_data: [io.TextIOWrapper, object]) -> None:
         """Process a .tsv or Excel file row by row
 
         row_data: either rows of a Worksheet (e.g. wb["Tree"].rows) or a file IO wrapper
@@ -1442,7 +1477,8 @@ class DrugSunburst(SunburstBase):
 
             # get phenotype name, skip header
             if idx == 0:
-                pheno_name = [_.value for _ in row][-2] if isinstance(row, tuple) else row.rstrip("\n").split("\t")[-2]
+                pheno_name = [_.value for _ in row][-2] \
+                    if isinstance(row, tuple) else row.rstrip("\n").split("\t")[-2]
                 if "Counts [" in pheno_name:
                     pheno_name = pheno_name.split("Counts [")[-1].rstrip("]")
                 self.phenotype_name = pheno_name
@@ -1505,11 +1541,13 @@ class DrugSunburst(SunburstBase):
 
         # validate parent counts sum up to child counts while ignoring color
         # difference may be introduced by adding customized counts
-        # this means that counts for atc codes > level 5 will be overwritten to enable wedge-width 'total'
+        # meaning: counts for atc codes > level 5 will be overwritten to enable wedge-width 'total'
         self.clear_non_drug_counts()
-        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts for phenotype '{self.phenotype_name}'")
+        print(f"\tAdded {self.get_total_counts(count_key='counts')} counts "
+              f"for phenotype '{self.phenotype_name}'")
 
-    def load_atc_excel(self, fn: str = None, read_settings: bool = True, populate: bool = True):
+    def load_atc_excel(self, fn: str = None, read_settings: bool = True,
+                       populate: bool = True) -> None:
         """Load data from ATC-specific Excel file
 
         :param fn: path to Excel file
@@ -1534,7 +1572,8 @@ class DrugSunburst(SunburstBase):
 
         work_book.close()
 
-    def populate_atc_from_data_source(self, phenotype_name: str = None, data_source: str = None):
+    def populate_atc_from_data_source(self, phenotype_name: str = None,
+                                      data_source: str = None) -> None:
         """Populates the ATC tree from a data source (database)
 
         :param phenotype_name: Phenotype name
@@ -1601,7 +1640,8 @@ class DrugSunburst(SunburstBase):
                     inner_val["counts"] = 0
 
             # propagate counts up from level 5 > 1
-            for inner_key, inner_val in sorted(val.items(), key=lambda x: x[1]["level"], reverse=True):
+            for inner_key, inner_val in sorted(val.items(), key=lambda x: x[1]["level"],
+                                               reverse=True):
                 if inner_val["parent"] != "":
                     plot_tree[key][inner_val["parent"]]["counts"] += inner_val["counts"]
 
@@ -1609,9 +1649,11 @@ class DrugSunburst(SunburstBase):
                     propagate_mode = self.s["atc_propagate_counts"]
                     if propagate_mode == "level":
                         if inner_val["level"] > self.s["atc_propagate_lvl"]:
-                            plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val["imported_counts"]
+                            plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val[
+                                "imported_counts"]
                     elif propagate_mode == "all":
-                        plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val["imported_counts"]
+                        plot_tree[key][inner_val["parent"]]["imported_counts"] += inner_val[
+                            "imported_counts"]
 
         # when counts are propagated, begin color propagation
         self.tree_color_propagation(plot_tree=plot_tree, count_key="imported_counts")

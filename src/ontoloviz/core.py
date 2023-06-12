@@ -662,12 +662,13 @@ class SunburstBase:
             for kk, vv in v.items():
 
                 # wedge labels
+                wrapped_label = "<br>".join(wrap(vv["label"], 20))
                 if label_mode == "all":
-                    wedge_labels.append(vv["label"])
+                    wedge_labels.append(wrapped_label)
                 elif label_mode == "propagation":
-                    wedge_labels.append(vv["label"] if vv["level"] >= propagate_lvl else "")
+                    wedge_labels.append(wrapped_label if vv["level"] >= propagate_lvl else "")
                 elif label_mode == "drugs":
-                    wedge_labels.append(vv["label"] if vv["level"] == 5 else "")
+                    wedge_labels.append(wrapped_label if vv["level"] == 5 else "")
                 elif label_mode == "none":
                     wedge_labels.append("")
 
@@ -739,7 +740,8 @@ class SunburstBase:
                   "showLink": False,
                   "toImageButtonOptions": {
                       "format": "png",  # one of png, svg, jpeg, webp
-                      "height": None,  # download at the currently-rendered size by setting height and width to None
+                      # download at the currently-rendered size by setting height and width to None
+                      "height": None,
                       "width": None,
                       "scale": 3  # Multiply title/legend/axis/canvas sizes by this factor
                   }}
@@ -773,10 +775,12 @@ class SunburstBase:
             for i in range(len(traces)):
                 specific_title = None
                 if isinstance(self, PhenotypeSunburst):
-                    specific_title = f"Literature co-annotations for MeSH term {headers[i]} and {self.drug_name}"
+                    specific_title = str(f"Literature co-annotations for MeSH term {headers[i]} "
+                                         f"and {self.drug_name}")
                 elif isinstance(self, DrugSunburst):
-                    specific_title = f"Literature co-annotations for ATC term {headers[i].split(':')[-1].title()} " \
-                                     f"and {self.phenotype_name}"
+                    specific_title = str(f"Literature co-annotations for ATC term "
+                                         f"{headers[i].split(':')[-1].title()} "
+                                         f"and {self.phenotype_name}")
                 buttons.append({"label": headers[i],
                                 "method": "update",
                                 "args": [{"visible": [i == j for j in range(len(traces))]},
@@ -821,7 +825,8 @@ class SunburstBase:
         """
         # helper dictionary to convert index to column/row
         idx_to_grid = {}
-        for col_idx, row_idxs in enumerate(chunks(input_list=list(range(len(headers))), number_of_chunks=cols)):
+        for col_idx, row_idxs in enumerate(chunks(input_list=list(range(len(headers))),
+                                                  number_of_chunks=cols)):
             for row_idx, original_idx in enumerate(row_idxs):
                 idx_to_grid[original_idx] = (col_idx, row_idx)
 
@@ -833,7 +838,8 @@ class SunburstBase:
                             cols=cols,
                             specs=[[{"type": "sunburst"}
                                     for row in range(cols)]
-                                   for col in range(max(idx_to_grid.values(), key=lambda x: x[1])[-1] + 1)],
+                                   for col in range(max(idx_to_grid.values(),
+                                                        key=lambda x: x[1])[-1] + 1)],
                             subplot_titles=tuple(headers),
                             horizontal_spacing=0.00,
                             vertical_spacing=0.03)

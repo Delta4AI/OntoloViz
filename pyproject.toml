@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ontoloviz"
-version = "1.5.8"
+version = "1.6.0"
 description = "OntoloViz drug- and phenotype-ontology visualization GUI"
 authors = ["Matthias Ley <matthias.ley@delta4.ai>"]
 license = "MIT"
@@ -26,7 +26,7 @@ repository = "https://github.com/Delta4AI/OntoloViz"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-plotly = "^5.13.1"
+plotly = "^5.15.0"
 openpyxl = "^3.1.2"
 packaging = "^23.0"
 

@@ -1,6 +1,7 @@
 import os
 import tarfile
 import json
+import tkinter
 from traceback import format_exc
 from re import match
 from functools import partial
@@ -8,6 +9,7 @@ from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, mes
 from tkinter import Label as LabelOG
 from tkinter import Entry as EntryOG
 from tkinter.ttk import LabelFrame, Frame, Style
+from tkinter.colorchooser import askcolor
 import time
 import textwrap
 from .core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
@@ -1211,11 +1213,13 @@ class App(Tk):
         configure()
 
         # show warning once in case labels and summary plot is enabled
-        if not self.performance_warning_shown and obj.s[f"{mode}_summary_plot"] and obj.s[f"{mode}_labels"] == "all":
+        if not self.performance_warning_shown and obj.s[f"{mode}_summary_plot"] \
+                and obj.s[f"{mode}_labels"] == "all":
             messagebox.showwarning(title="Performance of plot",
-                                   message="Displaying very large ontologies as a summary plot and displaying all "
-                                           "associated labels may result in longer loading times and less responsive "
-                                           "interaction in the browser.")
+                                   message="Displaying very large ontologies as a summary plot and "
+                                           "displaying all associated labels may result in longer "
+                                           "loading times and less responsive interaction in the "
+                                           "browser.")
             self.performance_warning_shown = True
 
         # launch plot creation as thread
@@ -1453,13 +1457,15 @@ class ColorScalePopup(Toplevel):
         root.pack(padx=10, pady=10)
 
         # informative label
-        Label(root, text="Enter values for an automatic color scale. The first color defines the "
-                         "default color for empty nodes. Requires active propagation to have an "
-                         "effect.", wraplength=400).pack(pady=(10, 10))
+        Label(root,
+              text="Enter values for an automatic color scale. The first color defines the default "
+                   "color for empty nodes. Requires active propagation to have an "
+                   "effect. Thresholds must increase and be in range from 0-100.",
+              wraplength=400).pack(pady=(10, 10))
 
         # header for scale objects
         scale_header = Frame(root)
-        scale_header.pack(fill="x", expand=True, pady=5)
+        scale_header.pack(fill="x", expand=True, pady=5, padx=(33, 175))
         Label(scale_header, text="Threshold [%]").pack(side="left", anchor="w")
         Label(scale_header, text="Hex-Color").pack(side="right")
 
@@ -1468,9 +1474,9 @@ class ColorScalePopup(Toplevel):
         self.scale_frame.pack(fill="both", expand=True)
 
         current_scale = json.loads(self.parent.color_scale_var.get().replace("'", '"'))
-        self.scale_frames = []
+        self.thresholds = []
         for percentage, hex_color in current_scale:
-            self.add_entry_pair(percentage, hex_color)
+            self.add_threshold(percentage, hex_color)
 
         # controller button bar, status
         controller_btn_frm = Frame(root)
@@ -1491,7 +1497,7 @@ class ColorScalePopup(Toplevel):
         # freeze mainloop
         self.wait_window(self)
 
-    def add_entry_pair(self, percentage: float, hex_color: str):
+    def add_threshold(self, percentage: float, hex_color: str) -> None:
         """Subroutine to create an entry pair inside a frame and attach it to the list of
         scale frames"""
         frm = Frame(self.scale_frame)
@@ -1502,12 +1508,26 @@ class ColorScalePopup(Toplevel):
         e_pct.insert(0, str(percentage * 100))
         e_hex = EntryOG(frm)
         e_hex.bind("<KeyRelease>", partial(self.validate_hex_color, e_hex))
-        e_hex.pack(side="right")
         e_hex.insert(0, hex_color)
         e_hex.configure(foreground=hex_color)
+        btn_color_picker = Button(frm, text="Pick Color",
+                                  command=lambda: self.color_picker_wrapper(e_hex))
+        btn_color_picker.pack(side="right")
+        e_hex.pack(side="right")
+
         if hex_color == "#FFFFFF":
             e_hex.configure(background="#000000")
-        self.scale_frames.append(frm)
+        self.thresholds.append(frm)
+
+    def color_picker_wrapper(self, e_hex: EntryOG) -> None:
+        """Launches color picker and inserts into entry"""
+        current_color = e_hex.get()
+        new_color = askcolor(color=current_color)
+        hex_code = new_color[1]
+        if hex_code and isinstance(hex_code, str):
+            e_hex.delete(0, END)
+            e_hex.insert(0, hex_code.upper())
+            self.validate_hex_color(e_hex)
 
     def rollback_percentage(self, e_pct: Entry, error: str, def_value: str = None) -> False:
         """Clears percentage entries"""
@@ -1554,18 +1574,18 @@ class ColorScalePopup(Toplevel):
 
     def increase(self):
         """Adds a new entry pair at the end with default values (100%, black)"""
-        self.add_entry_pair(1, "#000000")
+        self.add_threshold(1, "#000000")
 
     def decrease(self):
         """Removes an entry pair from the end if at least 2 pairs remain"""
         # only destroy as long as 2 pairs remain
-        if len(self.scale_frames) > 2:
-            self.scale_frames[-1].destroy()
-            self.scale_frames = self.scale_frames[:-1]
+        if len(self.thresholds) > 2:
+            self.thresholds[-1].destroy()
+            self.thresholds = self.thresholds[:-1]
 
         # set last percentage to 100 if pairs are reduced to 2
-        if len(self.scale_frames) == 2:
-            pct = self.scale_frames[-1].winfo_children()[0]
+        if len(self.thresholds) == 2:
+            pct = self.thresholds[-1].winfo_children()[0]
             pct.delete(0, END)
             pct.insert(0, "100")
 
@@ -1573,24 +1593,24 @@ class ColorScalePopup(Toplevel):
         """Validate all entries have values, reformat and set scale value, destroys popup"""
         last_child_percentage = 0
         percentage_dupe_check = []
-        last_index = len(self.scale_frames)
+        last_index = len(self.thresholds)
 
-        for sf_idx, scale_frame in enumerate(self.scale_frames):
+        for sf_idx, scale_frame in enumerate(self.thresholds):
 
             # validate all entries have values
-            for idx, scaled_color in enumerate(scale_frame.winfo_children()):
-                if scaled_color.get() == "":
+            for idx, widget in enumerate(scale_frame.winfo_children()):
+                if isinstance(widget, Entry) and widget.get() == "":
                     self.status.configure(text="All entries require valid values")
                     return
 
                 # validate percentages are increasing
                 if idx == 0:
-                    this_percentage = float(scaled_color.get())
+                    this_percentage = float(widget.get())
                     if this_percentage < last_child_percentage:
                         self.status.configure(text="Threshold percentages must increase")
                         return
 
-                    last_child_percentage = float(scaled_color.get())
+                    last_child_percentage = float(widget.get())
 
                     # validate percentages are unique
                     if this_percentage in percentage_dupe_check:
@@ -1610,9 +1630,9 @@ class ColorScalePopup(Toplevel):
                         return
 
         tmp_scale = []
-        for scale_frame in self.scale_frames:
-            pct, scaled_color = scale_frame.winfo_children()
-            tmp_scale.append([float(pct.get())/100, scaled_color.get()])
+        for scale_frame in self.thresholds:
+            pct, hex_entry, btn = scale_frame.winfo_children()
+            tmp_scale.append([float(pct.get())/100, hex_entry.get()])
 
         # set scale in parent, recreate tooltip
         self.parent.color_scale_var.set(json.dumps(tmp_scale))
@@ -1641,12 +1661,18 @@ class BorderPopup(Toplevel):
         # get parents colors
         red, green, blue, opacity = self.parent.border_color.get().\
             replace(" ", "").lstrip("rgba(").rstrip(")").split(",")
+        self.hex_color = rgb_to_hex((int(red), int(green), int(blue)))
 
         # colors labelframe
-        col_frm = LabelFrame(root, text="Colors")
+        col_frm = LabelFrame(root, text="Color")
         col_frm.pack(fill="x", expand=True, ipadx=2, ipady=2)
+        btn_frm = Frame(col_frm)
+        btn_frm.pack()
         rgb_frm = Frame(col_frm)
         rgb_frm.pack(side="left", ipadx=2, ipady=2)
+
+        pick_color_button = Button(btn_frm, text="Pick Color", command=self.color_picker_wrapper)
+        pick_color_button.pack()
 
         # red
         red_frm = Frame(rgb_frm)
@@ -1690,10 +1716,10 @@ class BorderPopup(Toplevel):
         opacity_frm = Frame(opacity_width_frm)
         opacity_frm.pack(pady=(10, 2))
         Label(opacity_frm, text="Opacity [%]", width=12).pack(side="left", padx=(0, 10))
-        self.opacity = Entry(opacity_frm, validate="focusout",
-                             validatecommand=self.validate_opacity)
-        self.opacity.insert(0, str(float(opacity)*100))
-        self.opacity.pack(side="right")
+        self.opacity_var = tkinter.IntVar()
+        opacity_scale = ttk.LabeledScale(opacity_frm, variable=self.opacity_var, from_=0, to=100)
+        opacity_scale.scale.set(int(float(opacity)*100))
+        opacity_scale.pack(side="right")
 
         # width
         width_frm = Frame(opacity_width_frm)
@@ -1710,11 +1736,20 @@ class BorderPopup(Toplevel):
         button_frm = Frame(root)
         button_frm.pack(fill="x", expand=True, pady=(20, 0))
         Button(button_frm, text="Cancel", command=lambda: self.destroy()).pack(side="right")
-        Button(button_frm, text="Disable", command=self.disable).pack(side="right")
+        Button(button_frm, text="Disable Border", command=self.disable).pack(side="right")
         Button(button_frm, text="Apply", command=self.set).pack(side="right")
 
         # freeze mainloop
         self.wait_window(self)
+
+    def color_picker_wrapper(self) -> None:
+        """Launches color picker, inserts into hex entry, triggers validation"""
+        rgb, hex_color = askcolor(color=self.hex_color)
+        if rgb and hex_color:
+            hex_color = hex_color.upper()
+            self.hex.delete(0, END)
+            self.hex.insert(0, hex_color)
+            self.validate_hex_color()
 
     def validate_hex_color(self) -> False:
         """Validates hex color"""
@@ -1777,20 +1812,6 @@ class BorderPopup(Toplevel):
         self.set_hex_from_rgb()
         return False
 
-    def validate_opacity(self) -> False:
-        """Validates border opacity"""
-        try:
-            opacity = float(self.opacity.get())
-            assert 0 <= opacity <= 100
-        except (ValueError, AssertionError):
-            self.status.configure(text="Opacity must be a float in range 0-100")
-            self.error = True
-            return False
-
-        self.status.configure(text="")
-        self.error = False
-        return False
-
     def validate_width(self) -> False:
         """Validates border width"""
         try:
@@ -1817,7 +1838,7 @@ class BorderPopup(Toplevel):
             return
 
         border_color = str(f"rgba({self.red.get()},{self.green.get()},"
-                           f"{self.blue.get()},{float(self.opacity.get())/100})")
+                           f"{self.blue.get()},{float(self.opacity_var.get())/100})")
         self.parent.border_color.set(border_color)
         self.parent.border_width.set(self.width.get())
         self.parent.show_border_var.set(True)

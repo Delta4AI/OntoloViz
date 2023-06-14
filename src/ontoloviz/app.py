@@ -235,6 +235,8 @@ class App(Tk):
                                   "Utilization Tuple: Explicit Indirect"]
         self.mesh_data_source_var = StringVar(value=self.mesh_data_sources[0])
         self.mesh_drop_empty_var = BooleanVar(value=False)
+        self.mesh_legend_enabled_control = BooleanVar(value=True)
+        self.mesh_legend_enable = None  # Checkbutton
         self.mesh_propagate_enabled_control = BooleanVar(value=False)
         self.mesh_propagate_enable = None  # Checkbutton
         self.mesh_propagate_lvl_var = IntVar(value=0)
@@ -255,6 +257,8 @@ class App(Tk):
         self.mesh_summary_plot_lbl = None  # label 'Columns: '
         self.atc_data_sources = ["Linked Tuple"]
         self.atc_data_source_var = StringVar(value=self.atc_data_sources[0])
+        self.atc_legend_enabled_control = BooleanVar(value=True)
+        self.atc_legend_enable = None  # Checkbutton
         self.atc_propagate_enabled_control = BooleanVar(value=False)
         self.atc_propagate_enable = None  # Checkbutton
         self.atc_propagate_lvl_var = IntVar(value=5)
@@ -411,6 +415,16 @@ class App(Tk):
         create_tooltip(self.show_border_btn_mesh, self.show_border_tt_template
                        + "\nCurrent properties: Color: " + self.border_color.get()
                        + ", Width: " + self.border_width.get())
+
+        # display legend checkmark
+        self.mesh_legend_enable = Checkbutton(mesh_display_options_top_frm, text="Legend",
+                                              style="secondary.TCheckbutton", db_w=True,
+                                              mesh_w=True, onvalue=True, offvalue=False,
+                                              variable=self.mesh_legend_enabled_control)
+        self.mesh_legend_enable.pack(side="right", padx=2)
+        create_tooltip(self.mesh_legend_enable,
+                       "Displays a legend in form of a weighted color bar. "
+                       "Disabled for summary plots with specific color propagation enabled.")
 
         mesh_display_options_bottom_frm = Frame(mesh_display_options_frm, style="secondary.TFrame")
         mesh_display_options_bottom_frm.pack(fill="both", pady=(0, 2))
@@ -650,6 +664,16 @@ class App(Tk):
         create_tooltip(self.show_border_btn_atc, self.show_border_tt_template
                        + "\nCurrent properties: Color: " + self.border_color.get()
                        + ", Width: " + self.border_width.get())
+
+        # display legend checkmark
+        self.atc_legend_enable = Checkbutton(atc_display_options_top_frm, text="Legend",
+                                             style="primary.TCheckbutton", db_w=True,
+                                             atc_w=True, onvalue=True, offvalue=False,
+                                             variable=self.atc_legend_enabled_control)
+        self.atc_legend_enable.pack(side="right", padx=2)
+        create_tooltip(self.atc_legend_enable,
+                       "Displays a legend in form of a weighted color bar. "
+                       "Disabled for summary plots with specific color propagation enabled.")
 
         mesh_display_options_bottom_frm = Frame(atc_display_options_frm, style="primary.TFrame")
         mesh_display_options_bottom_frm.pack(fill="both", pady=(0, 2))
@@ -1171,6 +1195,7 @@ class App(Tk):
         configure = None
         asset = None
         datasource = None
+        legend = None
         cfg_exclude = ""
 
         # assign variables based on mode
@@ -1184,6 +1209,7 @@ class App(Tk):
             configure = self.configure_d
             asset = self.atc_asset_var.get()
             datasource = self.atc_data_source_var.get()
+            legend = self.atc_legend_enabled_control.get()
             cfg_exclude = "mesh_"
         elif mode == "mesh":
             input_fn = self.mesh_file_loaded
@@ -1195,7 +1221,10 @@ class App(Tk):
             configure = self.configure_p
             asset = self.mesh_asset_var.get()
             datasource = self.mesh_data_source_var.get()
+            legend = self.mesh_legend_enabled_control.get()
             cfg_exclude = "atc_"
+
+        obj.s["legend"] = legend
 
         # populate tree from Excel or database data
         self.set_status(f"Populating {mode.upper()} tree ..")

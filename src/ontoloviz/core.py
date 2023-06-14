@@ -631,6 +631,9 @@ class SunburstBase:
         """
         label_mode, propagate_count_mode, propagate_lvl, hover_template = None, None, None, None
         propagate_color_mode = None
+        propagate_enabled = None
+        specific_color_propagation = False
+
         if isinstance(self, PhenotypeSunburst):
             label_mode = self.s["mesh_labels"]
             propagate_count_mode = self.s["mesh_propagate_counts"]
@@ -647,6 +650,7 @@ class SunburstBase:
                               "%{customdata[6]}"
                               "%{customdata[7]}"
                               "<extra></extra>")
+            propagate_enabled = self.s["mesh_propagate_enable"]
         elif isinstance(self, DrugSunburst):
             label_mode = self.s["atc_labels"]
             propagate_count_mode = self.s["atc_propagate_counts"]
@@ -659,6 +663,10 @@ class SunburstBase:
                               "Children: %{customdata[4]}"
                               "%{customdata[5]}"
                               "<extra></extra>")
+            propagate_enabled = self.s["atc_propagate_enable"]
+
+        if propagate_enabled and propagate_color_mode == "specific":
+            specific_color_propagation = True
 
         # get max counts to adapt percentages in case global colors are used
         global_sum = int(sum([max(_["imported_counts"] for _ in sub.values())
@@ -722,7 +730,19 @@ class SunburstBase:
             custom_data.append(custom_tuples)
             labels.append(wedge_labels)
 
-        return labels, custom_data, hover_template
+        return labels, custom_data, hover_template, specific_color_propagation
+
+    def _add_color_scale_to_trace(self, trace: Sunburst, cmax: int = None,
+                                  cmap: list = None, specific: bool = None) -> None:
+        """Adds a color scale (legend) to a trace"""
+        if not cmap:
+            cmap = self.s["color_scale"]
+        trace.marker.colorscale = cmap
+        trace.marker.cmin = 0
+        if cmax == 0:
+            cmax = 1
+        trace.marker.cmax = cmax
+        trace.marker.colorbar = {"title": "values"}
 
     def create_sunburst_figure(self, plot_tree: dict = None):
         """Create list of sunburst traces
@@ -732,7 +752,24 @@ class SunburstBase:
         self.set_thread_status("Creating traces ..")
 
         # create list of labels, percentages
-        labels, custom_data, hover_template = self.generate_plot_supplements(plot_tree=plot_tree)
+        (labels, custom_data, hover_template,
+         specific_color_propagation) = self.generate_plot_supplements(plot_tree=plot_tree)
+        counts_max = [max([_[1] for _ in c_data]) for c_data in custom_data]
+
+        weighted_colors = []
+        for sub_tree, max_count in zip(plot_tree.values(), counts_max):
+            blerg = []
+            for node in sub_tree.values():
+                try:
+                    val = round(node["imported_counts"]/max_count, 3)
+                    if val > 1.0:
+                        continue
+                    blerg.append((val, node["color"]))
+                except ZeroDivisionError as e:
+                    continue
+            if not blerg or len(blerg) < 2:
+                blerg = [(0.0, "#FFFFFF"), (1.0, "#FFFFFF")]
+            weighted_colors.append(sorted(list(set(blerg))))
 
         # create list of traces
         traces = [Sunburst(
@@ -745,14 +782,13 @@ class SunburstBase:
             customdata=custom_data[idx],
             hovertemplate=hover_template,
             marker={'colors': [_["color"] for _ in v.values()],
-                    'colorscale': "RdBu",
                     'line': {'color': self.s["border_color"],
                              'width': self.s["border_width"]} if self.s["show_border"] else None}
         ) for idx, v in enumerate(plot_tree.values())]
 
         # plot configuration
         config = {"displaylogo": False,
-                  "responsive": True,
+                  "responsive": False,
                   "scrollZoom": True,
                   "displayModeBar": True,
                   "showLink": False,
@@ -781,13 +817,29 @@ class SunburstBase:
                         + f" for {self.phenotype_name}")
             file_name = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
 
+        # traces[0].marker["colorscale": self.s["color_scale"], "cmin": 0, "cmax": 100,
+        # "colorbar": {"title": "values"}]
+
         # create figure
         self.set_thread_status("Creating figure ..")
         if summary_plot != 0:
+
+            # color-bar for first trace with longest weightest color map
+            # disabled for summary plots with specific color propagation,
+            # as each plot would require an individual scale
+            if not specific_color_propagation and self.s.get("legend", None):
+                self._add_color_scale_to_trace(trace=traces[0], cmax=max(counts_max),
+                                               cmap=max(weighted_colors, key=len))
+
             # figure for overview plot
             fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers,
                                                title=title)
         else:
+            if self.s.get("legend", None):
+                # color-bar for each trace
+                for trace, max_count, cmap in zip(traces, counts_max, weighted_colors):
+                    self._add_color_scale_to_trace(trace=trace, cmax=max_count, cmap=cmap)
+
             # figure for specific plots - create buttons
             buttons = []
             for i in range(len(traces)):
@@ -820,6 +872,28 @@ class SunburstBase:
             # create figure, hide initial data
             fig = Figure(data=traces, layout=layout)
             fig.update_traces(visible="legendonly")
+
+        # Configure the zoom button
+        zoom_button = dict(
+            args=["sunburstlayer.transforms[0].value", [0, 0, 1]],
+            label="Zoom",
+            method="relayout"
+        )
+
+        # Add the zoom button to the existing menu
+        fig.update_layout(
+            updatemenus=[
+                *fig["layout"]["updatemenus"],
+                dict(
+                    buttons=[zoom_button],
+                    type="buttons",
+                    showactive=False,
+                    direction="left",
+                    x=0.1,
+                    y=1.1
+                )
+            ]
+        )
 
         # save / plot figure
         if self.s["export_plot"]:

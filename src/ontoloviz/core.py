@@ -107,7 +107,7 @@ class SunburstBase:
         return False
 
     @staticmethod
-    def verify_file(fn: str = None) -> str:
+    def verify_file(fn: str = None) -> [None, str]:
         """Verifies a MeSH-Tree Excel/.tsv file
 
          - .tsv files are verified based on number of columns in first tab
@@ -127,8 +127,9 @@ class SunburstBase:
                         elif len(columns) == 7:
                             file_type = "mesh_tsv"
                         else:
-                            raise ValueError("TSV verification failed. Expected 6 columns for "
-                                             "ATC-tree, 7 columns for MeSH tree")
+                            return None
+                            # raise ValueError("TSV verification failed. Expected 6 columns for "
+                            #                  "ATC-tree, 7 columns for MeSH tree")
                         print(f"TSV verified as '{file_type}': {fn}")
                         return file_type
 
@@ -420,10 +421,10 @@ class SunburstBase:
         :param count_key: key in children elements that contains value to weight
         :returns: sum of all values of children's count_key
         """
-        if isinstance(self, DrugSunburst):
+        if isinstance(self, ATCSunburst):
             return sum([int(vv[count_key]) for k, v in self.atc_tree.items()
                         for kk, vv in v.items()])
-        elif isinstance(self, PhenotypeSunburst):
+        elif isinstance(self, MeSHSunburst):
             return sum([int(vv[count_key]) for k, v in self.mesh_tree.items()
                         for kk, vv in v.items()])
 
@@ -554,11 +555,11 @@ class SunburstBase:
         :param count_key: must be in ['counts', 'imported_counts']
         """
         propagation_enabled, propagation_type, max_level = None, None, None
-        if isinstance(self, PhenotypeSunburst):
+        if isinstance(self, MeSHSunburst):
             propagation_enabled = self.s["mesh_propagate_enable"]
             propagation_type = self.s["mesh_propagate_color"]
             max_level = self.s["mesh_propagate_lvl"]
-        elif isinstance(self, DrugSunburst):
+        elif isinstance(self, ATCSunburst):
             propagation_enabled = self.s["atc_propagate_enable"]
             propagation_type = self.s["atc_propagate_color"]
             max_level = self.s["atc_propagate_lvl"]
@@ -634,7 +635,7 @@ class SunburstBase:
         propagate_enabled = None
         specific_color_propagation = False
 
-        if isinstance(self, PhenotypeSunburst):
+        if isinstance(self, MeSHSunburst):
             label_mode = self.s["mesh_labels"]
             propagate_count_mode = self.s["mesh_propagate_counts"]
             propagate_color_mode = self.s["mesh_propagate_color"]
@@ -651,7 +652,7 @@ class SunburstBase:
                               "%{customdata[7]}"
                               "<extra></extra>")
             propagate_enabled = self.s["mesh_propagate_enable"]
-        elif isinstance(self, DrugSunburst):
+        elif isinstance(self, ATCSunburst):
             label_mode = self.s["atc_labels"]
             propagate_count_mode = self.s["atc_propagate_counts"]
             propagate_color_mode = self.s["atc_propagate_color"]
@@ -719,11 +720,11 @@ class SunburstBase:
                 comment = str("<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65))
                               if vv["comment"] else "")
 
-                if isinstance(self, PhenotypeSunburst):
+                if isinstance(self, MeSHSunburst):
                     custom_tuples.append(
                         (hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
                          "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
-                elif isinstance(self, DrugSunburst):
+                elif isinstance(self, ATCSunburst):
                     custom_tuples.append(
                         (hover_label, count, node_percentage, node_id, child_sum, comment))
 
@@ -777,7 +778,7 @@ class SunburstBase:
             parents=[_["parent"] for _ in v.values()],
             values=[_["counts"] for _ in v.values()],
             ids=[_["id"] for _ in v.values()],
-            branchvalues=str("remainder" if isinstance(self, PhenotypeSunburst)
+            branchvalues=str("remainder" if isinstance(self, MeSHSunburst)
                              else self.s["atc_wedge_width"]),
             customdata=custom_data[idx],
             hovertemplate=hover_template,
@@ -802,14 +803,14 @@ class SunburstBase:
 
         # generate headers
         headers, summary_plot, title, file_name = None, None, None, None
-        if isinstance(self, PhenotypeSunburst):
+        if isinstance(self, MeSHSunburst):
             headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())
                        if k in plot_tree.keys()]
             summary_plot = self.s["mesh_summary_plot"]
             title = str("Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)]
                         + f" for {self.drug_name}")
             file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
-        elif isinstance(self, DrugSunburst):
+        elif isinstance(self, ATCSunburst):
             headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())
                        if k in plot_tree.keys()]
             summary_plot = self.s["atc_summary_plot"]
@@ -844,10 +845,10 @@ class SunburstBase:
             buttons = []
             for i in range(len(traces)):
                 specific_title = None
-                if isinstance(self, PhenotypeSunburst):
+                if isinstance(self, MeSHSunburst):
                     specific_title = str(f"Literature co-annotations for MeSH term {headers[i]} "
                                          f"and {self.drug_name}")
-                elif isinstance(self, DrugSunburst):
+                elif isinstance(self, ATCSunburst):
                     specific_title = str(f"Literature co-annotations for ATC term "
                                          f"{headers[i].split(':')[-1].title()} "
                                          f"and {self.phenotype_name}")
@@ -872,28 +873,6 @@ class SunburstBase:
             # create figure, hide initial data
             fig = Figure(data=traces, layout=layout)
             fig.update_traces(visible="legendonly")
-
-        # Configure the zoom button
-        zoom_button = dict(
-            args=["sunburstlayer.transforms[0].value", [0, 0, 1]],
-            label="Zoom",
-            method="relayout"
-        )
-
-        # Add the zoom button to the existing menu
-        fig.update_layout(
-            updatemenus=[
-                *fig["layout"]["updatemenus"],
-                dict(
-                    buttons=[zoom_button],
-                    type="buttons",
-                    showactive=False,
-                    direction="left",
-                    x=0.1,
-                    y=1.1
-                )
-            ]
-        )
 
         # save / plot figure
         if self.s["export_plot"]:
@@ -950,7 +929,7 @@ class SunburstBase:
         return fig
 
 
-class PhenotypeSunburst(SunburstBase):
+class MeSHSunburst(SunburstBase):
     """Phenotype/MeSH Sunburst Class"""
 
     def __init__(self):
@@ -1175,8 +1154,8 @@ class PhenotypeSunburst(SunburstBase):
         """
         self.rollback_mesh_tree()
         print(f"Loading MeSH-tree from {fn} ..")
-        with open(fn, mode="r", encoding="utf-8") as f:
-            self.process_mesh_row_data(f)
+        with open(fn, mode="r", encoding="utf-8") as f_in:
+            self.process_mesh_row_data(row_data=f_in)
 
     def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True,
                         populate: bool = True) -> None:
@@ -1285,7 +1264,7 @@ class PhenotypeSunburst(SunburstBase):
 
     def plot(self) -> None:
         """Generate data for phenotype sunburst plot"""
-        self.set_thread_status("Creating phenotype sunburst ..")
+        self.set_thread_status("Creating separator-based sunburst ..")
         self.thread_return = None
         plot_tree = {}
         parent_whitelist = set()
@@ -1354,7 +1333,7 @@ class PhenotypeSunburst(SunburstBase):
         self.create_sunburst_figure(plot_tree=plot_tree)
 
 
-class DrugSunburst(SunburstBase):
+class ATCSunburst(SunburstBase):
     """Drug/ATC Phenotype Class"""
 
     def __init__(self):
@@ -1740,29 +1719,29 @@ def show_help():
     """prints help to console"""
     print(" DrugVision - Minimal Reproducible Examples ".center(120, "-"))
     print('''
-from ontoloviz.core import PhenotypeSunburst, DrugSunburst
+from ontoloviz.core import MeSHSunburst, ATCSunburst
 
 """ phenotype sunburst with connected database """
-p = PhenotypeSunburst()
+p = MeSHSunburst()
 p.init("drugvision.db")
 p.populate(drug_name="Aspirin")
 p.export_mesh_tree()
 p.plot()
 
 """ phenotype sunburst from Excel file """
-p = PhenotypeSunburst()
+p = MeSHSunburst()
 p.populate_mesh_from_excel("mesh_tree_aspirin.xlsx")
 p.plot()
 
 """ drug sunburst with connected database """
-d = DrugSunburst()
+d = ATCSunburst()
 d.init(db)
 d.populate(phenotype_name="headache")
 d.export_atc_tree()
 d.plot()
 
 """ drug sunburst from Excel file """
-d = DrugSunburst()
+d = ATCSunburst()
 d.populate_atc_from_excel("atc_tree_headache.xlsx")
 d.plot
 ''')

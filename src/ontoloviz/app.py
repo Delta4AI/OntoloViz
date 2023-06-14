@@ -12,7 +12,7 @@ from tkinter.ttk import LabelFrame, Frame, Style
 from tkinter.colorchooser import askcolor
 import time
 import textwrap
-from .core import PhenotypeSunburst, DrugSunburst, rgb_to_hex, hex_to_rgb
+from .core import MeSHSunburst, ATCSunburst, rgb_to_hex, hex_to_rgb
 from threading import Thread
 
 
@@ -219,8 +219,8 @@ class App(Tk):
                              activebackground=primary_bg)
 
         # core variables
-        self.p = PhenotypeSunburst()
-        self.d = DrugSunburst()
+        self.p = MeSHSunburst()
+        self.d = ATCSunburst()
 
         # memory variables (settings)
         self.database_var = StringVar()
@@ -964,7 +964,7 @@ class App(Tk):
         self.set_status("")
         return False
 
-    def check_init(self, obj: [PhenotypeSunburst, DrugSunburst] = None) -> bool:
+    def check_init(self, obj: [MeSHSunburst, ATCSunburst] = None) -> bool:
         """Checks if core objects are initialized
 
         :param obj: core object
@@ -978,10 +978,10 @@ class App(Tk):
             return False
 
         if not obj.is_init:
-            if isinstance(obj, PhenotypeSunburst):
+            if isinstance(obj, MeSHSunburst):
                 self.set_status("Initializing MeSH-tree ..")
                 self.p.init(self.database_var.get())
-            elif isinstance(obj, DrugSunburst):
+            elif isinstance(obj, ATCSunburst):
                 self.set_status("Initializing ATC-tree ..")
                 self.d.init(self.database_var.get())
 
@@ -995,7 +995,7 @@ class App(Tk):
         self.update()
 
     def configure_p(self):
-        """Hand over GUI settings to PhenotypeSunburst object"""
+        """Hand over GUI settings to MeSHSunburst object"""
         self.p.set_color_scale(json.loads(self.color_scale_var.get().replace("'", '"')))
         self.p.set_settings({
             "show_border": self.show_border_var.get(),
@@ -1012,7 +1012,7 @@ class App(Tk):
         })
 
     def configure_d(self):
-        """Hand over GUI settings to DrugSunburst object"""
+        """Hand over GUI settings to ATCSunburst object"""
         self.d.set_color_scale(json.loads(self.color_scale_var.get().replace("'", '"')))
         self.d.set_settings({
             "show_border": self.show_border_var.get(),
@@ -1357,7 +1357,7 @@ class App(Tk):
         input_fn = filedialog.askopenfilename(filetypes=[("Tree Table", ".xlsx .tsv"),
                                                          ("SQLite3 database", ".db .tar.gz"),
                                                          ("All files", "*")],
-                                              title="Load MeSH/ATC-Tree from file")
+                                              title="Load ontology from file")
         if not input_fn:
             return
 
@@ -1374,6 +1374,10 @@ class App(Tk):
 
         # verify file
         tree_type = self.p.verify_file(input_fn)
+        # if not tree_type:
+        #     tree_type = OntologyTypePopup(self)
+        #     if not tree_type:
+        #         return
 
         # set core object settings, assign functions, set status
         self.set_status("")
@@ -1875,6 +1879,34 @@ class BorderPopup(Toplevel):
                        self.parent.show_border_tt_template + "\nCurrent properties: Color: "
                        + self.parent.border_color.get()
                        + ", Width: " + self.parent.border_width.get())
+        self.destroy()
+
+
+class OntologyTypePopup(Toplevel):
+    """Popup to define the type of the ontology in case automatic parsing was not successful"""
+    def __init__(self, parent: App):
+        super().__init__(parent)
+        self.title("Choose Ontology Type")
+        self.parent = parent
+        self.resizable(False, False)
+        self.result = None
+        self.radio_var = StringVar()
+        options = ["Option 1", "Option 2", "Option 3", "Option 4", "Option 5"]
+        for option in options:
+            rb = ttk.Radiobutton(self, text=option, variable=self.radio_var, value=option)
+            rb.pack(anchor="w")
+
+        ok_button = ttk.Button(self, text="OK", command=self.on_ok)
+        ok_button.pack(side="left")
+
+        cancel_button = ttk.Button(self, text="Cancel", command=self.on_cancel)
+        cancel_button.pack(side="left")
+
+    def on_ok(self):
+        self.result = self.radio_var.get()
+        self.destroy()
+
+    def on_cancel(self):
         self.destroy()
 
 

@@ -1,7 +1,7 @@
 from time import sleep
 from threading import Thread
 from .core import rgb_to_hex, chunks, generate_color_range
-from .core import SunburstBase, PhenotypeSunburst, DrugSunburst
+from .core import SunburstBase, MeSHSunburst, ATCSunburst
 from .app import App, BorderPopup, ExportPopup, ColorScalePopup
 import tkinter
 import plotly
@@ -34,13 +34,13 @@ def test_chunking():
 def test_sunburst_class_inits():
     """Test SunburstBase and child classes"""
     assert isinstance(SunburstBase(), SunburstBase)
-    assert isinstance(PhenotypeSunburst(), PhenotypeSunburst)
-    assert isinstance(DrugSunburst(), DrugSunburst)
+    assert isinstance(MeSHSunburst(), MeSHSunburst)
+    assert isinstance(ATCSunburst(), ATCSunburst)
 
 
 def test_drug_sunburst_attributes():
-    """Test DrugSunburst class"""
-    drug_sunburst = DrugSunburst()
+    """Test ATCSunburst class"""
+    drug_sunburst = ATCSunburst()
     assert hasattr(drug_sunburst, "atc_tree")
     assert not drug_sunburst.is_init
     drug_sunburst.init()

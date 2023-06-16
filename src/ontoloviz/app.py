@@ -174,49 +174,25 @@ class App(Tk):
         # self.tk.call("tk", "scaling", 2)
 
         # style definitions
-        primary_bg = "#403C53"
-        primary_fg = "#FFFFFF"
-        secondary_bg = "#C33D35"
-        secondary_fg = "#FFFFFF"
+        self.d4_red = "#C33D35"
+        self.d4_purple = "#403C53"
+        self.d4_custom = "#8CA6D9"
+        self.d4_white = "#FFFFFF"
+        self.d4_black = "#000000"
         dark_bg = "#2E2D32"
-        dark_fg = "#FFFFFF"
         success = "#6BBE92"
-        bold_normal = ("Arial", 8, "bold")
-        bold_large = ("Arial", 9, "bold")
+        self.bold_normal = ("Arial", 8, "bold")
+        self.bold_large = ("Arial", 9, "bold")
         self.configure(background=dark_bg)
         self.style = Style()
-        self.style.configure("success.TButton", font=bold_large, background=success)
-        self.style.configure("dark.TButton", font=bold_normal, background=dark_bg)
+        self.style.configure("success.TButton", font=self.bold_large, background=success)
+        self.style.configure("dark.TButton", font=self.bold_normal, background=dark_bg)
         self.style.configure("dark.TFrame", background=dark_bg)
-        self.style.configure("dark.TLabelframe", font=bold_large, background=dark_bg, relief="ridge")
-        self.style.configure("dark.TLabelframe.Label", background=dark_bg, foreground=dark_fg)
-        self.style.configure("dark.TLabel", background=dark_bg, foreground=dark_fg)
-        self.style.configure("secondary.TLabelframe", background=secondary_bg, relief="ridge")
-        self.style.configure("secondary.TLabelframe.Label", font=bold_large,
-                             background=secondary_bg, foreground=secondary_fg)
-        self.style.configure("secondary_sub.TLabelframe", background=secondary_bg)
-        self.style.configure("secondary_sub.TLabelframe.Label", background=secondary_bg,
-                             font=bold_normal, foreground=secondary_fg)
-        self.style.configure("secondary.TFrame", background=secondary_bg)
-        self.style.configure("secondary.TLabel", background=secondary_bg, foreground=secondary_fg)
-        self.style.configure("secondary.TButton", font=bold_normal, background=secondary_bg)
-        self.style.configure("secondary.TCheckbutton", background=secondary_bg,
-                             activebackground=secondary_bg, foreground=secondary_fg)
-        self.style.configure("secondary.TRadiobutton", background=secondary_bg,
-                             activebackground=secondary_bg)
-        self.style.configure("primary.TLabelframe", background=primary_bg, relief="ridge")
-        self.style.configure("primary.TLabelframe.Label", font=bold_large, background=primary_bg,
-                             foreground=primary_fg)
-        self.style.configure("primary_sub.TLabelframe", background=primary_bg)
-        self.style.configure("primary_sub.TLabelframe.Label", background=primary_bg,
-                             foreground=primary_fg, font=bold_normal)
-        self.style.configure("primary.TFrame", background=primary_bg)
-        self.style.configure("primary.TLabel", background=primary_bg, foreground=primary_fg)
-        self.style.configure("primary.TButton", font=bold_normal, background=primary_bg)
-        self.style.configure("primary.TCheckbutton", background=primary_bg,
-                             activebackground=primary_bg, foreground=primary_fg)
-        self.style.configure("primary.TRadiobutton", background=primary_bg,
-                             activebackground=primary_bg)
+        self.style.configure("dark.TLabelframe", font=self.bold_large, background=dark_bg,
+                             relief="ridge")
+        self.style.configure("dark.TLabelframe.Label", background=dark_bg, foreground=self.d4_white)
+        self.style.configure("dark.TLabel", background=dark_bg, foreground=self.d4_white)
+        self.change_theme_color(foreground=self.d4_white, background=self.d4_red)
 
         # core variables
         self.p = MeSHSunburst()
@@ -224,7 +200,8 @@ class App(Tk):
 
         # memory variables (settings)
         self.database_var = StringVar()
-        self.color_scale_var = StringVar(value='[[0, "#FFFFFF"], [0.2, "#403C53"], [1, "#C33D35"]]')
+        self.color_scale_var = StringVar(
+            value=f'[[0, "{self.d4_white}"], [0.2, "{self.d4_purple}"], [1, "{self.d4_red}"]]')
         self.show_border_var = BooleanVar(value=True)
         self.border_color = StringVar(value="rgba(0,0,0,0.25)")
         self.border_width = StringVar(value="1")
@@ -304,8 +281,8 @@ class App(Tk):
                                            "Requires active propagation, overwrites colors defined "
                                            "in file. \nCurrent scale: ")
         self.show_border_tt_template = "Configure the border drawn around the sunburst wedges"
-        self.save_plot_tt_template = str("Save the generated plot as interactive .html files and "
-                                         "prompt to create a new .tsv template")
+        self.save_plot_tt_template = str("Save the generated plot as interactive .html file, asks "
+                                         "to create a new .tsv template based on current settings")
         self.plot_tt_template = "Generate plot and open interactive sunburst in browser"
         self.export_tt_template = str("Generate sunburst data without plotting, export to "
                                       "Excel/TSV for later use/customization")
@@ -313,6 +290,21 @@ class App(Tk):
         # function calls
         self.build_base_ui()
         self.toggle_widgets(enable=False, mode="db")
+        
+    def change_theme_color(self, foreground: str = None, background: str = None) -> None:
+        self.style.configure("primary.TLabelframe", background=background, relief="ridge")
+        self.style.configure("primary.TLabelframe.Label", font=self.bold_large,
+                             background=background, foreground=foreground)
+        self.style.configure("primary_sub.TLabelframe", background=background)
+        self.style.configure("primary_sub.TLabelframe.Label", background=background,
+                             foreground=foreground, font=self.bold_normal)
+        self.style.configure("primary.TFrame", background=background)
+        self.style.configure("primary.TLabel", background=background, foreground=foreground)
+        self.style.configure("primary.TButton", font=self.bold_normal, background=background)
+        self.style.configure("primary.TCheckbutton", background=background,
+                             activebackground=background, foreground=foreground)
+        self.style.configure("primary.TRadiobutton", background=background,
+                             activebackground=background)
 
     def build_base_ui(self):
         """Builds the base graphical UI elements to load a file"""
@@ -326,11 +318,27 @@ class App(Tk):
                                     style="success.TButton")
         self.load_file_btn.pack(side="left", padx=(4, 2), pady=(2, 0))
         create_tooltip(self.load_file_btn,
-                       "Load an Excel or .tsv file with ATC- or MeSH-tree data."
-                       "\n - ATC-Tree: counts for non-drug levels (1-4) will be recalculated and "
+                       "Load an Excel or .tsv file with ontology-based data."
+                       "\n ---"
+                       "\n - Supported alpha-numerical ontologies: MeSH, ATC, Reactome"
+                       "\n - For other ontologies, the separator has to be defined after "
+                       "loading the file (possible separators: . , _ /)"
+                       "\n - parents are automatically created if not defined"
+                       "\n - trees need at least 1 node with a value > 0 to be displayed"
+                       "\n ---"
+                       "\n - Minimal Example (requires 5 columns and header):"
+                       "\n   ID             | Label   | Description | Count | Color"
+                       "\n   --             | -----   | ----------- | ----- | -----"
+                       "\n   A              | group 1 | test\t0\t"
+                       "\n   A_1\tchild 1\ttest\t5\t#FF0000"
+                       "\n   B_1_2_3|C_1_2_3\tchild 2\ttest\t2\t#FF00FF"
+                       "\n ---"
+                       "\n - ATC: counts for non-drug levels (1-4) will be recalculated and "
                        "overwritten if a parents value does not match all child values."
-                       "\n - ATC-Tree: custom colors are not applied when propagation is active"
-                       "\n - Excel files remember settings, .tsv files always load defaults")
+                       "\n - ATC: custom colors are not applied when propagation is active"
+                       "\n ---"
+                       "\n - Excel files remember settings, .tsv files always load defaults"
+                       "\n - For more information, read: https://github.com/Delta4AI/OntoloViz")
 
         # ####################################### MESH/DRUG FRAMES ############################### #
 
@@ -354,18 +362,18 @@ class App(Tk):
         # ###################################### PHENOTYPE/MESH SUNBURST ######################### #
 
         # top frame
-        p_frm = LabelFrame(self.mesh_frame, text="Display Settings", style="secondary.TLabelframe")
+        p_frm = LabelFrame(self.mesh_frame, text="Display Settings", style="primary.TLabelframe")
         p_frm.pack(ipadx=2, ipady=2, fill="both")
 
         if db_functions:
             # query data frame
-            mesh_data_frm = LabelFrame(p_frm, text="Query Data", style="secondary_sub.TLabelframe")
+            mesh_data_frm = LabelFrame(p_frm, text="Query Data", style="primary_sub.TLabelframe")
             mesh_data_frm.pack(ipadx=2, ipady=2, padx=4, pady=2, anchor="w")
 
             # asset subframe
-            mesh_asset_frm = Frame(mesh_data_frm, style="secondary.TFrame")
+            mesh_asset_frm = Frame(mesh_data_frm, style="primary.TFrame")
             mesh_asset_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
-            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="secondary.TLabel",
+            mesh_asset_label = Label(mesh_asset_frm, text="Asset name:", style="primary.TLabel",
                                      db_w=True, width=12)
             mesh_asset_label.pack(side="left", padx=2)
             mesh_asset = Entry(mesh_asset_frm, db_w=True, textvariable=self.mesh_asset_var,
@@ -374,10 +382,10 @@ class App(Tk):
             create_tooltip(mesh_asset, "Enter drug name name (e.g. ASPIRIN, case sensitive)")
 
             # data source subframe
-            mesh_data_source_frm = Frame(mesh_data_frm, style="secondary.TFrame")
+            mesh_data_source_frm = Frame(mesh_data_frm, style="primary.TFrame")
             mesh_data_source_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
             mesh_data_source_label = Label(mesh_data_source_frm, text="Data source:",
-                                           style="secondary.TLabel", db_w=True, width=12)
+                                           style="primary.TLabel", db_w=True, width=12)
             mesh_data_source_label.pack(side="left", padx=2)
             mesh_data_source = Combobox(mesh_data_source_frm,
                                         textvariable=self.mesh_data_source_var,
@@ -387,21 +395,21 @@ class App(Tk):
             create_tooltip(mesh_data_source, "Select data source")
 
         # frame for options
-        p_options_frm = Frame(p_frm, style="secondary.TFrame")
+        p_options_frm = Frame(p_frm, style="primary.TFrame")
         p_options_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, anchor="w")
 
         # general options subframe
         mesh_display_options_frm = LabelFrame(p_options_frm, text="General",
-                                              style="secondary_sub.TLabelframe")
+                                              style="primary_sub.TLabelframe")
         mesh_display_options_frm.pack(fill="both")
 
         # colors subframe
-        mesh_display_options_top_frm = Frame(mesh_display_options_frm, style="secondary.TFrame")
+        mesh_display_options_top_frm = Frame(mesh_display_options_frm, style="primary.TFrame")
         mesh_display_options_top_frm.pack(fill="both", pady=2)
 
         # set color scale button
         self.color_scale_btn_mesh = Button(mesh_display_options_top_frm, text="Set Color Scale",
-                                           style="secondary.TButton", db_w=True, mesh_w=True,
+                                           style="primary.TButton", db_w=True, mesh_w=True,
                                            command=lambda: ColorScalePopup(self))
         self.color_scale_btn_mesh.pack(side="left", padx=2)
         create_tooltip(self.color_scale_btn_mesh,
@@ -409,7 +417,7 @@ class App(Tk):
 
         # set border button
         self.show_border_btn_mesh = Button(mesh_display_options_top_frm, text="Set Border",
-                                           style="secondary.TButton", db_w=True, mesh_w=True,
+                                           style="primary.TButton", db_w=True, mesh_w=True,
                                            command=lambda: BorderPopup(self))
         self.show_border_btn_mesh.pack(side="left", padx=2)
         create_tooltip(self.show_border_btn_mesh, self.show_border_tt_template
@@ -418,7 +426,7 @@ class App(Tk):
 
         # display legend checkmark
         self.mesh_legend_enable = Checkbutton(mesh_display_options_top_frm, text="Legend",
-                                              style="secondary.TCheckbutton", db_w=True,
+                                              style="primary.TCheckbutton", db_w=True,
                                               mesh_w=True, onvalue=True, offvalue=False,
                                               variable=self.mesh_legend_enabled_control)
         self.mesh_legend_enable.pack(side="right", padx=2)
@@ -426,13 +434,13 @@ class App(Tk):
                        "Displays a legend in form of a weighted color bar. "
                        "Disabled for summary plots with specific color propagation enabled.")
 
-        mesh_display_options_bottom_frm = Frame(mesh_display_options_frm, style="secondary.TFrame")
+        mesh_display_options_bottom_frm = Frame(mesh_display_options_frm, style="primary.TFrame")
         mesh_display_options_bottom_frm.pack(fill="both", pady=(0, 2))
 
         # drop empty last child
         mesh_drop_empty = Checkbutton(mesh_display_options_bottom_frm, text="Drop empty nodes",
                                       variable=self.mesh_drop_empty_var, onvalue=True,
-                                      offvalue=False, style="secondary.TCheckbutton", db_w=True,
+                                      offvalue=False, style="primary.TCheckbutton", db_w=True,
                                       mesh_w=True)
         mesh_drop_empty.pack(side="left", padx=2)
         create_tooltip(mesh_drop_empty, "Drop nodes who have no further children and 0 counts")
@@ -445,16 +453,16 @@ class App(Tk):
         create_tooltip(mesh_label, "Enables/Disables display of labels inside sunburst wedges")
 
         mesh_label_label = Label(mesh_display_options_bottom_frm, text="Display Labels:",
-                                 style="secondary.TLabel", db_w=True, mesh_w=True)
+                                 style="primary.TLabel", db_w=True, mesh_w=True)
         mesh_label_label.pack(side="right", padx=2)
 
         # propagation subframe
         mesh_propagate_frm = LabelFrame(p_options_frm, text="Propagation",
-                                        style="secondary_sub.TLabelframe")
+                                        style="primary_sub.TLabelframe")
         mesh_propagate_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
         self.mesh_propagate_enabled_control.set(False)
         self.mesh_propagate_enable = Checkbutton(mesh_propagate_frm, text="Enable",
-                                                 style="secondary.TCheckbutton",
+                                                 style="primary.TCheckbutton",
                                                  db_w=True, mesh_w=True,
                                                  onvalue=True, offvalue=False,
                                                  variable=self.mesh_propagate_enabled_control,
@@ -466,7 +474,7 @@ class App(Tk):
 
         # propagate color specificity
         self.mesh_propagate_color_lbl = Label(mesh_propagate_frm, text="Color:",
-                                              style="secondary.TLabel")
+                                              style="primary.TLabel")
         self.mesh_propagate_color_lbl.pack(side="left", padx=2)
         self.mesh_propagate_color_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_color_lbl,
@@ -494,7 +502,7 @@ class App(Tk):
 
         # propagate counts
         self.mesh_propagate_counts_lbl = Label(mesh_propagate_frm, text="Counts:",
-                                               style="secondary.TLabel")
+                                               style="primary.TLabel")
         self.mesh_propagate_counts_lbl.pack(side="left", padx=2)
         self.mesh_propagate_counts_lbl.configure(state="disabled")
         create_tooltip(self.mesh_propagate_counts_lbl,
@@ -521,7 +529,7 @@ class App(Tk):
 
         # propagate level
         self.mesh_propagate_lvl_lbl = Label(mesh_propagate_frm, text="Level: ",
-                                            style="secondary.TLabel")
+                                            style="primary.TLabel")
         self.mesh_propagate_lvl_lbl.pack(side="left", padx=2)
         self.mesh_propagate_lvl_lbl.configure(state="disabled")
         self.mesh_propagate_lvl = Combobox(mesh_propagate_frm,
@@ -544,7 +552,7 @@ class App(Tk):
 
         # summary plot subframe
         mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Summary Plot",
-                                           style="secondary_sub.TLabelframe")
+                                           style="primary_sub.TLabelframe")
         mesh_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
         # checkbutton to toggle overview / detailed view
@@ -553,14 +561,14 @@ class App(Tk):
                                                                     "mesh"))
         self.mesh_summary_plot_cols.insert(0, "5")
         self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Enable",
-                                             style="secondary.TCheckbutton", db_w=True, mesh_w=True,
+                                             style="primary.TCheckbutton", db_w=True, mesh_w=True,
                                              variable=self.mesh_summary_plot_control, onvalue=True,
                                              offvalue=False,
                                              command=partial(self.checkbox_controller,
                                                              "mesh_summary_plot"))
         self.mesh_summary_plot.pack(side="left", padx=2)
         self.mesh_summary_plot_lbl = Label(mesh_summary_plot_frm, text="Columns: ",
-                                           style="secondary.TLabel")
+                                           style="primary.TLabel")
         self.mesh_summary_plot_lbl.pack(side="left", padx=2)
         self.mesh_summary_plot_cols.pack(side="left", padx=2)
         create_tooltip(self.mesh_summary_plot_cols,
@@ -571,24 +579,24 @@ class App(Tk):
                        "set Labels to 'none' for faster loading)")
 
         # run buttons frame
-        p_run_frm = Frame(p_frm, style="secondary.TFrame")
+        p_run_frm = Frame(p_frm, style="primary.TFrame")
         p_run_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="x")
 
         # plot button
-        mesh_plot = Button(p_run_frm, text="Plot", style="secondary.TButton",
+        mesh_plot = Button(p_run_frm, text="Plot", style="primary.TButton",
                            command=partial(self.plot, "mesh"), db_w=True, mesh_w=True)
         mesh_plot.pack(side="right", padx=2)
         create_tooltip(mesh_plot, self.plot_tt_template)
 
         # save plot button
-        save_plot_btn = Checkbutton(p_run_frm, text="Save", style="secondary.TCheckbutton",
+        save_plot_btn = Checkbutton(p_run_frm, text="Save", style="primary.TCheckbutton",
                                     variable=self.export_plot_var, db_w=True, mesh_w=True)
         save_plot_btn.pack(side="right", padx=2)
         create_tooltip(save_plot_btn, self.save_plot_tt_template)
 
         if db_functions:
             # export button
-            mesh_export = Button(p_run_frm, text="Export", style="secondary.TButton",
+            mesh_export = Button(p_run_frm, text="Export", style="primary.TButton",
                                  command=self.mesh_export, db_w=True)
             mesh_export.pack(side="right", padx=2)
             create_tooltip(mesh_export, self.export_tt_template)
@@ -1230,7 +1238,10 @@ class App(Tk):
         self.set_status(f"Populating {mode.upper()} tree ..")
         if input_fn:
             if os.path.splitext(input_fn)[-1] == ".tsv":
-                populate_tsv(input_fn)
+                if datasource == "TSV file":
+                    populate_tsv(input_fn)
+                else:
+                    self.p.populate_custom_ontology_from_tsv(fn=input_fn, ontology_type=datasource)
             else:
                 populate_excel(input_fn, read_settings=False, populate=True)
         else:
@@ -1361,8 +1372,7 @@ class App(Tk):
         if not input_fn:
             return
 
-        # rollback
-        self.rollback_ui()
+        # rollback vars
         self.atc_file_loaded = ""
         self.mesh_file_loaded = ""
         self.loaded_settings = {}
@@ -1374,15 +1384,28 @@ class App(Tk):
 
         # verify file
         tree_type = self.p.verify_file(input_fn)
-        # if not tree_type:
-        #     tree_type = OntologyTypePopup(self)
-        #     if not tree_type:
-        #         return
+        custom_ontology = None
+        if not tree_type:
+            if input_fn.endswith("xlsx"):
+                messagebox.showerror(title="File format not supported",
+                                     message="The input file could not be automatically identified,"
+                                             " custom ontologies are only supported for .tsv files."
+                                             " Convert your data to .tsv, and follow the guidelines"
+                                             " from https://github.com/Delta4AI/OntoloViz")
+                return
+            _custom_ontology = OntologyTypePopup(self)
+            custom_ontology = _custom_ontology.description
+            tree_type = _custom_ontology.result
+            if not tree_type:
+                self.set_status("Aborted file loading")
+                return
 
-        # set core object settings, assign functions, set status
+        # set core object settings, assign functions, set status, rollback ui
+        self.rollback_ui()
         self.set_status("")
         if tree_type.startswith("atc"):
             self.set_status("Loading ATC tree from file ..")
+            self.change_theme_color(foreground=self.d4_white, background=self.d4_red)
             self.build_atc_ui(db_functions=False)
             self.update()
             if tree_type == "atc_excel":
@@ -1394,6 +1417,7 @@ class App(Tk):
             obj = self.d
         elif tree_type.startswith("mesh"):
             self.set_status("Loading MeSH tree from file ..")
+            self.change_theme_color(foreground=self.d4_white, background=self.d4_purple)
             self.build_mesh_ui(db_functions=False)
             self.update()
             if tree_type == "mesh_excel":
@@ -1402,6 +1426,15 @@ class App(Tk):
             elif tree_type == "mesh_tsv":
                 self.mesh_data_source_var.set("TSV file")
             self.mesh_asset_var.set(self.p.drug_name)
+            obj = self.p
+        else:
+            # custom ontologies
+            self.set_status("Loading custom ontology from file ..")
+            self.change_theme_color(foreground=self.d4_black, background=self.d4_custom)
+            self.build_mesh_ui(db_functions=False)
+            self.update()
+            self.mesh_data_source_var.set(tree_type)
+            self.mesh_asset_var.set("CUSTOM")
             obj = self.p
 
         # disable all widgets to be enabled later
@@ -1423,7 +1456,7 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="atc")
             self.atc_file_loaded = input_fn
             self.set_status(f"ATC tree loaded: {input_fn}")
-            self.title("OntoloViz - Drug Sunburst")
+            self.title("OntoloViz - ATC Drug Sunburst")
             if tree_type == "atc_excel":
                 self.atc_label_var.set(obj.s["atc_labels"])
                 self.atc_wedge_width_var.set(obj.s["atc_wedge_width"])
@@ -1431,10 +1464,16 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="mesh")
             self.set_status(f"MeSH tree loaded: {input_fn}")
             self.mesh_file_loaded = input_fn
-            self.title("OntoloViz - Phenotype Sunburst")
+            self.title("OntoloViz - MeSH Phenotype Sunburst")
             if tree_type == "mesh_excel":
                 self.mesh_drop_empty_var.set(obj.s["mesh_drop_empty_last_child"])
                 self.mesh_label_var.set(obj.s["mesh_labels"])
+        else:
+            # custom ontologies
+            self.toggle_widgets(enable=True, mode="mesh")
+            self.set_status(f"Custom tree loaded: {input_fn}")
+            self.mesh_file_loaded = input_fn
+            self.title(f"OntoloViz - {custom_ontology} Sunburst")
 
         # store settings to check later if they have been modified if Excel was loaded
         if tree_type.endswith("_excel"):
@@ -1890,20 +1929,50 @@ class OntologyTypePopup(Toplevel):
         self.parent = parent
         self.resizable(False, False)
         self.result = None
-        self.radio_var = StringVar()
-        options = ["Option 1", "Option 2", "Option 3", "Option 4", "Option 5"]
-        for option in options:
-            rb = ttk.Radiobutton(self, text=option, variable=self.radio_var, value=option)
-            rb.pack(anchor="w")
+        self.description = None
 
-        ok_button = ttk.Button(self, text="OK", command=self.on_ok)
+        lbl_frame = Frame(self)
+        lbl_frame.pack()
+        descriptive_label = ttk.Label(lbl_frame, wraplength=400,
+                                      text="The ontology type could not be detected automatically. "
+                                           "What type of ontology are you trying to import? "
+                                           "Find out about the supported structures at "
+                                           "https://github.com/Delta4AI/OntoloViz")
+        descriptive_label.pack(pady=10, padx=10)
+
+        self.radio_var = StringVar()
+        self.options = {
+            "custom_sep_dot": ("Dot-separated", "e.g. MeSH: 'C01.001.002'"),
+            "custom_sep_slash": ("Slash-separated", "e.g. Gene Ontology"),
+            "custom_sep_colon": ("Colon-separated", "e.g. Snomed"),
+            "custom_sep_underscore": ("Underscore-separated", "e.g. OBO"),
+            "custom_atc": ("ATC", "Alphanumeric IDs in the format of 'A10BA02'"),
+            "custom_reactome": ("Reactome", "Alphanumeric IDs in the format of 'A0A075B5K8'"),
+        }
+        rb_frame = Frame(self)
+        rb_frame.pack()
+        for ontology_id, texts in self.options.items():
+            title, tooltip = texts
+            rb = Radiobutton(rb_frame, text=title, variable=self.radio_var, value=ontology_id)
+            rb.pack(anchor="w")
+            if tooltip:
+                create_tooltip(rb, tooltip)
+
+        btn_frame = Frame(self)
+        btn_frame.pack(pady=(10, 0))
+
+        ok_button = Button(btn_frame, text="OK", command=self.on_ok)
         ok_button.pack(side="left")
 
-        cancel_button = ttk.Button(self, text="Cancel", command=self.on_cancel)
+        cancel_button = Button(btn_frame, text="Cancel", command=self.on_cancel)
         cancel_button.pack(side="left")
+
+        # freeze mainloop
+        self.wait_window(self)
 
     def on_ok(self):
         self.result = self.radio_var.get()
+        self.description = self.options[self.result][0]
         self.destroy()
 
     def on_cancel(self):

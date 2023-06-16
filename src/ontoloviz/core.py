@@ -151,18 +151,20 @@ class SunburstBase:
                 # classify solely based on column number in first sheet
                 cols = workbook.worksheets[0].max_column
                 if cols not in req.values():
-                    raise ValueError(
-                        "Excel verification without settings failed: Amount of columns does not "
-                        "match any known configuration!\nThis files columns: "
-                        f"{cols}\nPossible values: {req}\nException: {exc}") from exc
+                    return None
+                    # raise ValueError(
+                    #     "Excel verification without settings failed: Amount of columns does not "
+                    #     "match any known configuration!\nThis files columns: "
+                    #     f"{cols}\nPossible values: {req}\nException: {exc}") from exc
                 flipped_req = {v: k for k, v in req.items()}
                 return flipped_req[cols] + "_no_settings"
 
             # check for number of columns in 'Tree' tab
             if workbook["Tree"].max_column != req[file_type[0]]:
-                raise ValueError("Excel verification failed: Columns in tab 'Tree' do not match "
-                                 "expected number. Expected: "
-                                 f"{req[file_type[0]]}, actual: {workbook['Tree'].max_column}")
+                return None
+                # raise ValueError("Excel verification failed: Columns in tab 'Tree' do not match "
+                #                  "expected number. Expected: "
+                #                  f"{req[file_type[0]]}, actual: {workbook['Tree'].max_column}")
 
             print(f"Excel verified as '{file_type[0]}': {fn}")
             return file_type[0]
@@ -640,9 +642,12 @@ class SunburstBase:
             propagate_count_mode = self.s["mesh_propagate_counts"]
             propagate_color_mode = self.s["mesh_propagate_color"]
             propagate_lvl = self.s["mesh_propagate_lvl"]
+            mesh_id = ""
+            if self.drug_name != "CUSTOM":
+                mesh_id = "MeSH-ID: %{customdata[3]}"
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
-                              "MeSH-ID: %{customdata[3]}"
+                              f"{mesh_id}"
                               "<br>"
                               "Tree ID: %{customdata[4]}"
                               "<br>"
@@ -689,7 +694,7 @@ class SunburstBase:
             for kk, vv in v.items():
 
                 # wedge labels
-                wrapped_label = "<br>".join(wrap(vv["label"], 20))
+                wrapped_label = "<br>".join(wrap(vv.get("label", ""), 20))
                 if label_mode == "all":
                     wedge_labels.append(wrapped_label)
                 elif label_mode == "propagation":
@@ -713,16 +718,17 @@ class SunburstBase:
                             node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
 
                 # custom data
-                hover_label = vv["label"] if vv["label"] != "" else "Undefined"
+                hover_label = vv.get("label", "Undefined")
                 count = int(vv["imported_counts"])
                 node_id = vv["id"]
                 child_sum = sum([1 for z in v.keys() if z.startswith(vv["id"]) and z != vv["id"]])
                 comment = str("<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65))
-                              if vv["comment"] else "")
+                              if vv.get("comment", None) else "")
 
                 if isinstance(self, MeSHSunburst):
                     custom_tuples.append(
-                        (hover_label, count, node_percentage, vv["mesh_id"], node_id, child_sum,
+                        (hover_label, count, node_percentage, vv.get("mesh_id", hover_label),
+                         node_id, child_sum,
                          "<br>".join(wrap("Description: " + vv["description"], 65)), comment))
                 elif isinstance(self, ATCSunburst):
                     custom_tuples.append(
@@ -734,7 +740,7 @@ class SunburstBase:
         return labels, custom_data, hover_template, specific_color_propagation
 
     def _add_color_scale_to_trace(self, trace: Sunburst, cmax: int = None,
-                                  cmap: list = None, specific: bool = None) -> None:
+                                  cmap: list = None) -> None:
         """Adds a color scale (legend) to a trace"""
         if not cmap:
             cmap = self.s["color_scale"]
@@ -744,6 +750,34 @@ class SunburstBase:
             cmax = 1
         trace.marker.cmax = cmax
         trace.marker.colorbar = {"title": "values"}
+
+    def _set_default_row_data(self, entity_id: str = None, label: str = None,
+                              description: str = None, counts: str = None,
+                              color: str = None) -> tuple:
+        """Converts row data and sets default if cells are empty"""
+
+        # set defaults if cell is empty
+        if not color or not match("#[a-fA-F0-9]{6}$", color) or color == "":
+            color = self.s["default_color"]
+
+        # required .tsv conversions
+        if isinstance(counts, str):
+            if not counts:
+                counts = 0
+            counts = int(counts)
+
+        # set zero-counts to arbitrary low number to ensure display (value must be >0)
+        # if cell is empty, set to 0
+        if counts == 0 or counts == 0.0 or counts is None or counts == "":
+            counts = self.zero  # rounded to 0 in plot
+
+        if not description:
+            description = ""
+
+        if not label or label == "":
+            label = entity_id
+
+        return label, description, counts, color
 
     def create_sunburst_figure(self, plot_tree: dict = None):
         """Create list of sunburst traces
@@ -1052,29 +1086,97 @@ class MeSHSunburst(SunburstBase):
         settings = {r[0].value: r[1].value for r in ws_settings.rows}
         self.set_settings(settings)
 
-    def check_mesh_parent(self, parent: str, main_id: str) -> None:
+    def _reconstruct_separator_based_tree(self, tree_ids: str = None,
+                                          level_separator: str = None,
+                                          id_separator: str = "|", **kwargs) -> None:
+        """Process tree ids, reconstruct mesh tree
+
+        :param tree_ids: single entity ID or list of entities separated with id_separator
+        :param level_separator: separator between levels, e.g. "." for "C01.001" for MeSH
+        :param id_separator: separator between ids, e.g. "|" for "C01.001|C01.002"
+        """
+        # process tree ids, reconstruct mesh tree
+        for tree_id in tree_ids.split(id_separator):
+            main_id = tree_id.split(level_separator)[0]
+            level = tree_id.count(level_separator)
+            parent = tree_id.rsplit(level_separator, 1)[0] if level > 0 else ""
+            if main_id not in self.mesh_tree.keys():
+                self.mesh_tree[main_id] = {}
+            self.mesh_tree[main_id][tree_id] = {
+                # "counts": counts,
+                # "label": name,
+                # "description": description,
+                # "comment": comment,
+                # "color": color,
+                "id": tree_id,
+                "level": level,
+                "parent": parent,
+                # "mesh_id": mesh_id
+                **kwargs
+            }
+
+            # validate all parents exist
+            self.check_mesh_parent(parent=parent, main_id=main_id, separator=level_separator)
+
+    def check_mesh_parent(self, parent: str = None, main_id: str = None,
+                          separator: str = None) -> None:
         """Creates artificial parent node if not existent > checks parent's parent availability"""
         if parent and parent not in self.mesh_tree[main_id].keys():
-            parents_parent = parent.rsplit(".", 1)[0]
+            parents_parent = parent.rsplit(separator, 1)[0]
+            level = parent.count(separator)
             self.mesh_tree[main_id][parent] = {
                 "counts": self.zero,
-                "label": "",
-                "description": "",
+                "label": "N/A",
+                "description": "Undefined",
                 "comment": "",
                 "color": self.s["default_color"],
                 "id": parent,
-                "level": parent.count("."),
-                "parent": parents_parent,
+                "level": level,
+                "parent": parents_parent if level > 0 else "",
                 "mesh_id": ""
             }
 
             # check next parents existance
-            self.check_mesh_parent(parents_parent, main_id)
+            self.check_mesh_parent(parent=parents_parent, main_id=main_id, separator=separator)
+
+    def process_custom_row_data(self, row_data: [io.TextIOWrapper, object],
+                                ontology_type: str = None) -> None:
+        """Process a .tsv file row by row for populating custom ontologies
+
+        :param row_data: file IO wrapper
+        :param ontology_type: type of ontology
+        """
+        separator = "."
+        if ontology_type == "custom_sep_slash":
+            separator = "/"
+        elif ontology_type == "custom_sep_colon":
+            separator = ","
+        elif ontology_type == "custom_sep_underscore":
+            separator = "_"
+
+        for idx, row in enumerate(row_data):
+            if idx == 0:
+                self.drug_name = "CUSTOM"
+                continue
+
+            custom_id, label, description, counts, color, *unwanted = row.rstrip("\n").split("\t")
+
+            if not custom_id or custom_id == "":
+                continue
+
+            label, description, counts, color = self._set_default_row_data(
+                custom_id, label,description, counts,color)
+
+            self._reconstruct_separator_based_tree(
+                custom_id, level_separator=separator, counts=counts, label=label,
+                description=description, color=color)
+
+            self.phenotype_counts[label] = counts
 
     def process_mesh_row_data(self, row_data: [io.TextIOWrapper, object]) -> None:
         """Process a .tsv or Excel file row by row
 
-        row_data: either rows of a Worksheet (e.g. wb["Tree"].rows) or a file IO wrapper
+        :param row_data: either rows of a Worksheet (e.g. wb["Tree"].rows) or a file IO wrapper
         """
         for idx, row in enumerate(row_data):
 
@@ -1089,57 +1191,28 @@ class MeSHSunburst(SunburstBase):
 
             # worksheet iterators return tuples and require retrieval of cell-values with cell.value
             if isinstance(row, tuple):
-                mesh_id, tree_ids, name, description, comment, counts, color = [_.value for _ in row]
+                (mesh_id, tree_ids, name, description, comment, counts,
+                 color) = [_.value for _ in row]
             else:
-                mesh_id, tree_ids, name, description, comment, counts, color = row.rstrip("\n").split("\t")
+                (mesh_id, tree_ids, name, description, comment, counts,
+                 color) = row.rstrip("\n").split("\t")
 
             # skip rows without mesh id
             if not mesh_id or mesh_id == "":
                 continue
 
-            # set defaults if cell is empty
-            if not color or not match("#[a-fA-F0-9]{6}$", color) or color == "":
-                color = self.s["default_color"]
-
-            # required .tsv conversions
-            if isinstance(counts, str):
-                counts = int(counts)
-
-            # set zero-counts to arbitrary low number to ensure display (value must be >0)
-            # if cell is empty, set to 0
-            if counts == 0 or counts == 0.0 or counts is None or counts == "":
-                counts = self.zero  # rounded to 0 in plot
-
-            if not description:
-                description = ""
+            # set defaults if cells are empty, assign self.zero to cells without values
+            name, description, counts, color = self._set_default_row_data(mesh_id, name,
+                                                                          description, counts,
+                                                                          color)
 
             if not comment:
                 comment = ""
 
-            if not name or name == "":
-                name = mesh_id
-
             # process tree ids, reconstruct mesh tree
-            for tree_id in tree_ids.split("|"):
-                main_id = tree_id.split(".")[0]
-                level = tree_id.count(".")
-                parent = tree_id.rsplit(".", 1)[0] if level > 0 else ""
-                if main_id not in self.mesh_tree.keys():
-                    self.mesh_tree[main_id] = {}
-                self.mesh_tree[main_id][tree_id] = {
-                    "counts": counts,
-                    "label": name,
-                    "description": description,
-                    "comment": comment,
-                    "color": color,
-                    "id": tree_id,
-                    "level": level,
-                    "parent": parent,
-                    "mesh_id": mesh_id
-                }
-
-                # validate all parents exist
-                self.check_mesh_parent(parent, main_id)
+            self._reconstruct_separator_based_tree(
+                tree_ids, level_separator=".", counts=counts, label=name, description=description,
+                comment=comment, color=color, mesh_id=mesh_id)
 
             # update phenotype counts
             self.phenotype_counts[name] = counts
@@ -1156,6 +1229,23 @@ class MeSHSunburst(SunburstBase):
         print(f"Loading MeSH-tree from {fn} ..")
         with open(fn, mode="r", encoding="utf-8") as f_in:
             self.process_mesh_row_data(row_data=f_in)
+
+    def populate_custom_ontology_from_tsv(self, fn: str = None, ontology_type: str = None) -> None:
+        """Populates a custom ontology from tsv data
+
+        :param fn: path to .tsv file
+        :param ontology_type: type of ontology to parse
+        """
+        self.rollback_mesh_tree()
+        print(f"Loading data from {fn} ..")
+        with open(fn, mode="r", encoding="utf-8") as custom_file:
+            if ontology_type.startswith("custom_sep_"):
+                self.process_custom_row_data(row_data=custom_file, ontology_type=ontology_type)
+            elif ontology_type == "custom_atc":
+                print("TODO: REUSE ATC PARSER")
+            elif ontology_type == "custom_reactome":
+                print("TODO: BUILD REACTOME PARSER")
+        print("K")
 
     def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True,
                         populate: bool = True) -> None:
@@ -1547,26 +1637,15 @@ class ATCSunburst(SunburstBase):
             if not atc_code or not level or atc_code == "" or level == "":
                 continue
 
-            # set defaults if cell is empty or wrong format
-            if not color or not match("#[a-fA-F0-9]{6}$", color) or color == "":
-                color = self.s["default_color"]
-                print(f"Applied default color for: {atc_code} (row: {idx})")
+            # set defaults if cells are empty, assign self.zero to cells without values
+            label, comment, counts, color = self._set_default_row_data(atc_code, label, comment,
+                                                                       counts, color)
 
-            # required .tsv conversions
-            if isinstance(counts, str):
-                counts = int(counts)
             if isinstance(level, str):
                 level = int(level)
 
-            # set cells with counts=0 to an artificially low number to be able to plot all wedges
-            if counts == 0 or counts == 0.0 or counts is None or counts == "":
-                counts = self.zero
-
             if not comment:
                 comment = ""
-
-            if not label or label == "":
-                label = atc_code
 
             # process atc code, reconstruct atc tree
             parent = ""

@@ -8,7 +8,6 @@ readme = "README.md"
 classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -25,10 +24,11 @@ repository = "https://github.com/Delta4AI/OntoloViz"
 "Releases" = "https://github.com/Delta4AI/OntoloViz/releases"
 
 [tool.poetry.dependencies]
-python = "^3.7.1"
+python = "^3.8"
 plotly = "^5.15.0"
 openpyxl = "^3.1.2"
 packaging = "^23.0"
+requests = "^2.31.0"
 
 [tool.poetry.scripts]
 ontoloviz = "ontoloviz.app:run_app"

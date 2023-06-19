@@ -6,13 +6,13 @@ from traceback import format_exc
 from re import match
 from functools import partial
 from tkinter import Tk, Toplevel, StringVar, BooleanVar, IntVar, filedialog, messagebox, ttk, END
-from tkinter import Label as LabelOG
-from tkinter import Entry as EntryOG
+from tkinter import Label as LabelOG, Entry as EntryOG, simpledialog
 from tkinter.ttk import LabelFrame, Frame, Style
 from tkinter.colorchooser import askcolor
 import time
 import textwrap
 from .core import MeSHSunburst, ATCSunburst, rgb_to_hex, hex_to_rgb
+from .utils import get_human_phenotype_ontology
 from threading import Thread
 
 
@@ -270,6 +270,7 @@ class App(Tk):
         self.show_border_btn_atc = None
         self.show_border_tt_template = None
         self.load_file_btn = None
+        self.load_obo_url_btn = None
         self.atc_file_loaded = ""
         self.mesh_file_loaded = ""
         self.performance_warning_shown = False
@@ -339,6 +340,11 @@ class App(Tk):
                        "\n ---"
                        "\n - Excel files remember settings, .tsv files always load defaults"
                        "\n - For more information, read: https://github.com/Delta4AI/OntoloViz")
+
+        self.load_obo_url_btn = Button(load_frm, text="Load online", command=self.load_url,
+                                       style="success.TButton")
+        self.load_obo_url_btn.pack(side="left", padx=2, pady=(2, 0))
+        create_tooltip(self.load_obo_url_btn, "Download and populate an .obo ontology from the web")
 
         # ####################################### MESH/DRUG FRAMES ############################### #
 
@@ -1359,6 +1365,24 @@ class App(Tk):
         self.set_status("")
 
     @exception_as_popup
+    def load_url(self):
+        """Load a URL with an obo ontology"""
+        url = simpledialog.askstring(title="Enter URL",
+                                     prompt="Enter URL to .obo ontology (e.g. "
+                                            "'https://current.geneontology.org/ontology/go.obo')")
+        # TODO: selection dialog for different ontologies
+        if not url:
+            return
+
+        self.mesh_file_loaded = ""
+        self.loaded_settings = {}
+        self.set_status("Downloading human phenotype ontology ..")
+        hpo_data = get_human_phenotype_ontology()
+        # TODO: copy stuff from load_file
+
+        print(url)
+
+    @exception_as_popup
     def load_file(self):
         """Prompt to load Excel/.tsv file
 
@@ -1481,6 +1505,7 @@ class App(Tk):
 
         # reset button style
         self.load_file_btn.configure(style="dark.TButton")
+        self.load_obo_url_btn.configure(style="dark.TButton")
 
 
 class ExportPopup(Toplevel):
@@ -1943,11 +1968,11 @@ class OntologyTypePopup(Toplevel):
         self.radio_var = StringVar()
         self.options = {
             "custom_sep_dot": ("Dot-separated", "e.g. MeSH: 'C01.001.002'"),
-            "custom_sep_slash": ("Slash-separated", "e.g. Gene Ontology"),
-            "custom_sep_colon": ("Colon-separated", "e.g. Snomed"),
-            "custom_sep_underscore": ("Underscore-separated", "e.g. OBO"),
-            "custom_atc": ("ATC", "Alphanumeric IDs in the format of 'A10BA02'"),
-            "custom_reactome": ("Reactome", "Alphanumeric IDs in the format of 'A0A075B5K8'"),
+            "custom_sep_slash": ("Slash-separated", None),
+            "custom_sep_colon": ("Colon-separated", None),
+            "custom_sep_underscore": ("Underscore-separated", None),
+            # "custom_atc": ("ATC", "Alphanumeric IDs in the format of 'A10BA02'"),
+            # "custom_reactome": ("Reactome", "Alphanumeric IDs in the format of 'A0A075B5K8'"),
         }
         rb_frame = Frame(self)
         rb_frame.pack()

@@ -1241,11 +1241,6 @@ class MeSHSunburst(SunburstBase):
         with open(fn, mode="r", encoding="utf-8") as custom_file:
             if ontology_type.startswith("custom_sep_"):
                 self.process_custom_row_data(row_data=custom_file, ontology_type=ontology_type)
-            elif ontology_type == "custom_atc":
-                print("TODO: REUSE ATC PARSER")
-            elif ontology_type == "custom_reactome":
-                print("TODO: BUILD REACTOME PARSER")
-        print("K")
 
     def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True,
                         populate: bool = True) -> None:

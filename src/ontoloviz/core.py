@@ -13,6 +13,7 @@ from plotly.colors import hex_to_rgb, n_colors
 from plotly.graph_objects import Figure, Sunburst
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
+from .utils import sanitize_string
 
 
 def chunks(input_list, number_of_chunks):
@@ -122,7 +123,7 @@ class SunburstBase:
                 for idx, line in enumerate(f):
                     if idx == 0:
                         columns = line.rstrip("\n").split("\t")
-                        if len(columns) == 6:
+                        if len(columns) == 6 and columns[0] == "ATC code":
                             file_type = "atc_tsv"
                         elif len(columns) == 7:
                             file_type = "mesh_tsv"
@@ -841,9 +842,16 @@ class SunburstBase:
             headers = [v[k]["label"] for k, v in sorted(self.mesh_tree.items())
                        if k in plot_tree.keys()]
             summary_plot = self.s["mesh_summary_plot"]
-            title = str("Phenotype Sunburst" + ["", " Overview"][bool(summary_plot)]
-                        + f" for {self.drug_name}")
-            file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
+            if self.custom_ontology:
+                title = f"{self.custom_ontology_title} Sunburst"
+            else:
+                title = "Phenotype Sunburst"
+            title += ["", "Overview"][bool(summary_plot)]
+            if self.drug_name:
+                title += f" for {self.drug_name}"
+                file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"
+            else:
+                file_name = f"custom_sunburst_{datetime.now().strftime('%Y%M%d')}.html"
         elif isinstance(self, ATCSunburst):
             headers = [f"{k}: {v[k]['label'].title()}" for k, v in sorted(self.atc_tree.items())
                        if k in plot_tree.keys()]
@@ -880,12 +888,13 @@ class SunburstBase:
             for i in range(len(traces)):
                 specific_title = None
                 if isinstance(self, MeSHSunburst):
-                    specific_title = str(f"Literature co-annotations for MeSH term {headers[i]} "
-                                         f"and {self.drug_name}")
+                    specific_title = f"Counts for term {headers[i]}"
+                    if self.drug_name:
+                        specific_title += f" and {self.drug_name}"
                 elif isinstance(self, ATCSunburst):
-                    specific_title = str(f"Literature co-annotations for ATC term "
-                                         f"{headers[i].split(':')[-1].title()} "
-                                         f"and {self.phenotype_name}")
+                    specific_title = f"Counts for term {headers[i].split(':')[-1].title()}"
+                    if self.phenotype_name:
+                        specific_title += f" and {self.phenotype_name}"
                 buttons.append({"label": headers[i],
                                 "method": "update",
                                 "args": [{"visible": [i == j for j in range(len(traces))]},
@@ -970,6 +979,8 @@ class MeSHSunburst(SunburstBase):
         super().__init__()
         self.database = None
         self.is_init = False
+        self.custom_ontology = None
+        self.custom_ontology_title = None
 
         self.drug_name = None
         self.phenotype_counts = dict()
@@ -1031,35 +1042,54 @@ class MeSHSunburst(SunburstBase):
             header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
                       f"Counts [Template Drug]", "Color"]
         else:
-            fn_base = f"mesh_tree_{self.drug_name.lower()}"
-            header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
-                      f"Counts [{self.drug_name}]", "Color"]
+            if self.custom_ontology:
+                fn_base = sanitize_string(self.custom_ontology_title)
+                header = ["ID", "Parent", "Label", "Description", "Count", "Color"]
+            else:
+                fn_base = f"mesh_tree_{self.drug_name.lower()}"
+                header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
+                          f"Counts [{self.drug_name}]", "Color"]
 
         # get unique rows based on MeSH-id
         unique_rows = set()
         dupe_check = set()
         for main_id, node in self.mesh_tree.items():
             for sub_id, v in node.items():
-                mesh_id = v["mesh_id"]
+                if self.custom_ontology:
+                    node_id = v["id"]
+                else:
+                    node_id = v["mesh_id"]
 
                 # skip dupes (have same counts, colors anyway)
-                if mesh_id in dupe_check:
+                if node_id in dupe_check:
                     continue
 
                 # add row data
-                unique_rows.add((mesh_id,
-                                 "|".join(self.mesh_to_tree_id[mesh_id]),
-                                 v["label"],
-                                 v["description"],
-                                 "",
-                                 int(v["counts"]) if not template else 0,
-                                 v["color"] if not template else "#FFFFFF"))
+                if self.custom_ontology:
+                    # minimal format with 4 columns
+                    unique_rows.add((node_id,
+                                     v["parent"],
+                                     v["label"],
+                                     v["description"].replace("\n", ";"),
+                                     0,
+                                     "#FFFFFF"))
+                else:
+                    unique_rows.add((node_id,
+                                     "|".join(self.mesh_to_tree_id[node_id]),
+                                     v["label"],
+                                     v["description"],
+                                     "",
+                                     int(v["counts"]) if not template else 0,
+                                     v["color"] if not template else "#FFFFFF"))
 
                 # add mesh id to dupe check
-                dupe_check.add(mesh_id)
+                dupe_check.add(node_id)
 
         # sort by counts
-        unique_rows = sorted(unique_rows, key=lambda x: x[5], reverse=True)
+        if self.custom_ontology:
+            unique_rows = sorted(unique_rows, key=lambda x: x[4], reverse=True)
+        else:
+            unique_rows = sorted(unique_rows, key=lambda x: x[5], reverse=True)
 
         if mode == "Excel":
             # get general & mesh-related settings
@@ -1165,7 +1195,7 @@ class MeSHSunburst(SunburstBase):
                 continue
 
             label, description, counts, color = self._set_default_row_data(
-                custom_id, label,description, counts,color)
+                custom_id, label, description, counts, color)
 
             self._reconstruct_separator_based_tree(
                 custom_id, level_separator=separator, counts=counts, label=label,
@@ -1241,6 +1271,22 @@ class MeSHSunburst(SunburstBase):
         with open(fn, mode="r", encoding="utf-8") as custom_file:
             if ontology_type.startswith("custom_sep_"):
                 self.process_custom_row_data(row_data=custom_file, ontology_type=ontology_type)
+
+        # set all zero counts to fake_one to force display of all sub-trees
+        for sub_tree in self.mesh_tree.values():
+            for node in sub_tree.values():
+                if node["counts"] == self.zero:
+                    node["imported_counts"] = self.fake_one
+                else:
+                    node["imported_counts"] = node["counts"]
+
+    def populate_custom_ontology_from_web(self) -> None:
+        """Copies already populated tree based on streamed .obo file, populates phenotype_counts"""
+        self.rollback_mesh_tree()
+        self.mesh_tree = self.custom_ontology
+        for sub_tree in self.mesh_tree.values():
+            for node in sub_tree.values():
+                self.phenotype_counts[node["label"]] = node["counts"]
 
     def load_mesh_excel(self, fn: [str, None] = None, read_settings: bool = True,
                         populate: bool = True) -> None:

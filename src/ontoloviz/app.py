@@ -12,7 +12,7 @@ from tkinter.colorchooser import askcolor
 import time
 import textwrap
 from .core import MeSHSunburst, ATCSunburst, rgb_to_hex, hex_to_rgb
-from .utils import get_human_phenotype_ontology
+from .utils import get_human_phenotype_ontology, build_non_separator_based_tree
 from threading import Thread
 
 
@@ -86,7 +86,8 @@ class ToolTip:
 
         # add Label with text
         tmp = text if str(self.widget['state']) != "disabled" else alt_text
-        label = Label(tt_window, text=tmp, justify="left", relief="solid", borderwidth=0.5)
+        label = Label(tt_window, text=tmp, justify="left", relief="solid", borderwidth=0.5,
+                      font=("Consolas", 8))
         label.pack(ipadx=1)
 
     def hidetip(self):
@@ -177,6 +178,7 @@ class App(Tk):
         self.d4_red = "#C33D35"
         self.d4_purple = "#403C53"
         self.d4_custom = "#8CA6D9"
+        self.d4_green = "#579D66"
         self.d4_white = "#FFFFFF"
         self.d4_black = "#000000"
         dark_bg = "#2E2D32"
@@ -321,18 +323,31 @@ class App(Tk):
         create_tooltip(self.load_file_btn,
                        "Load an Excel or .tsv file with ontology-based data."
                        "\n ---"
-                       "\n - Supported alpha-numerical ontologies: MeSH, ATC, Reactome"
+                       "\n - ATC/MeSH ontologies are automatically recognized if "
+                       "given templates are used"
                        "\n - For other ontologies, the separator has to be defined after "
                        "loading the file (possible separators: . , _ /)"
-                       "\n - parents are automatically created if not defined"
-                       "\n - trees need at least 1 node with a value > 0 to be displayed"
                        "\n ---"
-                       "\n - Minimal Example (requires 5 columns and header):"
-                       "\n   ID             | Label   | Description | Count | Color"
-                       "\n   --             | -----   | ----------- | ----- | -----"
-                       "\n   A              | group 1 | test\t0\t"
-                       "\n   A_1\tchild 1\ttest\t5\t#FF0000"
-                       "\n   B_1_2_3|C_1_2_3\tchild 2\ttest\t2\t#FF00FF"
+                       "\n - Minimal Example for separator-based ontologies "
+                       "(requires 5 columns and header):"
+                       "\n - parents are automatically created if not defined"
+                       "\n   -------------------------------------------------------"
+                       "\n   ID              | Label   | Description | Count | Color"
+                       "\n   --              | -----   | ----------- | ----- | -----"
+                       "\n   A               | group 1 |             |       |"
+                       "\n   A_1             | child 1 |             |       |"
+                       "\n   B_1_2_3|C_1_2_3 | child 2 |             |       |"
+                       "\n   -------------------------------------------------------"
+                       "\n - Minimal Example for non-structured ontologies "
+                       "(requires 6 columns and header):"
+                       "\n - nodes without valid parent IDs are removed"
+                       "\n   ----------------------------------------------------------------"
+                       "\n   ID              | Parent | Label   | Description | Count | Color"
+                       "\n   --              | ------ | -----   | ----------- | ----- | -----"
+                       "\n   HP:00A          |        | group 1 |             |       |"
+                       "\n   HP:001          | HP:00A | child 1 |             |       |"
+                       "\n   HP:002          | HP:00A | child 2 |             |       |"
+                       "\n   ----------------------------------------------------------------"
                        "\n ---"
                        "\n - ATC: counts for non-drug levels (1-4) will be recalculated and "
                        "overwritten if a parents value does not match all child values."
@@ -344,7 +359,8 @@ class App(Tk):
         self.load_obo_url_btn = Button(load_frm, text="Load online", command=self.load_url,
                                        style="success.TButton")
         self.load_obo_url_btn.pack(side="left", padx=2, pady=(2, 0))
-        create_tooltip(self.load_obo_url_btn, "Download and populate an .obo ontology from the web")
+        create_tooltip(self.load_obo_url_btn, "Download and load .obo ontologies from a list "
+                                              "of sources")
 
         # ####################################### MESH/DRUG FRAMES ############################### #
 
@@ -1241,19 +1257,32 @@ class App(Tk):
         obj.s["legend"] = legend
 
         # populate tree from Excel or database data
-        self.set_status(f"Populating {mode.upper()} tree ..")
+        if asset == "CUSTOM":
+            self.set_status(f"Populating custom tree ..")
+        else:
+            self.set_status(f"Populating {mode.upper()} tree ..")
         if input_fn:
             if os.path.splitext(input_fn)[-1] == ".tsv":
                 if datasource == "TSV file":
                     populate_tsv(input_fn)
-                else:
+                elif datasource.startswith("custom_sep_"):
                     self.p.populate_custom_ontology_from_tsv(fn=input_fn, ontology_type=datasource)
+                else:
+                    self.p.custom_ontology = build_non_separator_based_tree(file_name=input_fn,
+                                                                            app=self)
+                    self.p.custom_ontology_title = os.path.abspath(input_fn).split(os.sep)[-1]
+                    self.p.populate_custom_ontology_from_web()
             else:
                 populate_excel(input_fn, read_settings=False, populate=True)
         else:
-            if not self.check_init(obj):
-                return
-            populate_data_source(asset, datasource)
+            # in case custom ontology was loaded, no file is specified
+            if self.p.custom_ontology:
+                self.p.populate_custom_ontology_from_web()
+            else:
+                # otherwise, verify db is loaded and populate tree
+                if not self.check_init(obj):
+                    return
+                populate_data_source(asset, datasource)
 
         # update settings of core object based on current GUI configuration
         configure()
@@ -1366,21 +1395,45 @@ class App(Tk):
 
     @exception_as_popup
     def load_url(self):
-        """Load a URL with an obo ontology"""
-        url = simpledialog.askstring(title="Enter URL",
-                                     prompt="Enter URL to .obo ontology (e.g. "
-                                            "'https://current.geneontology.org/ontology/go.obo')")
-        # TODO: selection dialog for different ontologies
-        if not url:
+        """Download and visualize a .obo ontology"""
+        online_ontology = SelectOptionsPopup(
+            parent=self, title="Choose Ontology",
+            info_text="Select Ontology to download and visualize",
+            options={"hpo": ("Human Phenotype Ontology",
+                             "Fetches the human phenotype ontology (sub-tree 'Phenotypic "
+                             "abnormality') from https://purl.obolibrary.org/obo/hp.obo\n---\n"
+                             "The Human Phenotype Ontology (HPO) aims to provide a standardized "
+                             "vocabulary of phenotypic abnormalities encountered in human disease."
+                             "\nEach term in the HPO describes a phenotypic abnormality, such as "
+                             "atrial septal defect.\nThe HPO is currently being developed using the"
+                             " medical literature, Orphanet, DECIPHER, and OMIM."
+                             "\n---\nFor more information: https://hpo.jax.org/app/about"),}
+        )
+        description = online_ontology.description
+        ontology = online_ontology.result
+        if not ontology:
+            self.set_status("Aborted ontology loading")
             return
 
-        self.mesh_file_loaded = ""
-        self.loaded_settings = {}
-        self.set_status("Downloading human phenotype ontology ..")
-        hpo_data = get_human_phenotype_ontology()
-        # TODO: copy stuff from load_file
+        self.rollback_ontology_variables()
+        self.set_status(f"Downloading {description}")
+        if ontology == "hpo":
+            # self.set_status("Downloading human phenotype ontology ..")
+            self.p.custom_ontology = get_human_phenotype_ontology(app=self)
+            self.p.custom_ontology_title = description
 
-        print(url)
+        # set core object settings, assign functions, set status, rollback ui
+        self.rollback_ui()
+        self.change_theme_color(foreground=self.d4_black, background=self.d4_custom)
+        self.build_mesh_ui(db_functions=False)
+        self.mesh_label_var.set("none")  # hide labels
+        self.mesh_legend_enabled_control.set(False)  # disable legend
+        self.mesh_data_source_var.set(ontology)
+        self.mesh_asset_var.set(description)
+        self.title(f"OntoloViz - {description}")
+        self.reset_load_button_styles()
+        self.recent_ui_toggle_mode = "mesh"
+        self.update()
 
     @exception_as_popup
     def load_file(self):
@@ -1396,10 +1449,7 @@ class App(Tk):
         if not input_fn:
             return
 
-        # rollback vars
-        self.atc_file_loaded = ""
-        self.mesh_file_loaded = ""
-        self.loaded_settings = {}
+        self.rollback_ontology_variables()
         obj = None
 
         if input_fn.endswith(".db") or input_fn.endswith(".tar.gz"):
@@ -1417,7 +1467,23 @@ class App(Tk):
                                              " Convert your data to .tsv, and follow the guidelines"
                                              " from https://github.com/Delta4AI/OntoloViz")
                 return
-            _custom_ontology = OntologyTypePopup(self)
+            _custom_ontology = SelectOptionsPopup(
+                parent=self, title="Choose Ontology Type",
+                info_text="The ontology type could not be detected automatically. "
+                          "What type of ontology are you trying to import? "
+                          "Find out about the supported structures at "
+                          "https://github.com/Delta4AI/OntoloViz",
+                options={
+                    "custom_sep_dot": ("Dot-separated", "e.g. MeSH: 'C01.001.002'"),
+                    "custom_sep_slash": ("Slash-separated", None),
+                    "custom_sep_colon": ("Colon-separated", None),
+                    "custom_sep_underscore": ("Underscore-separated", None),
+                    "custom_non_sep": ("Unstructured",
+                                       "Unstructured ontologies that do not follow a structured "
+                                       "schema, e.g. HPO IDs in the format: HP:0001300\nRequires "
+                                       "6 column layout and defined parent-id for each node")
+                }
+            )
             custom_ontology = _custom_ontology.description
             tree_type = _custom_ontology.result
             if not tree_type:
@@ -1480,7 +1546,7 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="atc")
             self.atc_file_loaded = input_fn
             self.set_status(f"ATC tree loaded: {input_fn}")
-            self.title("OntoloViz - ATC Drug Sunburst")
+            self.title("OntoloViz - ATC Ontology")
             if tree_type == "atc_excel":
                 self.atc_label_var.set(obj.s["atc_labels"])
                 self.atc_wedge_width_var.set(obj.s["atc_wedge_width"])
@@ -1488,7 +1554,7 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="mesh")
             self.set_status(f"MeSH tree loaded: {input_fn}")
             self.mesh_file_loaded = input_fn
-            self.title("OntoloViz - MeSH Phenotype Sunburst")
+            self.title("OntoloViz - MeSH Ontology")
             if tree_type == "mesh_excel":
                 self.mesh_drop_empty_var.set(obj.s["mesh_drop_empty_last_child"])
                 self.mesh_label_var.set(obj.s["mesh_labels"])
@@ -1497,15 +1563,27 @@ class App(Tk):
             self.toggle_widgets(enable=True, mode="mesh")
             self.set_status(f"Custom tree loaded: {input_fn}")
             self.mesh_file_loaded = input_fn
-            self.title(f"OntoloViz - {custom_ontology} Sunburst")
+            self.title(f"OntoloViz - {custom_ontology} Ontology")
 
         # store settings to check later if they have been modified if Excel was loaded
         if tree_type.endswith("_excel"):
             self.loaded_settings = {k: v for k, v in obj.s.items()}
 
         # reset button style
+        self.reset_load_button_styles()
+
+    def reset_load_button_styles(self):
+        """Resets the styles of the load file buttons and removes green outline"""
         self.load_file_btn.configure(style="dark.TButton")
         self.load_obo_url_btn.configure(style="dark.TButton")
+
+    def rollback_ontology_variables(self):
+        """Rolls back some of the variables for loading a new file properly"""
+        self.atc_file_loaded = ""
+        self.mesh_file_loaded = ""
+        self.p.custom_ontology = None
+        self.p.custom_ontology_title = None
+        self.loaded_settings = {}
 
 
 class ExportPopup(Toplevel):
@@ -1946,11 +2024,12 @@ class BorderPopup(Toplevel):
         self.destroy()
 
 
-class OntologyTypePopup(Toplevel):
+class SelectOptionsPopup(Toplevel):
     """Popup to define the type of the ontology in case automatic parsing was not successful"""
-    def __init__(self, parent: App):
+    def __init__(self, parent: App = None, title: str = None, info_text: str = None,
+                 options: dict = None):
         super().__init__(parent)
-        self.title("Choose Ontology Type")
+        self.title(title)
         self.parent = parent
         self.resizable(False, False)
         self.result = None
@@ -1958,22 +2037,11 @@ class OntologyTypePopup(Toplevel):
 
         lbl_frame = Frame(self)
         lbl_frame.pack()
-        descriptive_label = ttk.Label(lbl_frame, wraplength=400,
-                                      text="The ontology type could not be detected automatically. "
-                                           "What type of ontology are you trying to import? "
-                                           "Find out about the supported structures at "
-                                           "https://github.com/Delta4AI/OntoloViz")
+        descriptive_label = ttk.Label(lbl_frame, wraplength=400, text=info_text)
         descriptive_label.pack(pady=10, padx=10)
 
         self.radio_var = StringVar()
-        self.options = {
-            "custom_sep_dot": ("Dot-separated", "e.g. MeSH: 'C01.001.002'"),
-            "custom_sep_slash": ("Slash-separated", None),
-            "custom_sep_colon": ("Colon-separated", None),
-            "custom_sep_underscore": ("Underscore-separated", None),
-            # "custom_atc": ("ATC", "Alphanumeric IDs in the format of 'A10BA02'"),
-            # "custom_reactome": ("Reactome", "Alphanumeric IDs in the format of 'A0A075B5K8'"),
-        }
+        self.options = options
         rb_frame = Frame(self)
         rb_frame.pack()
         for ontology_id, texts in self.options.items():

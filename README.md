@@ -88,9 +88,9 @@ GUI Options
 - **Save**: when enabled, an interactive `.html` file is generated for later use
 - **Plot**: Process and generate plot, opens in a Browser window
 
-Phenotype Sunbursts
+MeSH Sunbursts
 -------------------
-The phenotype sunburst structure follows the principles of the 
+The MeSH sunburst structure follows the principles of the 
 [MeSH tree](https://www.nlm.nih.gov/mesh/intro_trees.html).
 - A Tree ID is defined by a **combination of three numbers or letters**, for example `C01`.
 - Levels are separated by a **dot `.`**, for example `C01.001`.
@@ -101,13 +101,13 @@ The phenotype sunburst structure follows the principles of the
 - Counts entered in the file will be converted to integers. If a node should be displayed without counts, use `0`.
 - The loaded file must contain **7 columns** and follow the below structure to be correctly recognized:
 
-Phenotype Ontology File Structure
+MeSH Ontology File Structure
 ---------------------------------
 
 | Column Index | Header Text   | Description                                                                    |
 |--------------|---------------|--------------------------------------------------------------------------------|
 | 0            | MeSH ID       | Required primary identifier of a node in format `C01.001`                      |
-| 1            | Tree ID       | Required pipe delimited list of Tree IDs of a node (allows 1:N mappings)       |
+| 1            | Tree ID       | Required `\|` pipe delimited list of Tree IDs of a node (allows 1:N mappings)  |
 | 2            | Name          | Optional label to be displayed inside the sunburst wedges                      |
 | 3            | Description   | Optional description displayed in the sunburst wedge tooltip                   |
 | 4            | Comment       | Optional comment displayed in the sunburst wedge tooltip                       |
@@ -115,9 +115,9 @@ Phenotype Ontology File Structure
 | 6            | Color         | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF` |
 
 
-Drug Sunbursts
+ATC (drug) Sunbursts
 --------------
-The drug sunburst structure follows the principles of the 
+The ATC sunburst structure follows the principles of the 
 [ATC tree](https://www.who.int/tools/atc-ddd-toolkit/atc-classification).
 - ATC codes are divided into **five levels**, which must follow the following naming conventions:
   - 1st level: letter
@@ -126,13 +126,13 @@ The drug sunburst structure follows the principles of the
   - 4th level: letter
   - 5th level: two numbers
 - Example ATC code: **A10BA02**
-- The hierarchy is built based on the above-mentioned format and does only allow 1:1 child-parent relationships
-  (contrary to the phenotype structure). For example, if the drug `deltatonin` should be assigned to the 
+- The hierarchy does only allow 1:1 child-parent relationships, contrary to the other ontologies. 
+  For example, if the drug `deltatonin` should be assigned to the 
   parent nodes `A01AA` and `B01BB`, it must be defined twice with the ids `A01AA01` and `B01BB01`.
-- The loaded file must contain **6 columns** and follow the below structure to be correctly recognized as a phenotype 
-  ontology:
+- The loaded file must contain **6 columns** and follow the below structure to be correctly 
+  recognized as a ATC ontology:
 
-Drug Ontology File Structure
+ATC Ontology File Structure
 ----------------------------
 
 | Column Index | Header Text   | Description                                                                    |
@@ -145,6 +145,39 @@ Drug Ontology File Structure
 | 5            | Color         | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF` |
 
 
+Custom Ontologies
+-----------------------------------
+OntoloViz supports loading of custom ontologies - if no known format is detected, a prompt will ask
+whether the loaded file is a separator-based ontology or if it does contain identifiers with child- 
+and parent-ids.
+
+Separator-based File Structure
+---------------------------------
+The following separators are supported: `.` (dot), `,` (colon), `_` (underscore), `/` (slash)
+
+| Column Index | Header Text | Description                                                                                         |
+|--------------|-------------|-----------------------------------------------------------------------------------------------------|
+| 0            | ID          | Required node identifier of a node in format `A.1` - multiple IDs can be separated with `\|` (pipe) |
+| 1            | Label       | Optional label to be displayed inside the sunburst wedges                                           |
+| 2            | Comment     | Optional comment displayed in the sunburst wedge tooltip                                            |
+| 3            | Count       | Optional count for wedge weights                                                                    |
+| 4            | Color       | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF`                      |
+
+File Structure for Ontologies with Child-Parent Definitions
+-----------------------------------------------------------
+This option allows to load any ontologies that do not follow a structured schema. 
+This requires the definition of a child-parent relationship using a 6-column layout.
+
+| Column Index | Header Text | Description                                                                                  |
+|--------------|-------------|----------------------------------------------------------------------------------------------|
+| 0            | ID          | Required node identifier in any format - multiple IDs can be separated with `\|` (pipe)      |
+| 1            | Parent      | Required parent identifier in any format - if parent ID does not exist, node will be removed |
+| 2            | Label       | Optional label to be displayed inside the sunburst wedges                                    |
+| 3            | Comment     | Optional comment displayed in the sunburst wedge tooltip                                     |
+| 4            | Count       | Optional count for wedge weights                                                             |
+| 5            | Color       | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF`               |
+
+
 Templates and Examples
 ======================
 Templates and examples can be found in the provided 
@@ -154,13 +187,13 @@ Templates and examples can be found in the provided
   Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) 
   database (title + abstract) and further mapped to the nodes.
 
--  `mesh_tree_template.tsv`: empty template of the [MeSH](https://meshb.nlm.nih.gov/treeView) tree `C` and `F03`]. 
+-  `mesh_tree_template.tsv`: template of the [MeSH](https://meshb.nlm.nih.gov/treeView) tree `C` and `F03`. 
   Terms are unique and mapped to all related parent nodes.
 
 -  `covid_drugs_trial_summary.tsv`: based on [publicly available clinical trial data](https://clinicaltrials.gov/) 
   related to COVID-19. One count represents one clinical trial.
 
-- `atc_tree_template.tsv`: empty template of the [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) 
+- `atc_tree_template.tsv`: template of the [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) 
   tree based on the manually curated chemical database of bioactive 
   molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads).
 

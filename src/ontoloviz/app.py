@@ -12,7 +12,7 @@ from tkinter.colorchooser import askcolor
 import time
 import textwrap
 from .core import MeSHSunburst, ATCSunburst, rgb_to_hex, hex_to_rgb
-from .utils import get_human_phenotype_ontology, build_non_separator_based_tree
+from .utils import get_remote_ontology, build_non_separator_based_tree
 from threading import Thread
 
 
@@ -289,6 +289,24 @@ class App(Tk):
         self.plot_tt_template = "Generate plot and open interactive sunburst in browser"
         self.export_tt_template = str("Generate sunburst data without plotting, export to "
                                       "Excel/TSV for later use/customization")
+        self.hpo_ontology_tt = str(
+            "Fetches the human phenotype ontology (sub-tree 'Phenotypic "
+            "abnormality') from https://purl.obolibrary.org/obo/hp.obo\n---\n"
+            "The Human Phenotype Ontology (HPO) aims to provide a standardized "
+            "vocabulary of phenotypic abnormalities encountered in human disease."
+            "\nEach term in the HPO describes a phenotypic abnormality, such as "
+            "atrial septal defect.\nThe HPO is currently being developed using the"
+            " medical literature, Orphanet, DECIPHER, and OMIM."
+            "\n---\nFor more information visit: https://hpo.jax.org/app"
+        )
+        self.gene_ontology_tt = str(
+            "(only sub-trees with > 1 nodes) from "
+            "https://current.geneontology.org/ontology/go.obo\n---\n"
+            "The goal of the GeneOntology (GO) project is to provide a uniform "
+            "way to describe the functions of gene products\nfrom organisms "
+            "across all kingdoms of life and thereby enable analysis of genomic "
+            "data\n---\nFor more information visit: http://geneontology.org/"
+        )
 
         # function calls
         self.build_base_ui()
@@ -1268,8 +1286,7 @@ class App(Tk):
                 elif datasource.startswith("custom_sep_"):
                     self.p.populate_custom_ontology_from_tsv(fn=input_fn, ontology_type=datasource)
                 else:
-                    self.p.custom_ontology = build_non_separator_based_tree(file_name=input_fn,
-                                                                            app=self)
+                    self.p.custom_ontology = build_non_separator_based_tree(file_name=input_fn)
                     self.p.custom_ontology_title = os.path.abspath(input_fn).split(os.sep)[-1]
                     self.p.populate_custom_ontology_from_web()
             else:
@@ -1399,28 +1416,27 @@ class App(Tk):
         online_ontology = SelectOptionsPopup(
             parent=self, title="Choose Ontology",
             info_text="Select Ontology to download and visualize",
-            options={"hpo": ("Human Phenotype Ontology",
-                             "Fetches the human phenotype ontology (sub-tree 'Phenotypic "
-                             "abnormality') from https://purl.obolibrary.org/obo/hp.obo\n---\n"
-                             "The Human Phenotype Ontology (HPO) aims to provide a standardized "
-                             "vocabulary of phenotypic abnormalities encountered in human disease."
-                             "\nEach term in the HPO describes a phenotypic abnormality, such as "
-                             "atrial septal defect.\nThe HPO is currently being developed using the"
-                             " medical literature, Orphanet, DECIPHER, and OMIM."
-                             "\n---\nFor more information: https://hpo.jax.org/app/about"),}
+            options={"hpo": ("Human Phenotype Ontology", self.hpo_ontology_tt),
+                     "go_mf": ("Gene Ontology (molecular function)",
+                               "Fetches the GeneOntology (namespace: molecular_function) "
+                               f"{self.gene_ontology_tt}"),
+                     "go_cp": ("Gene Ontology (cellular component)",
+                               "Fetches the GeneOntology (namespace: cellular_component) "
+                               f"{self.gene_ontology_tt}"),
+                     "go_bp": ("Gene Ontology (biological process)",
+                               "Fetches the GeneOntology (namespace: biological_process) "
+                               f"{self.gene_ontology_tt}"),
+                     }
         )
         description = online_ontology.description
         ontology = online_ontology.result
         if not ontology:
-            self.set_status("Aborted ontology loading")
+            self.set_status("Aborted ontology download")
             return
 
         self.rollback_ontology_variables()
-        self.set_status(f"Downloading {description}")
-        if ontology == "hpo":
-            # self.set_status("Downloading human phenotype ontology ..")
-            self.p.custom_ontology = get_human_phenotype_ontology(app=self)
-            self.p.custom_ontology_title = description
+        self.p.custom_ontology = get_remote_ontology(ontology_short=ontology, app=self)
+        self.p.custom_ontology_title = description
 
         # set core object settings, assign functions, set status, rollback ui
         self.rollback_ui()

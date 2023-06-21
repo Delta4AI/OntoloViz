@@ -1,5 +1,6 @@
 import io
 import os
+from collections import defaultdict
 import sqlite3
 from datetime import datetime
 from difflib import get_close_matches
@@ -643,12 +644,9 @@ class SunburstBase:
             propagate_count_mode = self.s["mesh_propagate_counts"]
             propagate_color_mode = self.s["mesh_propagate_color"]
             propagate_lvl = self.s["mesh_propagate_lvl"]
-            mesh_id = ""
-            if self.drug_name != "CUSTOM":
-                mesh_id = "MeSH-ID: %{customdata[3]}"
             hover_template = ("%{customdata[0]}: <b>%{customdata[1]}</b> (%{customdata[2]}%)"
                               "<br>--<br>"
-                              f"{mesh_id}"
+                              "Label: %{customdata[3]}"
                               "<br>"
                               "Tree ID: %{customdata[4]}"
                               "<br>"
@@ -680,6 +678,9 @@ class SunburstBase:
                               for sub in plot_tree.values()]))
 
         # populate labels and percentages
+        custom_ontology_counts = None
+        if self.custom_ontology:
+            custom_ontology_counts = self._get_child_sums(plot_tree)
         labels, custom_data = [], []
         for k, v in plot_tree.items():
             wedge_labels, custom_tuples, node_percentage = [], [], None
@@ -722,7 +723,11 @@ class SunburstBase:
                 hover_label = vv.get("label", "Undefined")
                 count = int(vv["imported_counts"])
                 node_id = vv["id"]
-                child_sum = sum([1 for z in v.keys() if z.startswith(vv["id"]) and z != vv["id"]])
+                if custom_ontology_counts:
+                    child_sum = custom_ontology_counts[k][kk]
+                else:
+                    child_sum = sum(
+                        [1 for z in v.keys() if z.startswith(vv["id"]) and z != vv["id"]])
                 comment = str("<br>--<br>" + "<br>".join(wrap("Comment: " + vv["comment"], 65))
                               if vv.get("comment", None) else "")
 
@@ -739,6 +744,36 @@ class SunburstBase:
             labels.append(wedge_labels)
 
         return labels, custom_data, hover_template, specific_color_propagation
+
+    @staticmethod
+    def _get_child_sums(plot_tree: dict = None) -> dict:
+        """Creates dictionary with total amount of children for each node in each sub-tree
+
+        :param plot_tree: dictionary with plot-ready ontology
+        :return: dictionary with same structure and amount of total children for each node id
+        """
+        sum_dict = {}
+        for sub_tree_id, sub_tree in plot_tree.items():
+            sum_dict[sub_tree_id] = defaultdict(int)
+            for node_id, node in sub_tree.items():
+
+                # for root-node, use total sum for subtree and continue
+                if node_id == sub_tree_id:
+                    sum_dict[sub_tree_id][node_id] = len(sub_tree)
+                    continue
+
+                # increment count for direct parent
+                parent = node["parent"]
+                sum_dict[sub_tree_id][parent] += 1
+
+                # traverse parents up until root-node
+                while True:
+                    parent = sub_tree[parent]["parent"]
+                    if not parent:
+                        break
+                    sum_dict[sub_tree_id][parent] += 1
+
+        return sum_dict
 
     def _add_color_scale_to_trace(self, trace: Sunburst, cmax: int = None,
                                   cmap: list = None) -> None:
@@ -846,7 +881,7 @@ class SunburstBase:
                 title = f"{self.custom_ontology_title} Sunburst"
             else:
                 title = "Phenotype Sunburst"
-            title += ["", "Overview"][bool(summary_plot)]
+            title += ["", " Overview"][bool(summary_plot)]
             if self.drug_name:
                 title += f" for {self.drug_name}"
                 file_name = f"phenotype_sunburst_{self.drug_name.lower().replace(' ', '_')}.html"

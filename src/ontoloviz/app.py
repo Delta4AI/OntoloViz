@@ -12,7 +12,7 @@ from tkinter.colorchooser import askcolor
 import time
 import textwrap
 from .core import MeSHSunburst, ATCSunburst, rgb_to_hex, hex_to_rgb
-from .utils import get_remote_ontology, build_non_separator_based_tree
+from .obo_utils import get_remote_ontology, build_non_separator_based_tree
 from threading import Thread
 
 
@@ -290,7 +290,7 @@ class App(Tk):
         self.export_tt_template = str("Generate sunburst data without plotting, export to "
                                       "Excel/TSV for later use/customization")
         self.hpo_ontology_tt = str(
-            "Fetches the human phenotype ontology (sub-tree 'Phenotypic "
+            "Fetches the Human Phenotype Ontology (sub-tree 'Phenotypic "
             "abnormality') from https://purl.obolibrary.org/obo/hp.obo\n---\n"
             "The Human Phenotype Ontology (HPO) aims to provide a standardized "
             "vocabulary of phenotypic abnormalities encountered in human disease."
@@ -300,12 +300,43 @@ class App(Tk):
             "\n---\nFor more information visit: https://hpo.jax.org/app"
         )
         self.gene_ontology_tt = str(
-            "(only sub-trees with > 1 nodes) from "
+            "(sub-trees with < 2 nodes excluded) from "
             "https://current.geneontology.org/ontology/go.obo\n---\n"
             "The goal of the GeneOntology (GO) project is to provide a uniform "
             "way to describe the functions of gene products\nfrom organisms "
             "across all kingdoms of life and thereby enable analysis of genomic "
             "data\n---\nFor more information visit: http://geneontology.org/"
+        )
+        self.po_ontology_tt = str(
+            "Fetches the Plant Ontology (sub-tree 'plant structure') "
+            "(sub-trees with < 5 nodes excluded) "
+            "from https://purl.obolibrary.org/obo/po.obo\n---\n"
+            "The Plant Ontology is a structured vocabulary and database resource that links plant "
+            "anatomy, morphology and growth and development to plant genomics data.\nThe PO is "
+            "under active development to expand to encompass terms and annotations from all plants."
+            "\n---\nFor more information visit: http://planteome.org/"
+        )
+        self.cl_ontology_tt = str(
+            "Fetches the Cell Ontology (without inter-ontology axioms) "
+            "(sub-trees with < 2 nodes excluded) "
+            "from http://purl.obolibrary.org/obo/cl/cl-basic.obo\n---\n"
+            "The Cell Ontology is designed as a structured controlled vocabulary for cell types.\n"
+            "This ontology was constructed for use by the model organism and other bioinformatics "
+            "databases, where there is a need for a controlled vocabulary of cell types.\nThis "
+            "ontology is not organism specific. It covers cell types from prokaryotes to mammals.\n"
+            "However, it excludes plant cell types, which are covered by PO."
+            "\n---\nFor more information visit: https://biccn.org/"
+        )
+        self.chebi_ontology_tt = str(
+            "Fetches the Chemical Entities of Biological Interest (CHEBI) Ontology (sub-tree "
+            "'molecular entity') from https://purl.obolibrary.org/obo/chebi/chebi_lite.obo\n---\n"
+            "A freely available dictionary of molecular entities focused on ‘small’ chemical "
+            "compounds.\nThe term ‘molecular entity’ refers to any constitutionally or isotopically"
+            " distinct atom, molecule, ion, ion pair, radical, radical ion, complex, conformer, "
+            "etc., identifiable as a separately distinguishable entity.\nThe molecular entities in "
+            "question are either products of nature or synthetic products used to intervene in the "
+            "processes of living organisms."
+            "\n---\nFor more information visit: https://www.ebi.ac.uk/chebi/"
         )
 
         # function calls
@@ -1416,17 +1447,21 @@ class App(Tk):
         online_ontology = SelectOptionsPopup(
             parent=self, title="Choose Ontology",
             info_text="Select Ontology to download and visualize",
-            options={"hpo": ("Human Phenotype Ontology", self.hpo_ontology_tt),
-                     "go_mf": ("Gene Ontology (molecular function)",
-                               "Fetches the GeneOntology (namespace: molecular_function) "
-                               f"{self.gene_ontology_tt}"),
-                     "go_cp": ("Gene Ontology (cellular component)",
-                               "Fetches the GeneOntology (namespace: cellular_component) "
-                               f"{self.gene_ontology_tt}"),
-                     "go_bp": ("Gene Ontology (biological process)",
-                               "Fetches the GeneOntology (namespace: biological_process) "
-                               f"{self.gene_ontology_tt}"),
-                     }
+            options={
+                "hpo": ("Human Phenotype Ontology", self.hpo_ontology_tt),
+                "go_mf": ("Gene Ontology (molecular function)",
+                          "Fetches the GeneOntology (namespace: molecular_function) "
+                          f"{self.gene_ontology_tt}"),
+                "go_cp": ("Gene Ontology (cellular component)",
+                          "Fetches the GeneOntology (namespace: cellular_component) "
+                          f"{self.gene_ontology_tt}"),
+                "go_bp": ("Gene Ontology (biological process)",
+                          "Fetches the GeneOntology (namespace: biological_process) "
+                          f"{self.gene_ontology_tt}"),
+                "po": ("Plant Ontology", self.po_ontology_tt),
+                "cl": ("Cell Ontology", self.cl_ontology_tt),
+                # "chebi": ("CHEBI Ontology", self.chebi_ontology_tt),
+            }
         )
         description = online_ontology.description
         ontology = online_ontology.result

@@ -14,7 +14,7 @@ from plotly.colors import hex_to_rgb, n_colors
 from plotly.graph_objects import Figure, Sunburst
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
-from .utils import sanitize_string
+from .obo_utils import sanitize_string
 
 
 def chunks(input_list, number_of_chunks):
@@ -630,6 +630,7 @@ class SunburstBase:
     def generate_plot_supplements(self, plot_tree: dict = None) -> tuple:
         """Generates nested lists for subtrees containing label, percentage, custom data;
          creates filtered plot tree based on drop empty setting
+         TODO: add progressive rendering with on_click events
 
         :param plot_tree: dictionary containing trees and nodes
         :return: tuple of lists containing labels and percentages for each node in each subtree
@@ -682,7 +683,8 @@ class SunburstBase:
         if self.custom_ontology:
             custom_ontology_counts = self._get_child_sums(plot_tree)
         labels, custom_data = [], []
-        for k, v in plot_tree.items():
+        for idx, (k, v) in enumerate(plot_tree.items()):
+            self.thread_status = f"Creating plot supplements .. {idx}/{len(plot_tree)}"
             wedge_labels, custom_tuples, node_percentage = [], [], None
             sub_tree_sum = int(sum(x["imported_counts"] for x in plot_tree[k].values()))
             propagate_threshold_sum = int(sum(x["imported_counts"] for x in plot_tree[k].values()

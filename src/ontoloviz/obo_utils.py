@@ -76,7 +76,7 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
 
 
 def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
-    """Wrapper to get ontologies based on identifiers"""
+    """Wrapper to get .obo ontologies based on identifiers"""
     if ontology_short == "hpo":
         return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/hp.obo",
                                             descriptor="Human phenotype ontology",
@@ -93,9 +93,28 @@ def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
             "go_cp": "cellular_component",
             "go_bp": "biological_process"
         }
+        root_id = root_terms[root_term_translation[ontology_short]]
+        return build_tree_from_obo_ontology(raw_terms=raw_terms,
+                                            root_id=root_id,
+                                            descriptor="GeneOntology",
+                                            app=app,
+                                            min_node_size=2)
+    elif ontology_short == "po":
+        return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/po.obo",
+                                            descriptor="Plant Ontology",
+                                            app=app,
+                                            root_id="PO:0009011",
+                                            min_node_size=5)
+    elif ontology_short == "cl":
+        return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/cl/cl-basic.obo",
+                                            descriptor="Cell Ontology",
+                                            app=app, min_node_size=2)
+    elif ontology_short == "chebi":
         return build_tree_from_obo_ontology(
-            raw_terms=raw_terms, root_id=root_terms[root_term_translation[ontology_short]],
-            descriptor="GeneOntology", app=app, min_node_size=2)
+            url="https://purl.obolibrary.org/obo/chebi/chebi_lite.obo",
+            descriptor="CHEBI Ontology",
+            app=app,
+            root_id="CHEBI:23367")
 
 
 def parse_obo_file(url: str = None, descriptor: str = None, app: object = None,
@@ -193,13 +212,21 @@ def build_tree_from_obo_ontology(url: str = None,
 
     # build first level
     tree = {}
-    for term, val in raw_terms.items():
-        for is_a in val["is_a"]:
-            if root_id == is_a[0]:
-                tree[term] = {}
-                tree[term][term] = val
-                tree[term][term]["level"] = 0
-                tree[term][term]["parent"] = ""
+    if root_id:
+        for term, val in raw_terms.items():
+            for is_a in val["is_a"]:
+                if root_id == is_a[0]:
+                    tree[term] = {}
+                    tree[term][term] = val
+                    tree[term][term]["level"] = 0
+                    tree[term][term]["parent"] = ""
+    else:
+        root_terms = [_["id"] for _ in raw_terms.values() if not _["is_a"]]
+        for root_term in root_terms:
+            tree[root_term] = {}
+            tree[root_term][root_term] = raw_terms[root_term]
+            tree[root_term][root_term]["level"] = 0
+            tree[root_term][root_term]["parent"] = ""
 
     # propagate
     iterations = 0
@@ -222,7 +249,7 @@ def build_tree_from_obo_ontology(url: str = None,
             if app:
                 app.set_status(f"Building {descriptor} tree .. iteration #{iterations}")
 
-    # just in case - clean nodes where parent doesnt exist
+    # just in case - clean nodes where parent doesn't exist
     cleaning_iterations = 0
     while True:
         nodes_with_missing_parent = []
@@ -248,7 +275,7 @@ def build_tree_from_obo_ontology(url: str = None,
             node["description"] = f"Definition: {node['def']}\nComment: {node['comment']}"
 
     if app:
-        app.set_status(f"Parsed {descriptor}, removed nodes without parents")
+        app.set_status(f"Parsed {descriptor}")
 
     if min_node_size:
         sub_tree_ids_to_drop = []

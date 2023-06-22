@@ -338,6 +338,25 @@ class App(Tk):
             "processes of living organisms."
             "\n---\nFor more information visit: https://www.ebi.ac.uk/chebi/"
         )
+        self.uberon_ontology_tt = str(
+            "Fetches the Uberon multi-species anatomy ontology (sub-tree 'anatomical structure') "
+            "(sub-trees with < 2 nodes excluded) from "
+            "https://purl.obolibrary.org/obo/uberon/basic.obo\n---\n"
+            "Uberon is an integrated cross-species ontology covering anatomical structures in "
+            "animals.\n---\nFor more information visit: https://obophenotype.github.io/uberon/"
+        )
+        self.doid_ontology_tt = str(
+            "Fetches the Human Disease Ontology from https://purl.obolibrary.org/obo/doid.obo"
+            "\n---\nThe Disease Ontology has been developed as a standardized ontology for human "
+            "disease with the purpose of providing the biomedical community with consistent, \n"
+            "reusable and sustainable descriptions of human disease terms, phenotype "
+            "characteristics and related medical vocabulary disease concepts through "
+            "collaborative efforts with biomedical researchers, \ncoordinated by the University "
+            "of Maryland School of Medicine, Institute for Genome Sciences.\nThe Disease Ontology "
+            "semantically integrates disease and medical vocabularies through extensive cross "
+            "mapping of DO terms to MeSH, ICD, NCI’s thesaurus, SNOMED and OMIM."
+            "\n---\nFor more information visit: https://www.disease-ontology.org/"
+        )
 
         # function calls
         self.build_base_ui()
@@ -1461,6 +1480,8 @@ class App(Tk):
                 "po": ("Plant Ontology", self.po_ontology_tt),
                 "cl": ("Cell Ontology", self.cl_ontology_tt),
                 # "chebi": ("CHEBI Ontology", self.chebi_ontology_tt),
+                "uberon": ("Uberon Anatomy Ontology", self.uberon_ontology_tt),
+                "doid": ("Human Disease Ontology", self.doid_ontology_tt),
             }
         )
         description = online_ontology.description
@@ -1532,7 +1553,9 @@ class App(Tk):
                     "custom_non_sep": ("Unstructured",
                                        "Unstructured ontologies that do not follow a structured "
                                        "schema, e.g. HPO IDs in the format: HP:0001300\nRequires "
-                                       "6 column layout and defined parent-id for each node")
+                                       "6 column layout and defined parent-id for each node:\n"
+                                       "-------------------------------------------------\n"
+                                       "ID | Parent | Label | Description | Count | Color")
                 }
             )
             custom_ontology = _custom_ontology.description

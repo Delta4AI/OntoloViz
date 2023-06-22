@@ -115,6 +115,17 @@ def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
             descriptor="CHEBI Ontology",
             app=app,
             root_id="CHEBI:23367")
+    elif ontology_short == "uberon":
+        return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/uberon/basic.obo",
+                                            descriptor="Uberon Anatomy Ontology",
+                                            app=app,
+                                            root_id="UBERON:0000061",
+                                            min_node_size=2)
+    elif ontology_short == "doid":
+        return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/doid.obo",
+                                            descriptor="Human Disease Ontology",
+                                            app=app,
+                                            root_id="DOID:630")  # 4
 
 
 def parse_obo_file(url: str = None, descriptor: str = None, app: object = None,

@@ -630,7 +630,6 @@ class SunburstBase:
     def generate_plot_supplements(self, plot_tree: dict = None) -> tuple:
         """Generates nested lists for subtrees containing label, percentage, custom data;
          creates filtered plot tree based on drop empty setting
-         TODO: add progressive rendering with on_click events
 
         :param plot_tree: dictionary containing trees and nodes
         :return: tuple of lists containing labels and percentages for each node in each subtree
@@ -819,6 +818,7 @@ class SunburstBase:
 
     def create_sunburst_figure(self, plot_tree: dict = None):
         """Create list of sunburst traces
+        TODO: add progressive rendering with on_click events
 
         :param plot_tree: plot tree as dict
         """
@@ -904,9 +904,8 @@ class SunburstBase:
         self.set_thread_status("Creating figure ..")
         if summary_plot != 0:
 
-            # color-bar for first trace with longest weightest color map
-            # disabled for summary plots with specific color propagation,
-            # as each plot would require an individual scale
+            # add color-bar to first trace based on maximum counts; disabled for summary plots
+            # with specific color propagation, as each plot would require an individual scale
             if not specific_color_propagation and self.s.get("legend", None):
                 self._add_color_scale_to_trace(trace=traces[0], cmax=max(counts_max),
                                                cmap=max(weighted_colors, key=len))
@@ -1097,8 +1096,8 @@ class MeSHSunburst(SunburstBase):
                 else:
                     node_id = v["mesh_id"]
 
-                # skip dupes (have same counts, colors anyway)
-                if node_id in dupe_check:
+                # if not custom ontology, skip dupes (have same counts, colors anyway)
+                if not self.custom_ontology and node_id in dupe_check:
                     continue
 
                 # add row data

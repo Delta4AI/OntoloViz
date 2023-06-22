@@ -144,6 +144,27 @@ class App(Tk):
         self.plot_tt_template = "Generate plot and open interactive sunburst in browser"
         self.export_tt_template = str("Generate sunburst data without plotting, export to "
                                       "Excel/TSV for later use/customization")
+        self.propagate_color_tt = str(
+            "off: Color scale is based on 'Color' column from imported file\n"
+            "specific: Color scale is based on the maximum values of the corresponding tree\n"
+            "global: Color scale is based on the maximum values of the entire ontology"
+            "ALT:Enable 'Propagation' to modify propagation color specificity"
+        )
+        self.propagate_color_mesh_tt = str(
+            "off: Color scale is based on 'Color' column from imported file\n"
+            "specific: Color scale is based on the max values of the corresponding tree\n"
+            "global: Color scale is based on the max values of the entire ontology\n"
+            "phenotype: Only the most outer node in a branch is colored"
+            "ALT:Enable 'Propagation' to modify propagation color specificity"
+        )
+        self.propagate_counts_tt = str(
+            "off: no counts are propagated, counts equal imported values\n"
+            "level: counts are propagated up to defined level, values above threshold remain "
+            "unchanged\n"
+            "all: counts are propagated up to central node, imported values are corrected "
+            "and overwritten\n"
+            "ALT: Enable 'Propagation' to modify propagation counts"
+        )
         self.hpo_ontology_tt = str(
             "Fetches the Human Phenotype Ontology (sub-tree 'Phenotypic "
             "abnormality') from https://purl.obolibrary.org/obo/hp.obo\n---\n"
@@ -216,7 +237,7 @@ class App(Tk):
         # function calls
         self.build_base_ui()
         self.toggle_widgets(enable=False, mode="db")
-        
+
     def change_theme_color(self, foreground: str = None, background: str = None) -> None:
         self.style.configure("primary.TLabelframe", background=background, relief="ridge")
         self.style.configure("primary.TLabelframe.Label", font=self.bold_large,
@@ -422,13 +443,7 @@ class App(Tk):
                                               style="primary.TLabel")
         self.mesh_propagate_color_lbl.pack(side="left", padx=2)
         self.mesh_propagate_color_lbl.configure(state="disabled")
-        create_tooltip(self.mesh_propagate_color_lbl,
-                       "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the max values of the corresponding "
-                       "tree\n"
-                       "phenotype: Only the most outer phenotype in a branch is colored\n"
-                       "global: Color scale is based on the max values of the entire mesh ontology"
-                       "ALT:Enable 'Propagation' to modify propagation color specificity")
+        create_tooltip(self.mesh_propagate_color_lbl,self.propagate_color_mesh_tt)
         self.mesh_propagate_color = Combobox(mesh_propagate_frm,
                                              textvariable=self.mesh_propagate_color_var,
                                              width=10,
@@ -436,27 +451,14 @@ class App(Tk):
                                              values=["off", "specific", "global", "phenotype"])
         self.mesh_propagate_color.pack(side="left", padx=2)
         self.mesh_propagate_color.configure(state="disabled")
-        create_tooltip(self.mesh_propagate_color,
-                       "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the max values of the corresponding "
-                       "tree\n"
-                       "global: Color scale is based on the max values of the entire mesh "
-                       "ontology\n"
-                       "phenotype: Only the most outer phenotype in a branch is colored"
-                       "ALT:Enable 'Propagation' to modify propagation color specificity")
+        create_tooltip(self.mesh_propagate_color, self.propagate_color_mesh_tt)
 
         # propagate counts
         self.mesh_propagate_counts_lbl = Label(mesh_propagate_frm, text="Counts:",
                                                style="primary.TLabel")
         self.mesh_propagate_counts_lbl.pack(side="left", padx=2)
         self.mesh_propagate_counts_lbl.configure(state="disabled")
-        create_tooltip(self.mesh_propagate_counts_lbl,
-                       "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold "
-                       "remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are "
-                       "corrected and overwritten\n"
-                       "ALT: Enable 'Propagation' to modify propagation counts")
+        create_tooltip(self.mesh_propagate_counts_lbl, self.propagate_counts_tt)
         self.mesh_propagate_counts = Combobox(mesh_propagate_frm,
                                               textvariable=self.mesh_propagate_counts_var,
                                               state="readonly",
@@ -464,13 +466,7 @@ class App(Tk):
                                               width=4)
         self.mesh_propagate_counts.pack(side="left", padx=2)
         self.mesh_propagate_counts.configure(state="disabled")
-        create_tooltip(self.mesh_propagate_counts,
-                       "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold "
-                       "remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are "
-                       "corrected and overwritten\n"
-                       "ALT: Enable 'Propagation' to modify propagation counts")
+        create_tooltip(self.mesh_propagate_counts, self.propagate_counts_tt)
 
         # propagate level
         self.mesh_propagate_lvl_lbl = Label(mesh_propagate_frm, text="Level: ",
@@ -684,13 +680,7 @@ class App(Tk):
                                              style="primary.TLabel")
         self.atc_propagate_color_lbl.pack(side="left", padx=2)
         self.atc_propagate_color_lbl.configure(state="disabled")
-        create_tooltip(self.atc_propagate_color_lbl,
-                       "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the "
-                       "corresponding tree\n"
-                       "global: Color scale is based on the maximum values of the "
-                       "entire mesh ontology"
-                       "ALT:Enable 'Propagation' to modify propagation color specificity")
+        create_tooltip(self.atc_propagate_color_lbl, self.propagate_color_tt)
         self.atc_propagate_color = Combobox(atc_propagate_frm,
                                             textvariable=self.atc_propagate_color_var,
                                             state="readonly",
@@ -698,26 +688,14 @@ class App(Tk):
                                             width=10)
         self.atc_propagate_color.pack(side="left", padx=2)
         self.atc_propagate_color.configure(state="disabled")
-        create_tooltip(self.atc_propagate_color,
-                       "off: Color scale is based on 'Color' column from imported file\n"
-                       "specific: Color scale is based on the maximum values of the "
-                       "corresponding tree\n"
-                       "global: Color scale is based on the maximum values of the "
-                       "entire mesh ontology"
-                       "ALT:Enable 'Propagation' to modify propagation color specificity")
+        create_tooltip(self.atc_propagate_color, self.propagate_color_tt)
 
         # propagate counts
         self.atc_propagate_counts_lbl = Label(atc_propagate_frm, text="Counts:",
                                               style="primary.TLabel")
         self.atc_propagate_counts_lbl.pack(side="left", padx=2)
         self.atc_propagate_counts_lbl.configure(state="disabled")
-        create_tooltip(self.atc_propagate_counts_lbl,
-                       "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above threshold "
-                       "remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are "
-                       "corrected and overwritten\n"
-                       "ALT: Enable 'Propagation' to modify propagation counts")
+        create_tooltip(self.atc_propagate_counts_lbl, self.propagate_counts_tt)
         self.atc_propagate_counts = Combobox(atc_propagate_frm,
                                              textvariable=self.atc_propagate_counts_var,
                                              state="readonly",
@@ -725,13 +703,7 @@ class App(Tk):
                                              width=4)
         self.atc_propagate_counts.pack(side="left", padx=2)
         self.atc_propagate_counts.configure(state="disabled")
-        create_tooltip(self.atc_propagate_counts,
-                       "off: no counts are propagated, counts equal imported values\n"
-                       "level: counts are propagated up to defined level, values above "
-                       "threshold remain unchanged\n"
-                       "all: counts are propagated up to central node, imported values are "
-                       "corrected and overwritten\n"
-                       "ALT: Enable 'Propagation' to modify propagation counts")
+        create_tooltip(self.atc_propagate_counts, self.propagate_counts_tt)
 
         # propagate level
         self.atc_propagate_lvl_lbl = Label(atc_propagate_frm, text="Level: ",
@@ -911,10 +883,9 @@ class App(Tk):
             self.set_status("ERROR - only integers > 0 and < 20 allowed")
             entry.delete(0, END)
             entry.insert(0, "5")
-            return False
-
-        target_var.set(target_value)
-        self.set_status("")
+        else:
+            target_var.set(target_value)
+            self.set_status("")
         return False
 
     def check_init(self, obj: [MeSHSunburst, ATCSunburst] = None) -> bool:
@@ -1247,7 +1218,7 @@ class App(Tk):
                                                f"template to:\n{os.path.abspath(template_fn)}")
 
         # prompt to overwrite Excel file if settings changed since load
-        if input_fn and os.path.splitext(input_fn) == ".xlsx":
+        if input_fn and input_fn.endswith(".xlsx"):
             accepted = ["color_scale", "show_border", "border_color", "border_width"]
             accepted.extend([_ for _ in self.loaded_settings.keys() if _.startswith(mode)])
             modified = {k: (str(self.loaded_settings[k]), str(obj.s[k]))

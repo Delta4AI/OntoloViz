@@ -53,6 +53,7 @@ class App(Tk):
         # core variables
         self.p = MeSHSunburst()
         self.d = ATCSunburst()
+        self.obo = None
 
         # memory variables (settings)
         self.database_var = StringVar()
@@ -300,7 +301,7 @@ class App(Tk):
                        "\n - Excel files remember settings, .tsv files always load defaults"
                        "\n - For more information, read: https://github.com/Delta4AI/OntoloViz")
 
-        self.load_obo_url_btn = Button(load_frm, text="Load online", command=self.load_url,
+        self.load_obo_url_btn = Button(load_frm, text="Load from Web", command=self.load_url,
                                        style="success.TButton")
         self.load_obo_url_btn.pack(side="left", padx=2, pady=(2, 0))
         create_tooltip(self.load_obo_url_btn, "Download and visualize .obo ontologies from a "
@@ -1204,6 +1205,10 @@ class App(Tk):
 
         # enable UI, set final status
         self.toggle_widgets(enable=True, mode="recent")
+        if obj.plot_error:
+            self.set_status("Failed to display incompatible ontology")
+            raise Exception(obj.plot_error)
+
         self.set_status("Plot displayed in browser")
 
         # in case self.export_plot_var.get() is checked (sets config param "export_plot"),
@@ -1286,9 +1291,12 @@ class App(Tk):
     @exception_as_popup
     def load_url(self):
         """Download and visualize a .obo ontology"""
-        online_ontology = SelectOptionsPopup(
-            parent=self, title="Choose Ontology",
-            info_text="Select Ontology to download and visualize",
+
+        self.obo = SelectOptionsPopup(
+            parent=self,
+            title="Choose Ontology",
+            info_text="Select Ontology to download and visualize,\nor define a custom .obo URL",
+            is_ontology_popup=True,
             options={
                 "hpo": ("Human Phenotype Ontology", self.hpo_ontology_tt),
                 "go_mf": ("Gene Ontology (molecular function)",
@@ -1300,15 +1308,17 @@ class App(Tk):
                 "go_bp": ("Gene Ontology (biological process)",
                           "Fetches the GeneOntology (namespace: biological_process) "
                           f"{self.gene_ontology_tt}"),
-                "po": ("Plant Ontology", self.po_ontology_tt),
+                # "po": ("Plant Ontology", self.po_ontology_tt),
                 "cl": ("Cell Ontology", self.cl_ontology_tt),
                 # "chebi": ("CHEBI Ontology", self.chebi_ontology_tt),
-                "uberon": ("Uberon Anatomy Ontology", self.uberon_ontology_tt),
+                # "uberon": ("Uberon Anatomy Ontology", self.uberon_ontology_tt),
                 "doid": ("Human Disease Ontology", self.doid_ontology_tt),
-            }
+                "custom_url": ("Custom URL", "Specify a custom .obo url"),
+            },
         )
-        description = online_ontology.description
-        ontology = online_ontology.result
+
+        description = self.obo.description
+        ontology = self.obo.result
         if not ontology:
             self.set_status("Aborted ontology download")
             return

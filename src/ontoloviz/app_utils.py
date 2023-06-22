@@ -597,14 +597,19 @@ class BorderPopup(Toplevel):
 class SelectOptionsPopup(Toplevel):
     """Popup to define the type of the ontology in case automatic parsing was not successful"""
     def __init__(self, parent: [MeSHSunburst, ATCSunburst] = None, title: str = None,
-                 info_text: str = None, options: dict = None, additional_frame: Frame = None):
+                 info_text: str = None, options: dict = None, is_ontology_popup: bool = False):
         super().__init__(parent)
         self.title(title)
         self.parent = parent
         self.resizable(False, False)
         self.result = None
         self.description = None
-        self.additional_frame = None
+
+        # custom .obo definitions
+        self.custom_url = None
+        self.min_node_size = None
+        self.root_id = None
+        self.url_error = "Enter URL to .obo file!"
 
         lbl_frame = Frame(self)
         lbl_frame.pack()
@@ -612,6 +617,7 @@ class SelectOptionsPopup(Toplevel):
         descriptive_label.pack(pady=10, padx=10)
 
         self.radio_var = StringVar()
+        self.radio_var.trace_add("write", self.radio_var_callback)
         self.options = options
         rb_frame = Frame(self)
         rb_frame.pack()
@@ -622,9 +628,30 @@ class SelectOptionsPopup(Toplevel):
             if tooltip:
                 create_tooltip(rb, tooltip)
 
-        if additional_frame:
-            self.additional_frame = additional_frame
-            self.additional_frame.pack(pady=10, padx=10)
+        if is_ontology_popup:
+            self.cpane = CollapsiblePane(self)
+            self.cpane.pack()
+            Label(self.cpane.frame, text="URL:").grid(column=0, row=0, sticky="E", padx=(0, 2))
+            self.url_entry = Entry(self.cpane.frame)
+            self.url_entry.grid(column=1, row=0, sticky="W")
+            create_tooltip(self.url_entry, "Enter URL to .obo file, "
+                                           "e.g.: https://purl.obolibrary.org/obo/po.obo"
+                                           "\nCheck https://obofoundry.org/ for ontologies")
+            Label(self.cpane.frame, text="Root ID:").grid(column=0, row=1, sticky="E", padx=(0, 2))
+            self.root_id_entry = Entry(self.cpane.frame)
+            self.root_id_entry.grid(column=1, row=1, sticky="W")
+            create_tooltip(self.root_id_entry,
+                           "Optional: Enter the root ID to start building a tree structure.\n"
+                           "All the children of the specified ID will be used as sub-trees.\n"
+                           "If the root ID field is left empty, the sub-trees will be\n"
+                           "constructed based on nodes that do not have an 'is_a' relationship.")
+            Label(self.cpane.frame, text="Min. Node Size:").grid(column=0, row=2, sticky="E",
+                                                                 padx=(0, 2))
+            self.min_node_size_entry = Entry(self.cpane.frame)
+            self.min_node_size_entry.grid(column=1, row=2, sticky="W")
+            create_tooltip(self.min_node_size_entry, "Optional: Enter the minimum amount of nodes "
+                                                     "for a sub-tree to be included in the "
+                                                     "visualization")
 
         btn_frame = Frame(self)
         btn_frame.pack(pady=10)
@@ -638,10 +665,73 @@ class SelectOptionsPopup(Toplevel):
         # freeze mainloop
         self.wait_window(self)
 
+    def radio_var_callback(self, *args):
+        if self.radio_var.get() == "custom_url":
+            self.cpane.show()
+        else:
+            self.cpane.hide()
+
     def on_ok(self):
         self.result = self.radio_var.get()
         self.description = self.options[self.result][0]
+        if self.radio_var.get() == "custom_url":
+            url_entry = self.url_entry.get()
+            min_node_size = self.min_node_size_entry.get()
+            root_id = self.root_id_entry.get()
+
+            # check URL is entered
+            if not url_entry or url_entry == self.url_error or not url_entry.endswith(".obo"):
+                self.url_entry.delete(0, END)
+                self.url_entry.insert(0, self.url_error)
+                return False
+
+            self.custom_url = url_entry
+
+            # ensure min_node_size is an int
+            if min_node_size:
+                try:
+                    self.min_node_size = int(min_node_size)
+                except ValueError:
+                    self.min_node_size_entry.delete(0, END)
+                    self.min_node_size_entry.insert(0, "Must be an integer!")
+                    return False
+
+            if root_id:
+                self.root_id = root_id
+
         self.destroy()
 
     def on_cancel(self):
         self.destroy()
+
+
+class CollapsiblePane(ttk.Frame):
+    """
+     -----USAGE-----
+    collapsiblePane = CollapsiblePane(parent,
+                          expanded_text =[string],
+                          collapsed_text =[string])
+
+    collapsiblePane.pack()
+    button = Button(collapsiblePane.frame).pack()
+    """
+
+    def __init__(self, parent):
+
+        ttk.Frame.__init__(self, parent)
+        self.parent = parent
+
+        # Here weight implies that it can grow its size if extra space is available
+        self.columnconfigure(1, weight=1)
+
+        # dummy label, required for resizing to work properly
+        self._dummy = Label(self)
+        self._dummy.grid(row=0, column=0)
+
+        self.frame = ttk.Frame(self)
+
+    def show(self):
+        self.frame.grid(row=1, column=0, columnspan=2)
+
+    def hide(self):
+        self.frame.grid_forget()

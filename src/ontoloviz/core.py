@@ -56,7 +56,6 @@ def generate_color_range(start_color: str = None, stop_color: str = None,
 
     try:
         color_list = n_colors(start_color, stop_color, values)
-        # t = color_list[-1]
         return [rgb_to_hex(_) for _ in color_list]
     except ZeroDivisionError:
         return [rgb_to_hex(start_color)]
@@ -74,6 +73,8 @@ class SunburstBase:
         self.fake_one = 1.000001337
         self.thread_status = ""
         self.thread_return = None
+        self.custom_ontology = None
+        self.custom_ontology_title = None
 
         # settings
         self.s = None
@@ -1015,8 +1016,6 @@ class MeSHSunburst(SunburstBase):
         super().__init__()
         self.database = None
         self.is_init = False
-        self.custom_ontology = None
-        self.custom_ontology_title = None
 
         self.drug_name = None
         self.phenotype_counts = dict()

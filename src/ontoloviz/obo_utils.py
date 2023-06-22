@@ -125,7 +125,7 @@ def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
         return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/doid.obo",
                                             descriptor="Human Disease Ontology",
                                             app=app,
-                                            root_id="DOID:630")  # 4
+                                            root_id="DOID:4")
 
 
 def parse_obo_file(url: str = None, descriptor: str = None, app: object = None,

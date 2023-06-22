@@ -284,8 +284,9 @@ class App(Tk):
                                            "Requires active propagation, overwrites colors defined "
                                            "in file. \nCurrent scale: ")
         self.show_border_tt_template = "Configure the border drawn around the sunburst wedges"
-        self.save_plot_tt_template = str("Save the generated plot as interactive .html file, asks "
-                                         "to create a new .tsv template based on current settings")
+        self.save_plot_tt_template = str("Save the generated plot as interactive .html file and "
+                                         "creates a .tsv template for usage with own data based "
+                                         "on current settings")
         self.plot_tt_template = "Generate plot and open interactive sunburst in browser"
         self.export_tt_template = str("Generate sunburst data without plotting, export to "
                                       "Excel/TSV for later use/customization")
@@ -1380,19 +1381,16 @@ class App(Tk):
         self.toggle_widgets(enable=True, mode="recent")
         self.set_status("Plot displayed in browser")
 
-        # check if thread returned something
+        # in case self.export_plot_var.get() is checked (sets config param "export_plot"),
+        # thread will return filename of generated .html file
         thread_ret = obj.thread_return
         if thread_ret:
-            messagebox.showinfo("Export Plot", f"Exported plot to: {thread_ret}")
+            # generate .tsv template
+            template_fn = export_tsv(mode="TSV", template=False)
 
-        # prompt to ask if new template should be generated
-        if self.export_plot_var.get():
-            generate_template = messagebox.askyesno(title="Generate template",
-                                                    message="Generate new template for later use?")
-            if generate_template:
-                template_fn = export_tsv(mode="TSV", template=False)
-                messagebox.showinfo(title="Generate template",
-                                    message=f"Generated: {os.path.abspath(template_fn)}")
+            # show both filenames as info popup
+            messagebox.showinfo("Export Plot", f"Exported plot to:\n{thread_ret}\n\nExported "
+                                               f"template to:\n{os.path.abspath(template_fn)}")
 
         # prompt to overwrite Excel file if settings changed since load
         if input_fn and os.path.splitext(input_fn) == ".xlsx":

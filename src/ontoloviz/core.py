@@ -818,7 +818,7 @@ class SunburstBase:
 
     def create_sunburst_figure(self, plot_tree: dict = None):
         """Create list of sunburst traces
-        TODO: add progressive rendering with on_click events
+        TODO: progressive rendering with on_click events to improve performance of large ontologies
 
         :param plot_tree: plot tree as dict
         """

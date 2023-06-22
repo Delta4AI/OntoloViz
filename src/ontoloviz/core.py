@@ -75,6 +75,7 @@ class SunburstBase:
         self.thread_return = None
         self.custom_ontology = None
         self.custom_ontology_title = None
+        self.plot_error = None
 
         # settings
         self.s = None
@@ -709,17 +710,21 @@ class SunburstBase:
                     wedge_labels.append("")
 
                 # percentages
-                if propagate_color_mode == "global":
-                    node_percentage = round(vv["imported_counts"] / global_sum * 100, 1)
-                else:
-                    if propagate_count_mode in ["off", "all"]:
-                        node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
-                    elif propagate_count_mode == "level":
-                        if vv["level"] >= propagate_lvl:
-                            node_percentage = round(
-                                vv["imported_counts"] / propagate_threshold_sum * 100)
-                        else:
+                try:
+                    if propagate_color_mode == "global":
+                        node_percentage = round(vv["imported_counts"] / global_sum * 100, 1)
+                    else:
+                        if propagate_count_mode in ["off", "all"]:
                             node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
+                        elif propagate_count_mode == "level":
+                            if vv["level"] >= propagate_lvl:
+                                node_percentage = round(
+                                    vv["imported_counts"] / propagate_threshold_sum * 100)
+                            else:
+                                node_percentage = round(
+                                    vv["imported_counts"] / sub_tree_sum * 100, 1)
+                except ZeroDivisionError:
+                    node_percentage = 0
 
                 # custom data
                 hover_label = vv.get("label", "Undefined")
@@ -1349,19 +1354,23 @@ class MeSHSunburst(SunburstBase):
 
         wb.close()
 
-    def rollback_mesh_tree(self) -> None:
+    def rollback_mesh_tree(self, hard_reset: bool = True) -> None:
         """Clears counts and resets color of mesh-tree"""
-        for main_id, node in self.mesh_tree.items():
-            for sub_node, v in node.items():
-                v["counts"] = 0
-                v["imported_counts"] = 0
-                v["color"] = self.s["default_color"]
-                v["comment"] = ""
+        if hard_reset:
+            self.mesh_tree = dict()
+        else:
+            for main_id, node in self.mesh_tree.items():
+                for sub_node, v in node.items():
+                    v["counts"] = 0
+                    v["imported_counts"] = 0
+                    v["color"] = self.s["default_color"]
+                    v["comment"] = ""
         self.phenotype_counts = dict()
         self.drug_name = None
 
-    def populate_mesh_from_data_source(self, drug_name: str = None,
-                                       data_source: str = "Utilization Tuple: Semantic Direct") -> None:
+    def populate_mesh_from_data_source(
+            self, drug_name: str = None,
+            data_source: str = "Utilization Tuple: Semantic Direct") -> None:
         """Populates the MeSH tree from a data source (database)
 
         :param drug_name: If string with drug-name is given, fetch phenotype counts
@@ -1432,6 +1441,7 @@ class MeSHSunburst(SunburstBase):
         """Generate data for phenotype sunburst plot"""
         self.set_thread_status("Creating separator-based sunburst ..")
         self.thread_return = None
+        self.plot_error = None
         plot_tree = {}
         parent_whitelist = set()
         drop_count = 0
@@ -1496,7 +1506,10 @@ class MeSHSunburst(SunburstBase):
         self.tree_color_propagation(plot_tree=plot_tree, count_key="imported_counts")
 
         # create figure
-        self.create_sunburst_figure(plot_tree=plot_tree)
+        try:
+            self.create_sunburst_figure(plot_tree=plot_tree)
+        except Exception as exc:
+            self.plot_error = exc
 
 
 class ATCSunburst(SunburstBase):
@@ -1612,7 +1625,7 @@ class ATCSunburst(SunburstBase):
             # write to .tsv file, return filename
             return self.export_tree_to_tsv(fn_base + ".tsv", header, unique_rows)
 
-    def rollback_atc_tree(self, hard_reset: bool = False) -> None:
+    def rollback_atc_tree(self, hard_reset: bool = True) -> None:
         """Reset counts / colors of ATC tree"""
         if hard_reset:
             self.atc_tree = dict()
@@ -1663,7 +1676,7 @@ class ATCSunburst(SunburstBase):
 
         :param fn: path to .tsv file
         """
-        self.rollback_atc_tree(hard_reset=True)
+        self.rollback_atc_tree()
         print(f"Loading ATC-tree from {fn} ..")
         with open(fn, mode="r", encoding="utf-8") as f:
             self.process_atc_row_data(f)
@@ -1830,6 +1843,7 @@ class ATCSunburst(SunburstBase):
         """Generate data for drug sunburst plot"""
         self.set_thread_status("Creating drug sunburst ..")
         self.thread_return = None
+        self.plot_error = None
 
         # create & sort plot tree
         plot_tree = dict(sorted(self.atc_tree.items()))
@@ -1867,7 +1881,10 @@ class ATCSunburst(SunburstBase):
         self.tree_color_propagation(plot_tree=plot_tree, count_key="imported_counts")
 
         # create figure
-        self.create_sunburst_figure(plot_tree=plot_tree)
+        try:
+            self.create_sunburst_figure(plot_tree=plot_tree)
+        except Exception as exc:
+            self.plot_error = exc
 
 
 def show_help():

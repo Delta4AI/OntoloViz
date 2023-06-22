@@ -75,7 +75,8 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
     return tree
 
 
-def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
+def get_remote_ontology(ontology_short: str = None, app: object = None, url: str = None,
+                        root_id: str = None, min_node_size: int = None) -> dict:
     """Wrapper to get .obo ontologies based on identifiers"""
     if ontology_short == "hpo":
         return build_tree_from_obo_ontology(url="https://purl.obolibrary.org/obo/hp.obo",
@@ -126,6 +127,12 @@ def get_remote_ontology(ontology_short: str = None, app: object = None) -> dict:
                                             descriptor="Human Disease Ontology",
                                             app=app,
                                             root_id="DOID:4")
+    elif ontology_short == "custom_url":
+        return build_tree_from_obo_ontology(url=app.obo.custom_url,
+                                            descriptor=app.obo.description,
+                                            app=app,
+                                            root_id=app.obo.root_id,
+                                            min_node_size=app.obo.min_node_size)
 
 
 def parse_obo_file(url: str = None, descriptor: str = None, app: object = None,

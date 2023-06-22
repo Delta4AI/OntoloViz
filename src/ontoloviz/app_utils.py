@@ -597,13 +597,14 @@ class BorderPopup(Toplevel):
 class SelectOptionsPopup(Toplevel):
     """Popup to define the type of the ontology in case automatic parsing was not successful"""
     def __init__(self, parent: [MeSHSunburst, ATCSunburst] = None, title: str = None,
-                 info_text: str = None, options: dict = None):
+                 info_text: str = None, options: dict = None, additional_frame: Frame = None):
         super().__init__(parent)
         self.title(title)
         self.parent = parent
         self.resizable(False, False)
         self.result = None
         self.description = None
+        self.additional_frame = None
 
         lbl_frame = Frame(self)
         lbl_frame.pack()
@@ -621,8 +622,12 @@ class SelectOptionsPopup(Toplevel):
             if tooltip:
                 create_tooltip(rb, tooltip)
 
+        if additional_frame:
+            self.additional_frame = additional_frame
+            self.additional_frame.pack(pady=10, padx=10)
+
         btn_frame = Frame(self)
-        btn_frame.pack(pady=(10, 0))
+        btn_frame.pack(pady=10)
 
         ok_button = Button(btn_frame, text="OK", command=self.on_ok)
         ok_button.pack(side="left")

@@ -45,7 +45,7 @@ def generate_color_range(start_color: str = None, stop_color: str = None,
         return [rgb_to_hex(start_color)]
 
 
-def get_brightness(rgb_color: tuple[int] = None) -> float:
+def get_brightness(rgb_color: tuple = None) -> float:
     """
     Get the brightness of a rgb color triplet
 

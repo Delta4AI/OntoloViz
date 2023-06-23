@@ -3,6 +3,7 @@ import re
 
 zero = 0.000001337
 fake_one = 1.000001337
+white = "#FFFFFF"
 
 
 def build_non_separator_based_tree(file_name: str = None) -> dict:
@@ -23,6 +24,7 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
             for node_id in node_ids:
                 parent = line_data[0]
                 count = 0
+                color = line_data[4]
                 try:
                     count = int(line_data[3])
                 except ValueError:
@@ -36,7 +38,7 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
                     "description": line_data[2],
                     "counts": count if count != 0 else zero,
                     "imported_counts": count if count != 0 else fake_one,
-                    "color": line_data[4]
+                    "color": color if color else white
                 }
 
                 # populate first level of tree structure
@@ -62,15 +64,16 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
                     node["level"] = tree[sub_tree_id][parent]["level"] + 1
                     tree[sub_tree_id][node["id"]] = node
                     drop_idxs.append(idx)
-                    continue
 
-            attempts += 1
+            to_process[idx][0] += 1
 
         for idx in sorted(drop_idxs, reverse=True):
             del to_process[idx]
 
         if not to_process:
             break
+
+        print(f"Dropped: {len(drop_idxs)}, Left to process: {len(to_process)}")
 
     return tree
 
@@ -231,13 +234,13 @@ def build_tree_from_obo_ontology(url: str = None,
     # build first level
     tree = {}
     if root_id:
-        for term, val in raw_terms.items():
+        for node_id, val in raw_terms.items():
             for is_a in val["is_a"]:
                 if root_id == is_a[0]:
-                    tree[term] = {}
-                    tree[term][term] = val
-                    tree[term][term]["level"] = 0
-                    tree[term][term]["parent"] = ""
+                    tree[node_id] = {}
+                    tree[node_id][node_id] = val
+                    tree[node_id][node_id]["level"] = 0
+                    tree[node_id][node_id]["parent"] = ""
     else:
         root_terms = [_["id"] for _ in raw_terms.values() if not _["is_a"]]
         for root_term in root_terms:
@@ -251,14 +254,13 @@ def build_tree_from_obo_ontology(url: str = None,
     while True:
         had_content = False
         for sub_tree_id, sub_tree in tree.items():
-            for term, val in raw_terms.items():
-                copied_value = val.copy()
-                for is_a in copied_value["is_a"]:
+            for node_id, node in raw_terms.items():
+                for is_a in node["is_a"]:
                     is_a_id = is_a[0]
-                    if is_a_id in sub_tree.keys() and term not in sub_tree.keys():
-                        sub_tree[term] = copied_value
-                        sub_tree[term]["level"] = sub_tree[is_a_id]["level"] + 1
-                        sub_tree[term]["parent"] = sub_tree[is_a_id]["id"]
+                    if is_a_id in sub_tree.keys() and node_id not in sub_tree.keys():
+                        sub_tree[node_id] = {key: value for key, value in node.items()}
+                        sub_tree[node_id]["level"] = sub_tree[is_a_id]["level"] + 1
+                        sub_tree[node_id]["parent"] = is_a_id
                         had_content = True
         if not had_content:
             break

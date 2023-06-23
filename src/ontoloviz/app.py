@@ -1114,7 +1114,6 @@ class App(Tk):
         populate_tsv = None
         populate_excel = None
         populate_data_source = None
-        export_tsv = None
         input_fn = None
         obj = None
         configure = None
@@ -1129,7 +1128,6 @@ class App(Tk):
             populate_data_source = self.d.populate_atc_from_data_source
             populate_tsv = self.d.populate_atc_from_tsv
             populate_excel = self.d.load_atc_excel
-            export_tsv = self.d.export_atc_tree
             obj = self.d
             configure = self.configure_d
             asset = self.atc_asset_var.get()
@@ -1141,7 +1139,6 @@ class App(Tk):
             populate_data_source = self.p.populate_mesh_from_data_source
             populate_tsv = self.p.populate_mesh_from_tsv
             populate_excel = self.p.load_mesh_excel
-            export_tsv = self.p.export_mesh_tree
             obj = self.p
             configure = self.configure_p
             asset = self.mesh_asset_var.get()
@@ -1212,15 +1209,14 @@ class App(Tk):
         self.set_status("Plot displayed in browser")
 
         # in case self.export_plot_var.get() is checked (sets config param "export_plot"),
-        # thread will return filename of generated .html file
+        # thread will return generated .html and .tsv file paths
         thread_ret = obj.thread_return
         if thread_ret:
-            # generate .tsv template
-            template_fn = export_tsv(mode="TSV", template=False)
+            html_path, tsv_path = thread_ret
 
             # show both filenames as info popup
-            messagebox.showinfo("Export Plot", f"Exported plot to:\n{thread_ret}\n\nExported "
-                                               f"template to:\n{os.path.abspath(template_fn)}")
+            messagebox.showinfo("Export Plot", f"Exported plot to:\n{html_path}\n\nExported "
+                                               f"template to:\n{tsv_path}")
 
         # prompt to overwrite Excel file if settings changed since load
         if input_fn and input_fn.endswith(".xlsx"):
@@ -1383,7 +1379,7 @@ class App(Tk):
                     "custom_sep_slash": ("Slash-separated", None),
                     "custom_sep_colon": ("Colon-separated", None),
                     "custom_sep_underscore": ("Underscore-separated", None),
-                    "custom_non_sep": ("Unstructured",
+                    "custom_non_sep": ("Parent-based",
                                        "Unstructured ontologies that do not follow a structured "
                                        "schema, e.g. HPO IDs in the format: HP:0001300\nRequires "
                                        "6 column layout and defined parent-id for each node:\n"

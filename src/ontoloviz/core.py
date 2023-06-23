@@ -8,57 +8,15 @@ from re import match
 from string import ascii_uppercase
 from textwrap import wrap
 from tkinter import Tk, messagebox
+from typing import List, Dict, Any
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
-from plotly.colors import hex_to_rgb, n_colors
 from plotly.graph_objects import Figure, Sunburst
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
 from .obo_utils import sanitize_string
-
-
-def chunks(input_list, number_of_chunks):
-    """Yield number_of_chunks number of striped chunks from input_list."""
-    for i in range(0, number_of_chunks):
-        yield input_list[i::number_of_chunks]
-
-
-def rgb_to_hex(rgb: tuple = None) -> str:
-    """Convert RGB to hex
-
-    :param rgb: tuple in format (r, g, b) where r, g, b are integers in range [0-255]
-    :return str: converted color as hex-string
-    """
-    # necessary due to weird behaviour introduced by plotly
-    # test = plotly.colors.ncolors(lowcolor=(64, 60, 83), highcolor=(255, 0, 255), n_colors=11001)
-    # print(test[-1])
-    if any(False if 0 <= _ < 256 else True for _ in rgb):
-        for idx, color in enumerate(rgb):
-            if color < 0:
-                tmp = list(rgb)
-                tmp[idx] = 0
-                print(f"Corrected color: {rgb} > {tuple(list(tmp))}")
-                rgb = tuple(list(tmp))
-    return f"#{int(rgb[0]):02X}{int(rgb[1]):02X}{int(rgb[2]):02X}"
-
-
-def generate_color_range(start_color: str = None, stop_color: str = None,
-                         values: int = None) -> list:
-    """Calculate color range based on start and stop color and number of values
-
-    :param start_color: start color as RGB hex
-    :param stop_color: stop color as RGB hex
-    :param values: number of colors to generate
-    :return list: list of hex color codes
-    """
-    start_color = hex_to_rgb(start_color)
-    stop_color = hex_to_rgb(stop_color)
-
-    try:
-        color_list = n_colors(start_color, stop_color, values)
-        return [rgb_to_hex(_) for _ in color_list]
-    except ZeroDivisionError:
-        return [rgb_to_hex(start_color)]
+from .core_utils import chunks, generate_color_range, prioritize_bright_colors
 
 
 class SunburstBase:
@@ -186,6 +144,15 @@ class SunburstBase:
             where list[0] must be in range 0..1 and amount of lists can vary
         """
         self.set_settings({"color_scale": color_scale, "default_color": color_scale[0][1]})
+
+    def get_label_to_current_counts(self, current_data: list[tuple]) -> dict:
+        """
+        Takes current_data lists and populates a list with dictionaries in the current trees
+        structure to map labels to the currently displayed counts
+        :param current_data: list of tuples containing custom data used for plotting
+        :return: dictionary with label as key and current count as value
+        """
+        return {node[0]: node[1] for sub_tree in current_data for node in sub_tree}
 
     def set_settings(self, settings: dict = None):
         """Verifies/converts settings, example call: self.set_settings({'show_border': 'True'})"""
@@ -534,22 +501,22 @@ class SunburstBase:
         :returns: absolute path of exported Excel file
         """
 
-        file = None
+        out_file = None
         try:
-            file = open(fn, mode="w", encoding="utf-8")
+            out_file = open(fn, mode="w", encoding="utf-8")
         except PermissionError:
             print("\tFile already exists - appending timestamp ..")
             fn = os.path.splitext(fn)[0] + f"_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.tsv"
-            file = open(fn, mode="w", encoding="utf-8")
+            out_file = open(fn, mode="w", encoding="utf-8")
         finally:
             # write header
-            file.write("\t".join(header) + "\n")
+            out_file.write("\t".join(header) + "\n")
 
             # write lines
             for row in rows:
-                file.write("\t".join([str(_) for _ in row]) + "\n")
+                out_file.write("\t".join([str(_) for _ in row]) + "\n")
 
-            file.close()
+            out_file.close()
 
         print(f"\tExported to: {os.path.abspath(fn)}")
         return os.path.abspath(fn)
@@ -711,10 +678,10 @@ class SunburstBase:
 
                 # percentages
                 try:
-                    if propagate_color_mode == "global":
+                    if propagate_enabled and propagate_color_mode == "global":
                         node_percentage = round(vv["imported_counts"] / global_sum * 100, 1)
                     else:
-                        if propagate_count_mode in ["off", "all"]:
+                        if propagate_count_mode in ["off", "all"] or not propagate_enabled:
                             node_percentage = round(vv["imported_counts"] / sub_tree_sum * 100, 1)
                         elif propagate_count_mode == "level":
                             if vv["level"] >= propagate_lvl:
@@ -752,8 +719,7 @@ class SunburstBase:
 
         return labels, custom_data, hover_template, specific_color_propagation
 
-    @staticmethod
-    def _get_child_sums(plot_tree: dict = None) -> dict:
+    def _get_child_sums(self, plot_tree: dict = None) -> dict:
         """Creates dictionary with total amount of children for each node in each sub-tree
 
         :param plot_tree: dictionary with plot-ready ontology
@@ -773,7 +739,10 @@ class SunburstBase:
                 parent = node["parent"]
                 sum_dict[sub_tree_id][parent] += 1
 
-                # traverse parents up until root-node
+                # traverse parents up until root-node and increment counters
+                # parents = node["parent"].split("|")
+                # for parent in parents:
+                #     self._update_parent_counts(sub_tree_id, parent, sum_dict, sub_tree)
                 while True:
                     parent = sub_tree[parent]["parent"]
                     if not parent:
@@ -781,6 +750,23 @@ class SunburstBase:
                     sum_dict[sub_tree_id][parent] += 1
 
         return sum_dict
+
+    # @staticmethod
+    # def _update_parent_counts(sub_tree_id: str, parent: str = None,
+    #                           sum_dict: dict = None, sub_tree: dict = None) -> None:
+    #     """Traverse parents up"""
+    #     sum_dict[sub_tree_id][parent] += 1
+    #
+    #     while True:
+    #         parent_ids = parent.split("|")
+    #         parent = None
+    #         for parent_id in parent_ids:
+    #             if parent_id in sub_tree:
+    #                 parent = sub_tree[parent_id]["parent"]
+    #                 sum_dict[sub_tree_id][parent_id] += 1
+    #
+    #         if parent is None:
+    #             break
 
     def _add_color_scale_to_trace(self, trace: Sunburst, cmax: int = None,
                                   cmap: list = None) -> None:
@@ -835,20 +821,27 @@ class SunburstBase:
          specific_color_propagation) = self.generate_plot_supplements(plot_tree=plot_tree)
         counts_max = [max([_[1] for _ in c_data]) for c_data in custom_data]
 
-        weighted_colors = []
+        weighted_scale = []
+        global_scale = {}
         for sub_tree, max_count in zip(plot_tree.values(), counts_max):
-            blerg = []
+            sub_scale = []
             for node in sub_tree.values():
+                if node["color"]:
+                    global_scale[node["imported_counts"]] = node["color"]
                 try:
                     val = round(node["imported_counts"]/max_count, 3)
                     if val > 1.0:
                         continue
-                    blerg.append((val, node["color"]))
-                except ZeroDivisionError as e:
+                    sub_scale.append((val, node["color"]))
+                except ZeroDivisionError:
                     continue
-            if not blerg or len(blerg) < 2:
-                blerg = [(0.0, "#FFFFFF"), (1.0, "#FFFFFF")]
-            weighted_colors.append(sorted(list(set(blerg))))
+            if not sub_scale or len(sub_scale) < 2:
+                sub_scale = [(0.0, "#FFFFFF"), (1.0, "#FFFFFF")]
+            weighted_scale.append(sorted(list(set(prioritize_bright_colors(sub_scale)))))
+
+        global_scale = sorted(global_scale.items())
+        global_scale = [(round(idx/max(global_scale)[0], 3), col) for (idx, col) in global_scale]
+        global_scale = prioritize_bright_colors(global_scale)
 
         # create list of traces
         traces = [Sunburst(
@@ -913,8 +906,13 @@ class SunburstBase:
             # add color-bar to first trace based on maximum counts; disabled for summary plots
             # with specific color propagation, as each plot would require an individual scale
             if not specific_color_propagation and self.s.get("legend", None):
-                self._add_color_scale_to_trace(trace=traces[0], cmax=max(counts_max),
-                                               cmap=max(weighted_colors, key=len))
+                if len(global_scale) > 1:
+                    self._add_color_scale_to_trace(trace=traces[0], cmax=max(counts_max),
+                                                   cmap=global_scale)
+                else:
+                    self._add_color_scale_to_trace(
+                        trace=traces[0], cmax=max(counts_max),
+                        cmap=weighted_scale[counts_max.index(max(counts_max))])
 
             # figure for overview plot
             fig = self.generate_subplot_figure(cols=summary_plot, traces=traces, headers=headers,
@@ -922,7 +920,7 @@ class SunburstBase:
         else:
             if self.s.get("legend", None):
                 # color-bar for each trace
-                for trace, max_count, cmap in zip(traces, counts_max, weighted_colors):
+                for trace, max_count, cmap in zip(traces, counts_max, weighted_scale):
                     self._add_color_scale_to_trace(trace=trace, cmax=max_count, cmap=cmap)
 
             # figure for specific plots - create buttons
@@ -962,9 +960,19 @@ class SunburstBase:
         # save / plot figure
         if self.s["export_plot"]:
             plotly_plot(fig, config=config, filename=file_name)
-            abs_path = os.path.abspath(file_name)
-            self.set_thread_status(f"Exported plot to: {abs_path}")
-            self.thread_return = abs_path
+            html_path = os.path.abspath(file_name)
+            tsv_path = None
+            if isinstance(self, MeSHSunburst):
+                # TODO: fix proper display when using custom_data, adapt ATC accordingly:
+                # self.export_mesh_tree(mode="TSV", template=False, current_data=custom_data)
+                tsv_path = self.export_mesh_tree(mode="TSV", template=False)
+            elif isinstance(self, ATCSunburst):
+                tsv_path = self.export_atc_tree(mode="TSV", template=False)
+            self.set_thread_status(f"Exported plot to: {html_path}")
+            self.thread_return = (html_path, tsv_path)
+
+            # export template as is currently configured
+
         else:
             self.set_thread_status("Sunburst created")
             fig.show(config=config)
@@ -1056,31 +1064,34 @@ class MeSHSunburst(SunburstBase):
                 "counts": 0,
                 "color": self.s["default_color"]
             }
+        self.populate_mesh_to_tree_id()
 
-        # iterate over nodes
+        print(f"Loaded MeSH-tree with {len(self.mesh_tree)} main nodes into memory")
+
+    def populate_mesh_to_tree_id(self) -> None:
+        """Populate mesh_to_tree_id lookup dict used for exporting MeSH ontology"""
+        self.mesh_to_tree_id = dict()
         for main_id, node in self.mesh_tree.items():
             for node_id, node_data in node.items():
-
-                # populate mesh_to_tree_id lookup
                 mesh_id = node_data["mesh_id"]
                 if mesh_id not in self.mesh_to_tree_id.keys():
                     self.mesh_to_tree_id[mesh_id] = set()
                 self.mesh_to_tree_id[mesh_id].add(node_id)
 
-        print(f"Loaded MeSH-tree with {len(self.mesh_tree)} main nodes into memory")
-
-    def export_mesh_tree(self, mode: str = "Excel", template: bool = False) -> str:
+    def export_mesh_tree(self, mode: str = "Excel", template: bool = False,
+                         current_data: list = None) -> str:
         """Export mesh tree as Excel/TSV file; Primary identifier is the MeSH ID
 
         :param mode: defines whether to create an Excel or .tsv file
         :param template: if True, a template is created (all-white, 0 counts)
+        :param current_data: use custom data and export plot as it is currently displayed in UI
         :returns: absolute path to generated Excel file (filename: mesh_tree_{drug_name}.xlsx/tsv
         """
         print("Exporting MeSH-tree ..")
         if template:
             fn_base = "mesh_tree_template"
             header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
-                      f"Counts [Template Drug]", "Color"]
+                      "Counts [Template Drug]", "Color"]
         else:
             if self.custom_ontology:
                 fn_base = sanitize_string(self.custom_ontology_title)
@@ -1089,38 +1100,54 @@ class MeSHSunburst(SunburstBase):
                 fn_base = f"mesh_tree_{self.drug_name.lower()}"
                 header = ["MeSH ID", "Tree ID", "Name", "Description", "Comment",
                           f"Counts [{self.drug_name}]", "Color"]
+                self.populate_mesh_to_tree_id()
+
+        if current_data:
+            current_data = self.get_label_to_current_counts(current_data)
 
         # get unique rows based on MeSH-id
         unique_rows = set()
         dupe_check = set()
-        for main_id, node in self.mesh_tree.items():
-            for sub_id, v in node.items():
+        white = "#FFFFFF"
+        for sub_tree_id, sub_tree in self.mesh_tree.items():
+            for node_id, node in sub_tree.items():
                 if self.custom_ontology:
-                    node_id = v["id"]
+                    node_id = node["id"]
                 else:
-                    node_id = v["mesh_id"]
+                    node_id = node["mesh_id"]
 
                 # if not custom ontology, skip dupes (have same counts, colors anyway)
                 if not self.custom_ontology and node_id in dupe_check:
                     continue
 
                 # add row data
+                label = node["label"]
+                description = node["description"]
                 if self.custom_ontology:
+                    parent = node["parent"]
+                    if parent and len(node["is_a"]) > 1:
+                        parent = "|".join([_[0] for _ in node["is_a"]])
+
                     # minimal format with 4 columns
                     unique_rows.add((node_id,
-                                     v["parent"],
-                                     v["label"],
-                                     v["description"].replace("\n", ";"),
+                                     parent,
+                                     label,
+                                     description.replace("\n", ";"),
                                      0,
-                                     "#FFFFFF"))
+                                     white))
                 else:
+                    if current_data:
+                        # replaces counts with propagated counts
+                        counts = current_data[label]
+                    else:
+                        counts = int(node["counts"])
                     unique_rows.add((node_id,
                                      "|".join(self.mesh_to_tree_id[node_id]),
-                                     v["label"],
-                                     v["description"],
+                                     label,
+                                     description,
                                      "",
-                                     int(v["counts"]) if not template else 0,
-                                     v["color"] if not template else "#FFFFFF"))
+                                     counts if not template else 0,
+                                     node["color"] if not template else white))
 
                 # add mesh id to dupe check
                 dupe_check.add(node_id)

@@ -4,19 +4,23 @@
 [![pylint-badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/MNikley/303283c4b9026d59cda9e9dd9f697110/raw/pylint_badge.json)](https://github.com/Delta4AI/OntoloViz/actions/workflows/pylint.yml)
 <!--- documentation for pylint-badge: https://github.com/marketplace/actions/dynamic-badges --->
 
-OntoloViz
-=========
+---
 
-OntoloViz is a graphical user interface for the creation of interactive sunburst plots of phenotype and drug ontologies.
-You might find it useful to quickly visualize your data for reports or to share the generated plots with collaborators.
-Take a look at the [screenshot and demos section](#screenshots-and-demos) or explore examples in `.html` format from the
-provided [templates.zip](https://github.com/Delta4AI/OntoloViz/releases/download/v1.0.3/templates.zip) archive to get a 
-better understanding of the scope of the package.  
+<div style="text-align:center">
+  <img src="https://github.com/Delta4AI/OntoloViz/assets/75040444/0b862f62-d0a6-4616-8021-2af2d0302ec2">
+  <p>
+    OntoloViz is a user-friendly interface that enables the creation of interactive sunburst plots for 
+    biomedical ontologies. It allows you to conveniently visualize your data for reports or share the 
+    generated plots with collaborators. Check out the <a href="#screenshots-and-demos">screenshot and demo section</a>
+    to download interactive .html examples and to gain a better understanding of the package's capabilities.
+  </p>
+</div>
 
+---
 Quickstart
 ==========
 The GUI can be run by downloading the latest [release](https://github.com/Delta4AI/OntoloViz/releases) 
-or by installing the package via PyPi (OS independent, requires **Python 3.7+**):
+or by installing the package via PyPi (OS independent, requires **Python 3.8+**):
 
     pip install ontoloviz
 
@@ -24,23 +28,7 @@ After the installation you can run the GUI from the command line with the follow
 
     ontoloviz
 
-Empty templates or pre-populated examples can be found in the `templates.zip` file in the 
-[release](https://github.com/Delta4AI/OntoloViz/releases) section as well.
-Alternatively, you can clone this repository, install the required dependencies and launch the GUI:
-
-    git clone https://github.com/Delta4AI/OntoloViz.git
-    
-    # optional: install and activate venv
-    python -m venv  # python3 on linux
-    venv\scripts\activate  # source venv/bin/activate on linux
-    
-    # install dependencies
-    pip install plotly>=5 openpyxl>=3
-    
-    # launch GUI
-    cd OntoloViz/src
-    python -c "from ontoloviz import run_app; run_app()"
-
+---
 Usage
 =====
 
@@ -53,45 +41,53 @@ GUI Options
 -----------
 <img height=250px alt="gui_small" src="https://user-images.githubusercontent.com/75040444/228182954-fb48a953-ec56-46db-81ad-816d9f356206.png">
 
-- **Load File**: load an `.tsv` or `.xlsx` file containing drug- or phenotype-ontology data
-- General
-  - **Set Color Scale**: define a custom color scale for the sunburst color scaling when color propagation is active
-  - **Set Border**: configures the border properties drawn around sunburst wedges
-- Display
-  - **Drop empty nodes** (phenotype sunburst only): drops nodes who have no further children and 0 counts
-  - **Wedge Width** (drug sunburst only): switch from full outer circle (total) to count-based wedge widths (remainder)
-  - **Display Labels**: controls display of labels inside sunburst wedges, available options:
-    - `all`
-    - `propagation`
-    - `drugs` (drug sunburst only)
-    - `none`
-- Propagation
-  - **Enable**: enables count- and color propagation from child to parent nodes
-  - **Color**: controls color propagation by the options:
-    - `off`: color scale is based on 'Color' column from imported file
-    - `specific`: color scale is based on the maximum values of the corresponding subtree
-    - `global`: color scale is based on the maximum values of the entire tree ontology
-    - `phenotype` (phenotype sunburst only): Only the most outer phenotype in a branch is colored
-  - **Counts**: controls count propagation by the options:
-    - `off`: no counts are propagated, counts equal imported values
-    - `level`: counts are propagated up to defined level, values above threshold remain unchanged
-    - `all`: counts are propagated up to central node, imported values are corrected and overwritten
-  - **Level**: controls color- and count-propagation from outer to inner levels up to defined level
-    - affects color propagation when **Color** is set to `specific` or `global`
-    - affects count propagation when **Counts** is set to `level`
-    - drug sunburst: 1 corresponds to the central node, 5 to the outermost node (=drug)
-    - phenotype sunburst: 0 corresponds to the central node, 13 to the outermost node
-- Summary Plot
-  - **Enable**: displays all available subtrees in a single view
-    (resource intensive, set Labels to `none` for faster loading)
-  - **Columns**: defines the amount of columns when summary plot is enabled
-- **Save**: when enabled, an interactive `.html` file is generated for later use
+**Load File**: load an `.tsv` or `.xlsx` file containing ontology data based below defined file formats
+
+**Load from Web**: load an `.obo` ontology from a pre-defined list, or define an URL to any ontology
+
+### General options
+- **Set Color Scale**: define a custom color scale for the sunburst color scaling when color propagation is active
+- **Set Border**: configures the border properties drawn around sunburst wedges
+- **Drop empty nodes** (phenotype sunburst only): drops nodes who have no further children and 0 counts
+- **Wedge Width** (drug sunburst only): switch from full outer circle (total) to count-based wedge widths (remainder)
+- **Display Labels**: controls display of labels inside sunburst wedges, available options:
+  - `all`
+  - `propagation`
+  - `drugs` (drug sunburst only)
+  - `none`
+- **Legend**: displays a weighted color bar (disabled for summary plots with specific color propagation enabled)
+
+### Propagation options
+- **Enable**: enables count- and color propagation from child to parent nodes
+- **Color**: controls color propagation by the options:
+  - `off`: color scale is based on 'Color' column from imported file
+  - `specific`: color scale is based on the maximum values of the corresponding subtree
+  - `global`: color scale is based on the maximum values of the entire tree ontology
+  - `phenotype` (phenotype sunburst only): Only the most outer phenotype in a branch is colored
+- **Counts**: controls count propagation by the options:
+  - `off`: no counts are propagated, counts equal imported values
+  - `level`: counts are propagated up to defined level, values above threshold remain unchanged
+  - `all`: counts are propagated up to central node, imported values are corrected and overwritten
+- **Level**: controls color- and count-propagation from outer to inner levels up to defined level
+  - affects color propagation when **Color** is set to `specific` or `global`
+  - affects count propagation when **Counts** is set to `level`
+  - drug sunburst: 1 corresponds to the central node, 5 to the outermost node (=drug)
+  - phenotype sunburst: 0 corresponds to the central node, 13 to the outermost node
+
+### Summary options
+- **Enable**: displays all available subtrees in a single view
+  (resource intensive, set Labels to `none` for faster loading)
+- **Columns**: defines the amount of columns when summary plot is enabled
+
+### Save and Plot options
+- **Save**: when enabled, an interactive `.html` file containing the plot as well as a `.tsv` file containing the ontology data based on the current settings is generated for later use
 - **Plot**: Process and generate plot, opens in a Browser window
 
-MeSH Sunbursts
--------------------
-The MeSH sunburst structure follows the principles of the 
-[MeSH tree](https://www.nlm.nih.gov/mesh/intro_trees.html).
+---
+
+MeSH Ontology
+--------------
+This separator-based ontology follows the principles of the [MeSH tree](https://www.nlm.nih.gov/mesh/intro_trees.html).
 - A Tree ID is defined by a **combination of three numbers or letters**, for example `C01`.
 - Levels are separated by a **dot `.`**, for example `C01.001`.
 - Ontologies **up to thirteen hierarchical levels** are supported.
@@ -100,9 +96,6 @@ The MeSH sunburst structure follows the principles of the
 - If a child element is defined without a valid parent node existing, the GUI generates all parent elements with the default color and value 0. For example, the node `123.001` is automatically generated if only the child node `123.001.001` was defined. This works only if at least the most central node `123` was defined manually.
 - Counts entered in the file will be converted to integers. If a node should be displayed without counts, use `0`.
 - The loaded file must contain **7 columns** and follow the below structure to be correctly recognized:
-
-MeSH Ontology File Structure
----------------------------------
 
 | Column Index | Header Text   | Description                                                                    |
 |--------------|---------------|--------------------------------------------------------------------------------|
@@ -114,12 +107,12 @@ MeSH Ontology File Structure
 | 5            | Counts [Name] | Required count for wedge weights, `Name` will be used as figure title          | 
 | 6            | Color         | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF` |
 
+---
 
-ATC (drug) Sunbursts
---------------
-The ATC sunburst structure follows the principles of the 
-[ATC tree](https://www.who.int/tools/atc-ddd-toolkit/atc-classification).
-- ATC codes are divided into **five levels**, which must follow the following naming conventions:
+ATC Ontology
+------------
+This kind of sunbursts have a fixed hierarchy of 5 levels and are based on the [ATC tree](https://www.who.int/tools/atc-ddd-toolkit/atc-classification).
+- ATC codes are divided into five levels, which must follow the following naming conventions:
   - 1st level: letter
   - 2nd level: two numbers
   - 3rd level: letter
@@ -132,9 +125,6 @@ The ATC sunburst structure follows the principles of the
 - The loaded file must contain **6 columns** and follow the below structure to be correctly 
   recognized as a ATC ontology:
 
-ATC Ontology File Structure
-----------------------------
-
 | Column Index | Header Text   | Description                                                                    |
 |--------------|---------------|--------------------------------------------------------------------------------|
 | 0            | ATC code      | Required primary identifier of a node in format `A10BA02`                      |
@@ -144,16 +134,14 @@ ATC Ontology File Structure
 | 4            | Counts [Name] | Required count for wedge weights, `Name` will be used as figure title          |
 | 5            | Color         | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF` |
 
+---
 
-Custom Ontologies
------------------------------------
+Custom Separator-based Ontologies
+---------------------------------
 OntoloViz supports loading of custom ontologies - if no known format is detected, a prompt will ask
 whether the loaded file is a separator-based ontology or if it does contain identifiers with child- 
-and parent-ids.
-
-Separator-based File Structure
----------------------------------
-The following separators are supported: `.` (dot), `,` (colon), `_` (underscore), `/` (slash)
+and parent-ids. For separator-based ontologies, the following separators are supported: `.` (dot), `,` (colon), `_` (underscore), `/` (slash).
+To generate such an ontology, the following 5-column layout is required:
 
 | Column Index | Header Text | Description                                                                                         |
 |--------------|-------------|-----------------------------------------------------------------------------------------------------|
@@ -163,10 +151,11 @@ The following separators are supported: `.` (dot), `,` (colon), `_` (underscore)
 | 3            | Count       | Optional count for wedge weights                                                                    |
 | 4            | Color       | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF`                      |
 
-File Structure for Ontologies with Child-Parent Definitions
------------------------------------------------------------
-This option allows to load any ontologies that do not follow a structured schema. 
-This requires the definition of a child-parent relationship using a 6-column layout.
+---
+
+Custom Parent-based Ontologies
+------------------------------
+For loading any ontology with arbitrary IDs that do not follow a structured schema, the definition of a child-parent relationship using a 6-column layout is required:
 
 | Column Index | Header Text | Description                                                                                  |
 |--------------|-------------|----------------------------------------------------------------------------------------------|
@@ -177,29 +166,23 @@ This requires the definition of a child-parent relationship using a 6-column lay
 | 4            | Count       | Optional count for wedge weights                                                             |
 | 5            | Color       | Optional color for the sunburst wedges, must be hex-string in format `#FFFFFF`               |
 
-
+---
 Templates and Examples
 ======================
-Templates and examples can be found in the provided 
-[templates.zip](https://github.com/Delta4AI/OntoloViz/releases/download/v1.0.3/templates.zip) archive.
 
-- `pubmed_documents_mapped_to_mesh.tsv`: based on the [MeSH](https://meshb.nlm.nih.gov/treeView) subtree `C` from 2022. 
-  Disease-related MeSH terms were extracted from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) 
-  database (title + abstract) and further mapped to the nodes.
+| Filename                                                                                                                                                     | Description                                                                                                                                                                                                                                                       |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [atc_example_covid_drugs_experimental.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/atc_example_covid_drugs_experimental.tsv)   | ATC-based example with data from the [DrugBank](https://go.drugbank.com) indicating experimental drugs related to COVID-19.                                                                                                                                       |
+| [atc_example_covid_drugs_trial_summary.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/atc_example_covid_drugs_trial_summary.tsv) | ATC-based example with data from [publicly available clinical trial data](https://clinicaltrials.gov/) indicating drugs tested in clinical studies, one count represents usage in one study.                                                                      |
+| [atc_tree_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/atc_tree_template.tsv)                                         | ATC-based empty template of the [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) tree based on the manually curated chemical database of bioactive molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads). |
+| [custom_template_parent_based.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/custom_template_parent_based.tsv)                   | Template for creating your own ontology based on any child and parent terms.                                                                                                                                                                                      |
+| [custom_template_separator_based.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/custom_template_separator_based.tsv)             | Template to create your own ontology based on a separator-based tree structure - for this template the underscore character `_` has been used.                                                                                                                    |
+| [mesh_example_pubmed_mapped.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/mesh_example_pubmed_mapped.tsv)                       | MeSH-based example with data from the publicly available [PubMed](https://pubmed.ncbi.nlm.nih.gov/) database of publications (title + abstract), where disease-related MeSH terms were extracted and mapped to the MeSH-tree.                                     |
+| [mesh_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/mesh_template.tsv)                                                 | MeSH-based empty template of the [MeSH](https://meshb.nlm.nih.gov/treeView) tree `C` and `F03`. Terms are unique and mapped to all related parent nodes.                                                                                                          |
+| [atc_example.html](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/atc_example.html)                                                   | ATC-based sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.                                                                                                                                                                           |
+| [mesh_example.html](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/templates/mesh_example.html)                                                 | MeSH-based sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.                                                                                                                                                                          |
 
--  `mesh_tree_template.tsv`: template of the [MeSH](https://meshb.nlm.nih.gov/treeView) tree `C` and `F03`. 
-  Terms are unique and mapped to all related parent nodes.
-
--  `covid_drugs_trial_summary.tsv`: based on [publicly available clinical trial data](https://clinicaltrials.gov/) 
-  related to COVID-19. One count represents one clinical trial.
-
-- `atc_tree_template.tsv`: template of the [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) 
-  tree based on the manually curated chemical database of bioactive 
-  molecules [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads).
-
-- `drug_sunburst_example.html`: sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.
-
-- `phenotype_sunburst_example.html`: sample plot generated with the provided `covid_drugs_trial_summary.tsv` file.
+---
 
 Screenshots and Demos
 =====================
@@ -231,6 +214,14 @@ Screenshots and Demos
 </table>
 
 > **_Screenshot 3 & 4:_**  Left: define automatic color scales based on defined counts with thresholds and hex color codes, Right: define border properties (width, opacity, colors) or disable them entirely
+
+---
+
+Known Issues
+============
+- When exporting a template from a remotely fetched .obo ontology and re-loading it from a file, 1:N parent relations are not mapped correctly, resulting in missing nodes.
+
+---
 
 Special Thanks to
 =================

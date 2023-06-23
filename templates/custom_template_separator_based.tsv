@@ -1,0 +1,6 @@
+ID	Label	Description	Count	Color
+A	my group			
+A_1	child 1	Child attached to group		
+A_1_2	child 2	Child attached to child 1		
+A_1_3	child 3	Child attached to child 1	1	#0000FF
+B_1_2_3_4|C_1_2_3_4_5	child 4	Child without any parent	2	#FF0000

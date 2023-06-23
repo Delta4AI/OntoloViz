@@ -6,7 +6,8 @@ from tkinter import Toplevel, messagebox, ttk, StringVar, BooleanVar, IntVar, EN
 from tkinter.ttk import LabelFrame, Frame
 from tkinter import Label as LabelOG, Entry as EntryOG
 from tkinter.colorchooser import askcolor
-from .core import rgb_to_hex, hex_to_rgb, MeSHSunburst, ATCSunburst
+from .core import MeSHSunburst, ATCSunburst
+from .core_utils import rgb_to_hex, hex_to_rgb
 
 
 _key_release = "<KeyRelease>"
@@ -604,6 +605,7 @@ class SelectOptionsPopup(Toplevel):
         self.resizable(False, False)
         self.result = None
         self.description = None
+        self.is_ontology_popup = is_ontology_popup
 
         # custom .obo definitions
         self.custom_url = None
@@ -617,7 +619,7 @@ class SelectOptionsPopup(Toplevel):
         descriptive_label.pack(pady=10, padx=10)
 
         self.radio_var = StringVar()
-        self.radio_var.trace_add("write", self.radio_var_callback)
+
         self.options = options
         rb_frame = Frame(self)
         rb_frame.pack()
@@ -628,7 +630,8 @@ class SelectOptionsPopup(Toplevel):
             if tooltip:
                 create_tooltip(rb, tooltip)
 
-        if is_ontology_popup:
+        if self.is_ontology_popup:
+            self.radio_var.trace_add("write", self.radio_var_callback)
             self.cpane = CollapsiblePane(self)
             self.cpane.pack()
             Label(self.cpane.frame, text="URL:").grid(column=0, row=0, sticky="E", padx=(0, 2))
@@ -674,7 +677,7 @@ class SelectOptionsPopup(Toplevel):
     def on_ok(self):
         self.result = self.radio_var.get()
         self.description = self.options[self.result][0]
-        if self.radio_var.get() == "custom_url":
+        if self.radio_var.get() == "custom_url" and self.is_ontology_popup:
             url_entry = self.url_entry.get()
             min_node_size = self.min_node_size_entry.get()
             root_id = self.root_id_entry.get()

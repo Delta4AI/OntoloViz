@@ -145,7 +145,7 @@ class SunburstBase:
         """
         self.set_settings({"color_scale": color_scale, "default_color": color_scale[0][1]})
 
-    def get_label_to_current_counts(self, current_data: list[tuple]) -> dict:
+    def get_label_to_current_counts(self, current_data: list) -> dict:
         """
         Takes current_data lists and populates a list with dictionaries in the current trees
         structure to map labels to the currently displayed counts

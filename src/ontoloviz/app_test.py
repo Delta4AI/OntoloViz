@@ -1,8 +1,9 @@
 from time import sleep
 from threading import Thread
-from .core import rgb_to_hex, chunks, generate_color_range
+from .core_utils import rgb_to_hex, chunks, generate_color_range
 from .core import SunburstBase, MeSHSunburst, ATCSunburst
 from .app import App, BorderPopup, ExportPopup, ColorScalePopup
+import requests
 import tkinter
 import plotly
 

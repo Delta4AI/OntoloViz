@@ -11,7 +11,7 @@
   <p>
     OntoloViz is a user-friendly interface that enables the creation of interactive sunburst plots for 
     biomedical ontologies. It allows you to conveniently visualize your data for reports or share the 
-    generated plots with collaborators. Check out the <a href="#screenshots-and-demos">screenshot and demo section</a>
+    generated plots with collaborators. Check out the <a href="#templates-and-examples">examples section</a>
     to download interactive .html examples and to gain a better understanding of the package's capabilities.
   </p>
 </div>
@@ -43,7 +43,7 @@ GUI Options
 
 **Load File**: load an `.tsv` or `.xlsx` file containing ontology data based below defined file formats
 
-**Load from Web**: load an `.obo` ontology from a pre-defined list, or define an URL to any ontology
+**Load from Web**: load an `.obo` ontology from a pre-defined list, or define a URL to any ontology
 
 ### General options
 - **Set Color Scale**: define a custom color scale for the sunburst color scaling when color propagation is active

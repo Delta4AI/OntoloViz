@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ontoloviz"
-version = "1.6.1"
+version = "1.7.1"
 description = "OntoloViz drug- and phenotype-ontology visualization GUI"
 authors = ["Matthias Ley <matthias.ley@delta4.ai>"]
 license = "MIT"

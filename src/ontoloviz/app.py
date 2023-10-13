@@ -89,6 +89,8 @@ class App(Tk):
         self.mesh_summary_plot = None  # checkbox widget
         self.mesh_summary_plot_cols = None  # entry widget
         self.mesh_summary_plot_lbl = None  # label 'Columns: '
+        self.mesh_plot_type_var = StringVar(value="Sunburst Plot")
+        self.mesh_plot_type = None  # Combobox
         self.atc_data_sources = ["Linked Tuple"]
         self.atc_data_source_var = StringVar(value=self.atc_data_sources[0])
         self.atc_legend_enabled_control = BooleanVar(value=True)
@@ -493,7 +495,7 @@ class App(Tk):
                                                 "propagation level")
 
         # summary plot subframe
-        mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Summary Plot",
+        mesh_summary_plot_frm = LabelFrame(p_options_frm, text="Plot",
                                            style="primary_sub.TLabelframe")
         mesh_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
@@ -502,7 +504,7 @@ class App(Tk):
                                             validatecommand=partial(self.overview_entry_validation,
                                                                     "mesh"))
         self.mesh_summary_plot_cols.insert(0, "5")
-        self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Enable",
+        self.mesh_summary_plot = Checkbutton(mesh_summary_plot_frm, text="Summary",
                                              style="primary.TCheckbutton", db_w=True, mesh_w=True,
                                              variable=self.mesh_summary_plot_control, onvalue=True,
                                              offvalue=False,
@@ -519,6 +521,15 @@ class App(Tk):
         create_tooltip(self.mesh_summary_plot,
                        "Select to plot all data in a combined overview (resource intensive, "
                        "set Labels to 'none' for faster loading)")
+
+        self.mesh_plot_type = Combobox(mesh_summary_plot_frm,
+                                       textvariable=self.mesh_plot_type_var,
+                                       state="readonly",
+                                       values=[str(_) for _ in self.p.plot_type.keys()],
+                                       width=14,
+                                       mesh_w=True)
+        self.mesh_plot_type.pack(side="right", padx=2)
+        create_tooltip(self.mesh_plot_type, "Select type of plot to generate")
 
         # run buttons frame
         p_run_frm = Frame(p_frm, style="primary.TFrame")
@@ -728,7 +739,7 @@ class App(Tk):
                                                "propagation level")
 
         # summary plot subframe
-        atc_summary_plot_frm = LabelFrame(d_options_frm, text="Summary Plot",
+        atc_summary_plot_frm = LabelFrame(d_options_frm, text="Plot",
                                           style="primary_sub.TLabelframe")
         atc_summary_plot_frm.pack(ipadx=2, ipady=2, padx=2, pady=2, fill="both")
 
@@ -738,7 +749,7 @@ class App(Tk):
                                                                    "atc"))
         self.atc_summary_plot_cols.insert(0, "5")
         self.atc_summary_plot = Checkbutton(atc_summary_plot_frm,
-                                            text="Enable",
+                                            text="Summary",
                                             style="primary.TCheckbutton",
                                             db_w=True,
                                             atc_w=True,
@@ -953,19 +964,11 @@ class App(Tk):
             "atc_summary_plot": self.atc_summary_plot_var.get()
         })
 
-    def toggle_widgets(self, enable: bool = None, mode: str = None,
-                       dedicated_parent: [Frame, LabelFrame] = None):
-        """Enables/disables widgets in GUI
-
-        :param enable: True to enable, False to disable
-        :param mode: One of ['db', 'mesh', 'atc', 'recent'] - 'recent' requires previous toggling
-                     of any other mode
-        :param dedicated_parent: Used internally to modify deeper levels
-        """
+    def toggle_widgets(self, enable: bool = None, mode: str = None, dedicated_parent: [Frame, LabelFrame] = None):
+        """Enables/disables widgets in GUI"""
         wdgs = (Button, Checkbutton, Entry, Label, Radiobutton)
         if mode == "recent":
             mode = self.recent_ui_toggle_mode
-
             # additionally toggle checkbox widgets
             self.toggle_checkbox_widgets(mode=mode, enable=enable)
         else:
@@ -982,68 +985,24 @@ class App(Tk):
         else:
             parent = dedicated_parent
 
-        for obj in parent.winfo_children():
-
-            # set state of direct children
-            for child in obj.winfo_children():
-                if isinstance(child, wdgs):
-                    if mode == "db" and child.db_w \
-                            or mode == "mesh" and child.mesh_w \
-                            or mode == "atc" and child.atc_w:
-                        child.configure(state=state)
-                elif isinstance(child, Combobox):
-                    if mode == "db" and child.db_w \
-                            or mode == "mesh" and child.mesh_w \
-                            or mode == "atc" and child.atc_w:
-                        child.configure(state=combo_state)
-
-                # # go deeper another level  # TODO: make this work
-                # else:
-                #     self.toggle_widgets(enable, mode, child)
-
-                # go deeper another level
-                elif isinstance(child, (LabelFrame, Frame)):
-                    for child_two in child.winfo_children():
-                        if isinstance(child_two, wdgs):
-                            if mode == "db" and child_two.db_w \
-                                    or mode == "mesh" and child_two.mesh_w \
-                                    or mode == "atc" and child_two.atc_w:
-                                child_two.configure(state=state)
-                        elif isinstance(child_two, Combobox):
-                            if mode == "db" and child_two.db_w \
-                                    or mode == "mesh" and child_two.mesh_w \
-                                    or mode == "atc" and child_two.atc_w:
-                                child_two.configure(state=combo_state)
-
-                        # go deeper another level
-                        elif isinstance(child_two, (LabelFrame, Frame)):
-                            for child_three in child_two.winfo_children():
-                                if isinstance(child_three, wdgs):
-                                    if mode == "db" and child_three.db_w \
-                                            or mode == "mesh" and child_three.mesh_w \
-                                            or mode == "atc" and child_three.atc_w:
-                                        child_three.configure(state=state)
-                                elif isinstance(child_three, Combobox):
-                                    if mode == "db" and child_three.db_w \
-                                            or mode == "mesh" and child_three.mesh_w \
-                                            or mode == "atc" and child_three.atc_w:
-                                        child_three.configure(state=combo_state)
-
-                                # go deeper another level
-                                elif isinstance(child_three, (LabelFrame, Frame)):
-                                    for child_four in child_three.winfo_children():
-                                        if isinstance(child_four, wdgs):
-                                            if mode == "db" and child_four.db_w \
-                                                    or mode == "mesh" and child_four.mesh_w\
-                                                    or mode == "atc" and child_four.atc_w:
-                                                child_four.configure(state=state)
-                                        elif isinstance(child_four, Combobox):
-                                            if mode == "db" and child_four.db_w \
-                                                    or mode == "mesh" and child_four.mesh_w\
-                                                    or mode == "atc" and child_four.atc_w:
-                                                child_four.configure(state=combo_state)
-
+        self._toggle_widgets_recursive(parent, state, combo_state, mode, wdgs)
         self.update()
+
+    def _toggle_widgets_recursive(self, parent, state, combo_state, mode, wdgs):
+        """Recursive function to set states for widgets at any depth."""
+
+        for child in parent.winfo_children():
+            if isinstance(child, wdgs) and self.is_eligible_for_toggle(child=child, mode=mode):
+                child.configure(state=state)
+            elif isinstance(child, Combobox) and self.is_eligible_for_toggle(child=child, mode=mode):
+                child.configure(state=combo_state)
+            elif isinstance(child, (LabelFrame, Frame)):
+                self._toggle_widgets_recursive(child, state, combo_state, mode, wdgs)
+
+    @staticmethod
+    def is_eligible_for_toggle(child: [Frame, Button, Checkbutton, Entry, Label, Radiobutton, Combobox] = None,
+                               mode: str = None):
+        return mode == "db" and child.db_w or mode == "mesh" and child.mesh_w or mode == "atc" and child.atc_w
 
     def rollback_ui(self):
         """Removes ATC/MeSH related widgets"""
@@ -1121,6 +1080,7 @@ class App(Tk):
         datasource = None
         legend = None
         cfg_exclude = ""
+        plot_type = None
 
         # assign variables based on mode
         if mode == "atc":
@@ -1134,6 +1094,7 @@ class App(Tk):
             datasource = self.atc_data_source_var.get()
             legend = self.atc_legend_enabled_control.get()
             cfg_exclude = "mesh_"
+            plot_type = None
         elif mode == "mesh":
             input_fn = self.mesh_file_loaded
             populate_data_source = self.p.populate_mesh_from_data_source
@@ -1145,8 +1106,10 @@ class App(Tk):
             datasource = self.mesh_data_source_var.get()
             legend = self.mesh_legend_enabled_control.get()
             cfg_exclude = "atc_"
+            plot_type = self.mesh_plot_type_var.get()
 
         obj.s["legend"] = legend
+        obj.s["plot_type"] = plot_type
 
         # populate tree from Excel or database data
         if asset == "CUSTOM":

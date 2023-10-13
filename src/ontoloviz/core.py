@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
-from plotly.graph_objects import Figure, Sunburst
+from plotly.graph_objects import Figure, Sunburst, Icicle, Treemap
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
 from .obo_utils import sanitize_string
@@ -843,8 +843,13 @@ class SunburstBase:
         global_scale = [(round(idx/max(global_scale)[0], 3), col) for (idx, col) in global_scale]
         global_scale = prioritize_bright_colors(global_scale)
 
+        if isinstance(self, MeSHSunburst):
+            plot_type = self.plot_type.get(self.s.get("plot_type", None), Sunburst)
+        else:
+            plot_type = Sunburst
+
         # create list of traces
-        traces = [Sunburst(
+        traces = [plot_type(
             labels=labels[idx],
             parents=[_["parent"] for _ in v.values()],
             values=[_["counts"] for _ in v.values()],
@@ -959,6 +964,7 @@ class SunburstBase:
 
         # save / plot figure
         if self.s["export_plot"]:
+            # fig.update_layout(legend=dict(x=0, y=1), autosize=False, width=1280, height=900)
             plotly_plot(fig, config=config, filename=file_name)
             html_path = os.path.abspath(file_name)
             tsv_path = None
@@ -1034,6 +1040,11 @@ class MeSHSunburst(SunburstBase):
         self.phenotype_counts = dict()
         self.mesh_tree = dict()
         self.mesh_to_tree_id = dict()  # 1:N mesh to mesh-tree-ids
+        self.plot_type = {
+            "Sunburst Plot": Sunburst,
+            "Icicle Plot": Icicle,
+            "Treemap": Treemap
+        }
 
     def init(self, database: str = None) -> None:
         """Manual database initialization routine

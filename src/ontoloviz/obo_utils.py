@@ -28,7 +28,7 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
     return tree
 
 
-def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list[int]:
+def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list:
     drop_idxs = []
     for idx, (attempts, node) in enumerate(to_process):
         if attempts >= 20:
@@ -48,7 +48,7 @@ def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list[
     return drop_idxs
 
 
-def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None) -> tuple[dict, list]:
+def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None) -> tuple:
     tree = dict()
     to_process = list()
     duplicate_check = list()
@@ -70,7 +70,7 @@ def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = Non
 
 
 def handle_and_assign_root_nodes(node_id: str = None, tree: dict = None, to_process: list = None,
-                                 line_data: list[str] = None):
+                                 line_data: list = None):
     parent = line_data[0]
     count = safe_convert_int(line_data[3])
     color = line_data[4]

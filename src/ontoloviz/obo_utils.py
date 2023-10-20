@@ -13,61 +13,11 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
         id, parent, label, description, count, color
     :param app: App object used for status updates
     """
-    tree = {}
-    to_process = []
-    with open(file=file_name, mode="r", encoding="utf-8") as f_in:
-        for line_idx, line in enumerate(f_in):
-            if line_idx == 0:
-                continue
-            node_ids_unformatted, *line_data = line.rstrip("\n").split("\t")
-            node_ids = node_ids_unformatted.split("|")
-            for node_id in node_ids:
-                parent = line_data[0]
-                count = 0
-                color = line_data[4]
-                try:
-                    count = int(line_data[3])
-                except ValueError:
-                    pass
-
-                node = {
-                    "id": node_id,
-                    "parent": parent,
-                    "level": 0,
-                    "label": line_data[1],
-                    "description": line_data[2],
-                    "counts": count if count != 0 else zero,
-                    "imported_counts": count if count != 0 else fake_one,
-                    "color": color if color else white
-                }
-
-                # populate first level of tree structure
-                if not parent:
-                    tree[node_id] = {
-                        node_id: node
-                    }
-                else:
-                    to_process.append([0, node])
+    tree, to_process = parse_file_to_extract_root_nodes_and_processable_lines(file_name)
 
     while True:
-        drop_idxs = []
-        for idx, (attempts, node) in enumerate(to_process):
-            if attempts >= 20:
-                print(f"Dropping node because no suitable parent was found after "
-                      f"20 attempts: {node['id']}")
-                drop_idxs.append(idx)
-                continue
-
-            for sub_tree_id, sub_tree in tree.items():
-                parent = node["parent"]
-                if parent in sub_tree.keys():
-                    node["level"] = tree[sub_tree_id][parent]["level"] + 1
-                    tree[sub_tree_id][node["id"]] = node
-                    drop_idxs.append(idx)
-
-            to_process[idx][0] += 1
-
-        for idx in sorted(drop_idxs, reverse=True):
+        drop_idxs = handle_and_assign_nodes(to_process, tree)
+        for idx in sorted(list(set(drop_idxs)), reverse=True):
             del to_process[idx]
 
         if not to_process:
@@ -76,6 +26,80 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
         print(f"Dropped: {len(drop_idxs)}, Left to process: {len(to_process)}")
 
     return tree
+
+
+def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list[int]:
+    drop_idxs = []
+    for idx, (attempts, node) in enumerate(to_process):
+        if attempts >= 20:
+            print(f"Dropping node because no suitable parent was found after "
+                  f"20 attempts: {node['id']}")
+            drop_idxs.append(idx)
+            continue
+
+        for sub_tree_id, sub_tree in tree.items():
+            parent = node["parent"]
+            if parent in sub_tree.keys():
+                node["level"] = tree[sub_tree_id][parent]["level"] + 1
+                tree[sub_tree_id][node["id"]] = node
+                drop_idxs.append(idx)
+
+        to_process[idx][0] += 1
+    return drop_idxs
+
+
+def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None) -> tuple[dict, list]:
+    tree = dict()
+    to_process = list()
+    duplicate_check = list()
+    with open(file=input_file, mode="r", encoding="utf-8") as f_in:
+        for line_idx, line in enumerate(f_in):
+            if line_idx == 0:
+                continue
+            node_ids_unformatted, *line_data = line.rstrip("\n").split("\t")
+            node_ids = node_ids_unformatted.split("|")
+            for node_id in node_ids:
+                original_node_id = node_id
+                duplicate_count = duplicate_check.count(node_id) + 1
+                if duplicate_count > 1:
+                    node_id = f"{node_id}_{duplicate_count}"
+                duplicate_check.append(original_node_id)
+                handle_and_assign_root_nodes(node_id, tree, to_process, line_data)
+
+    return tree, to_process
+
+
+def handle_and_assign_root_nodes(node_id: str = None, tree: dict = None, to_process: list = None,
+                                 line_data: list[str] = None):
+    parent = line_data[0]
+    count = safe_convert_int(line_data[3])
+    color = line_data[4]
+
+    node = {
+        "id": node_id,
+        "parent": parent,
+        "level": 0,
+        "label": line_data[1],
+        "description": line_data[2],
+        "counts": count if count != 0 else zero,
+        "imported_counts": count if count != 0 else fake_one,
+        "color": color if color else white
+    }
+
+    # populate first level of tree structure
+    if not parent:
+        tree[node_id] = {
+            node_id: node
+        }
+    else:
+        to_process.append([0, node])
+
+
+def safe_convert_int(int_as_str: str = None) -> int:
+    try:
+        return int(int_as_str)
+    except ValueError:
+        return 0
 
 
 def get_remote_ontology(ontology_short: str = None, app: object = None, url: str = None,

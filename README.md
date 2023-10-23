@@ -217,15 +217,15 @@ Screenshots and Demos
 
 ---
 
-Known Issues
-============
-- When exporting a template from a remotely fetched .obo ontology and re-loading it from a file, 1:N parent relations are not mapped correctly, resulting in missing nodes.
-
----
-
 Special Thanks to
 =================
 
 * Paul Perco, who had the initial idea for this package and provided support throughout the entire process
 * Andreas Heinzel, for inspiration regarding architectural- and software-related topics
 * The Delta4 GmbH team for providing helpful inputs
+
+---
+Reference
+=========
+Matthias Ley, Andreas Heinzel, Lucas Fillinger, Klaus Kratochwill, Paul Perco, OntoloViz: a GUI for interactive visualization of ranked disease or drug lists using the MeSH and ATC ontologies, Bioinformatics Advances, 2023; vbad113, https://doi.org/10.1093/bioadv/vbad113
+

@@ -1,19 +1,20 @@
 import requests
 import re
+from typing import Union
 
 zero = 0.000001337
 fake_one = 1.000001337
 white = "#FFFFFF"
 
 
-def build_non_separator_based_tree(file_name: str = None) -> dict:
+def build_non_separator_based_tree(file_name: str = None, float_sep: str = None) -> dict:
     """Parse an ontology with child- and parent-ids from a file and build tree structure
 
     :param file_name: tab separated file with 6 columns:
         id, parent, label, description, count, color
-    :param app: App object used for status updates
+    :param float_sep: if given, counts are considered as floating point values and converted based on given separator
     """
-    tree, to_process = parse_file_to_extract_root_nodes_and_processable_lines(file_name)
+    tree, to_process = parse_file_to_extract_root_nodes_and_processable_lines(file_name, float_sep)
 
     while True:
         drop_idxs = handle_and_assign_nodes(to_process, tree)
@@ -24,6 +25,10 @@ def build_non_separator_based_tree(file_name: str = None) -> dict:
             break
 
         print(f"Dropped: {len(drop_idxs)}, Left to process: {len(to_process)}")
+
+    if float_sep:
+        print("Normalizing float counts to int")
+        normalize_tree_counts_from_float_to_int(tree)
 
     return tree
 
@@ -48,7 +53,7 @@ def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list:
     return drop_idxs
 
 
-def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None) -> tuple:
+def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None, float_sep: str = None) -> tuple:
     tree = dict()
     to_process = list()
     duplicate_check = list()
@@ -64,15 +69,15 @@ def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = Non
                 if duplicate_count > 1:
                     node_id = f"{node_id}_{duplicate_count}"
                 duplicate_check.append(original_node_id)
-                handle_and_assign_root_nodes(node_id, tree, to_process, line_data)
+                handle_and_assign_root_nodes(node_id, tree, to_process, line_data, float_sep)
 
     return tree, to_process
 
 
 def handle_and_assign_root_nodes(node_id: str = None, tree: dict = None, to_process: list = None,
-                                 line_data: list = None):
+                                 line_data: list = None, float_sep: str = None):
     parent = line_data[0]
-    count = safe_convert_int(line_data[3])
+    count = safe_convert_count(line_data[3], float_sep)
     color = line_data[4]
 
     node = {
@@ -95,11 +100,37 @@ def handle_and_assign_root_nodes(node_id: str = None, tree: dict = None, to_proc
         to_process.append([0, node])
 
 
-def safe_convert_int(int_as_str: str = None) -> int:
+def safe_convert_count(count_as_str: str = None, float_sep: str = None) -> Union[int, float]:
+    def_value = 0.0 if float_sep else 0
     try:
-        return int(int_as_str)
+        if float_sep:
+            return float(count_as_str.replace(float_sep, "."))
+        else:
+            return int(count_as_str)
     except ValueError:
-        return 0
+        return def_value
+
+
+def normalize_tree_counts_from_float_to_int(tree: dict = None):
+    max_val = find_max(tree)
+    for main_node in tree:
+        for sub_node in tree[main_node]:
+            count = tree[main_node][sub_node]["counts"]
+            if count != zero and count != fake_one:
+                tree[main_node][sub_node]["counts"] = normalize_to_int(count, max_val)
+
+
+def find_max(tree: dict):
+    max_val = zero
+    for main_node in tree:
+        for sub_node in tree[main_node]:
+            if tree[main_node][sub_node]["counts"] > max_val:
+                max_val = tree[main_node][sub_node]["counts"]
+    return max_val
+
+
+def normalize_to_int(original_value: float = None, max_float: float = None, max_integer_value: int = 100) -> int:
+    return int((original_value / max_float) * max_integer_value)
 
 
 def get_remote_ontology(ontology_short: str = None, app: object = None, url: str = None,

@@ -133,6 +133,7 @@ class App(Tk):
         self.atc_file_loaded = ""
         self.mesh_file_loaded = ""
         self.performance_warning_shown = False
+        self.custom_ontology_separator = None
 
         # various templates
         self.alt_text_db = "This functionality requires a valid database"
@@ -1123,7 +1124,8 @@ class App(Tk):
                 elif datasource.startswith("custom_sep_"):
                     self.p.populate_custom_ontology_from_tsv(fn=input_fn, ontology_type=datasource)
                 else:
-                    self.p.custom_ontology = build_non_separator_based_tree(file_name=input_fn)
+                    self.p.custom_ontology = build_non_separator_based_tree(file_name=input_fn,
+                                                                            float_sep=self.custom_ontology_separator)
                     self.p.custom_ontology_title = os.path.abspath(input_fn).split(os.sep)[-1]
                     self.p.populate_custom_ontology_from_web()
             else:
@@ -1339,9 +1341,9 @@ class App(Tk):
                           "https://github.com/Delta4AI/OntoloViz",
                 options={
                     "custom_sep_dot": ("Dot-separated", "e.g. MeSH: 'C01.001.002'"),
-                    "custom_sep_slash": ("Slash-separated", None),
-                    "custom_sep_colon": ("Colon-separated", None),
-                    "custom_sep_underscore": ("Underscore-separated", None),
+                    "custom_sep_slash": ("Slash-separated", "e.g. C01/001/002"),
+                    "custom_sep_colon": ("Colon-separated", "e.g. C01,001,002"),
+                    "custom_sep_underscore": ("Underscore-separated", "e.g. C01_001_002"),
                     "custom_non_sep": ("Parent-based",
                                        "Unstructured ontologies that do not follow a structured "
                                        "schema, e.g. HPO IDs in the format: HP:0001300\nRequires "
@@ -1352,6 +1354,7 @@ class App(Tk):
             )
             custom_ontology = _custom_ontology.description
             tree_type = _custom_ontology.result
+            self.custom_ontology_separator = _custom_ontology.separator
             if not tree_type:
                 self.set_status("Aborted file loading")
                 return
@@ -1450,6 +1453,7 @@ class App(Tk):
         self.p.custom_ontology = None
         self.p.custom_ontology_title = None
         self.loaded_settings = {}
+        self.custom_ontology_separator = None
 
 
 def run_app():

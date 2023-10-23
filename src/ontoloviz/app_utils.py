@@ -606,6 +606,7 @@ class SelectOptionsPopup(Toplevel):
         self.result = None
         self.description = None
         self.is_ontology_popup = is_ontology_popup
+        self.separator = None
 
         # custom .obo definitions
         self.custom_url = None
@@ -629,6 +630,19 @@ class SelectOptionsPopup(Toplevel):
             rb.pack(anchor="w")
             if tooltip:
                 create_tooltip(rb, tooltip)
+
+        sep_frame = Frame(self)
+        sep_frame.pack(pady=(10, 0))
+        self.sep_var = BooleanVar()
+        self.sep_check = Checkbutton(sep_frame, text="Float-Counts", variable=self.sep_var, command=self.sep_controller)
+        self.sep_check.pack(side="left")
+        create_tooltip(self.sep_check, "Check if your counts are positive floating point values")
+        self.sep_entry = Entry(sep_frame, state="disabled")
+        self.sep_entry.pack(side="left")
+        create_tooltip(self.sep_entry, "Enter floating point separator (. or ,)")
+
+        self.status = Label(self, text="")
+        self.status.pack()
 
         if self.is_ontology_popup:
             self.radio_var.trace_add("write", self.radio_var_callback)
@@ -668,6 +682,13 @@ class SelectOptionsPopup(Toplevel):
         # freeze mainloop
         self.wait_window(self)
 
+    def sep_controller(self):
+        if self.sep_var.get():
+            self.sep_entry.config(state="normal")
+        else:
+            self.sep_entry.config(state="disabled")
+            self.sep_entry.delete(0, "end")
+
     def radio_var_callback(self, *args):
         if self.radio_var.get() == "custom_url":
             self.cpane.show()
@@ -675,8 +696,21 @@ class SelectOptionsPopup(Toplevel):
             self.cpane.hide()
 
     def on_ok(self):
+        self.status.config(text="")
+        if not self.verify_result() or not self.verify_ontology_params() or not self.verify_separator_params():
+            return False
+
+        self.destroy()
+
+    def verify_result(self):
+        if not self.radio_var.get():
+            self.status.config(text="Select an ontology type!")
+            return False
         self.result = self.radio_var.get()
         self.description = self.options[self.result][0]
+        return True
+
+    def verify_ontology_params(self) -> bool:
         if self.radio_var.get() == "custom_url" and self.is_ontology_popup:
             url_entry = self.url_entry.get()
             min_node_size = self.min_node_size_entry.get()
@@ -701,8 +735,17 @@ class SelectOptionsPopup(Toplevel):
 
             if root_id:
                 self.root_id = root_id
+        return True
 
-        self.destroy()
+    def verify_separator_params(self):
+        if self.sep_var.get():
+            if self.sep_entry.get() not in [",", "."]:
+                self.sep_entry.delete(0, "end")
+                self.status.config(text="Float separator must be defined (point . or comma ,)")
+                return False
+
+            self.separator = self.sep_entry.get() if self.sep_entry.get() else None
+        return True
 
     def on_cancel(self):
         self.destroy()

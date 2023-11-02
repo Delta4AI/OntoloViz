@@ -1116,6 +1116,8 @@ class MeSHSunburst(SunburstBase):
         if current_data:
             current_data = self.get_label_to_current_counts(current_data)
 
+        is_a_exists = self.verify_is_a_attribute_exists()
+
         # get unique rows based on MeSH-id
         unique_rows = set()
         dupe_check = set()
@@ -1136,7 +1138,7 @@ class MeSHSunburst(SunburstBase):
                 description = node["description"]
                 if self.custom_ontology:
                     parent = node["parent"]
-                    if parent and len(node["is_a"]) > 1:
+                    if parent and is_a_exists and len(node["is_a"]) > 1:
                         parent = "|".join([_[0] for _ in node["is_a"]])
 
                     # minimal format with 4 columns
@@ -1180,6 +1182,14 @@ class MeSHSunburst(SunburstBase):
         elif mode == "TSV":
             # write to .tsv file, return filename
             return self.export_tree_to_tsv(fn_base + ".tsv", header, unique_rows)
+
+    def verify_is_a_attribute_exists(self) -> bool:
+        for sub_tree_id, sub_tree in self.mesh_tree.items():
+            for node_id, node in sub_tree.items():
+                if "is_a" in node.keys():
+                    return True
+                else:
+                    return False
 
     def read_mesh_settings_from_excel(self, wb: Workbook = None, fn: str = None) -> None:
         """Read settings from excel and apply to core object

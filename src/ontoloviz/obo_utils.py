@@ -1,10 +1,42 @@
 import requests
 import re
 from typing import Union
+from collections import deque
+from typing import List
+from copy import deepcopy
 
 zero = 0.000001337
 fake_one = 1.000001337
 white = "#FFFFFF"
+
+
+class Node:
+    def __init__(self, original_id: str, updated_id: str, line_data: List[str], float_sep: str):
+        self.original_id = original_id
+        self.updated_id = updated_id
+        self.original_parent_id = line_data[0]
+        self.updated_parent_ids = {line_data[0]}
+        self.level = 0
+        self.label = line_data[1]
+        self.description = line_data[2]
+        self.count = safe_convert_count(line_data[3], float_sep)
+        self.color = line_data[4]
+
+    def update_parents(self, updated_parent_ids: List[str]):
+        self.updated_parent_ids.update(set(updated_parent_ids))
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.updated_id,
+            "parent": list(self.updated_parent_ids)[0],
+            "level": self.level,
+            "label": self.label,
+            "description": self.description,
+            "counts": self.count if self.count != 0 else zero,
+            "imported_counts": self.count if self.count != 0 else fake_one,
+            "color": self.color if self.color else white,
+            "node_object": self
+        }
 
 
 def build_non_separator_based_tree(file_name: str = None, float_sep: str = None) -> dict:
@@ -14,17 +46,15 @@ def build_non_separator_based_tree(file_name: str = None, float_sep: str = None)
         id, parent, label, description, count, color
     :param float_sep: if given, counts are considered as floating point values and converted based on given separator
     """
-    tree, to_process = parse_file_to_extract_root_nodes_and_processable_lines(file_name, float_sep)
+    tree, to_process = initialize_tree_structure(file_name, float_sep)
+    sort_to_process_topologically(to_process)
 
-    while True:
-        drop_idxs = handle_and_assign_nodes(to_process, tree)
-        for idx in sorted(list(set(drop_idxs)), reverse=True):
-            del to_process[idx]
+    t = [_ for _ in to_process if _.original_id == "x99902827_x99902971" and _.original_parent_id == "x99903372_x99903533"]
+    for _ in t:
+        print("Original ID:", _.original_id, "Updated ID:", _.updated_id, "Original Parent ID: ", _.original_parent_id, "Updated Parent IDs: ", _.updated_parent_ids)
 
-        if not to_process:
-            break
-
-        print(f"Dropped: {len(drop_idxs)}, Left to process: {len(to_process)}")
+    construct_complete_tree(to_process, tree)
+    validate_longest_chain(tree)
 
     if float_sep:
         print("Normalizing float counts to int")
@@ -33,71 +63,61 @@ def build_non_separator_based_tree(file_name: str = None, float_sep: str = None)
     return tree
 
 
-def handle_and_assign_nodes(to_process: list = None, tree: dict = None) -> list:
-    drop_idxs = []
-    for idx, (attempts, node) in enumerate(to_process):
-        if attempts >= 20:
-            print(f"Dropping node because no suitable parent was found after "
-                  f"20 attempts: {node['id']}")
-            drop_idxs.append(idx)
-            continue
-
-        for sub_tree_id, sub_tree in tree.items():
-            parent = node["parent"]
-            if parent in sub_tree.keys():
-                node["level"] = tree[sub_tree_id][parent]["level"] + 1
-                tree[sub_tree_id][node["id"]] = node
-                drop_idxs.append(idx)
-
-        to_process[idx][0] += 1
-    return drop_idxs
-
-
-def parse_file_to_extract_root_nodes_and_processable_lines(input_file: str = None, float_sep: str = None) -> tuple:
+def initialize_tree_structure(input_file: str = None, float_sep: str = None) -> tuple:
     tree = dict()
-    to_process = list()
-    duplicate_check = list()
-    with open(file=input_file, mode="r", encoding="utf-8") as f_in:
+    duplicate_map = dict()  # This now serves for both identifying duplicates and mapping them to unique ids
+
+    nodes_to_process = list()
+    with open(input_file, "r", encoding="utf-8") as f_in:
         for line_idx, line in enumerate(f_in):
-            if line_idx == 0:
+            if line_idx == 0:  # Skip header
                 continue
             node_ids_unformatted, *line_data = line.rstrip("\n").split("\t")
             node_ids = node_ids_unformatted.split("|")
+
             for node_id in node_ids:
-                original_node_id = node_id
-                duplicate_count = duplicate_check.count(node_id) + 1
-                if duplicate_count > 1:
-                    node_id = f"{node_id}_{duplicate_count}"
-                duplicate_check.append(original_node_id)
-                handle_and_assign_root_nodes(node_id, tree, to_process, line_data, float_sep)
+                # Store unique identifiers for duplicate nodes
+                if node_id in duplicate_map:
+                    duplicate_count = len(duplicate_map[node_id]) + 1
+                    node_id_updated = f"{node_id}_{duplicate_count}"
+                    duplicate_map[node_id].append(node_id_updated)
+                else:
+                    node_id_updated = node_id
+                    duplicate_map[node_id] = [node_id]
 
-    return tree, to_process
+                node = Node(original_id=node_id, updated_id=node_id_updated, line_data=line_data, float_sep=float_sep)
 
+                # add root nodes to tree
+                if not node.original_parent_id:
+                    tree[node.original_id] = {
+                        node.original_id: node.as_dict()
+                    }
 
-def handle_and_assign_root_nodes(node_id: str = None, tree: dict = None, to_process: list = None,
-                                 line_data: list = None, float_sep: str = None):
-    parent = line_data[0]
-    count = safe_convert_count(line_data[3], float_sep)
-    color = line_data[4]
+                nodes_to_process.append(Node(original_id=node_id, updated_id=node_id_updated,
+                                             line_data=line_data, float_sep=float_sep))
 
-    node = {
-        "id": node_id,
-        "parent": parent,
-        "level": 0,
-        "label": line_data[1],
-        "description": line_data[2],
-        "counts": count if count != 0 else zero,
-        "imported_counts": count if count != 0 else fake_one,
-        "color": color if color else white
-    }
+    for node in nodes_to_process:
+        node.update_parents(duplicate_map.get(node.original_parent_id, []))
 
-    # populate first level of tree structure
-    if not parent:
-        tree[node_id] = {
-            node_id: node
-        }
-    else:
-        to_process.append([0, node])
+    # if a parent is duplicated, all respective child nodes have to be duplicated as well
+    nodes_to_process_deduped = []  # A new list to store the updated Nodes
+
+    for node in nodes_to_process:
+        parent_ids = node.updated_parent_ids
+
+        if len(parent_ids) > 1:
+            for parent_id in parent_ids:
+
+                # Duplicate the Node and update the parent id according to the duplicate
+                new_node = deepcopy(node)
+                new_node.updated_parent_ids = {parent_id}
+                nodes_to_process_deduped.append(new_node)
+        else:
+            nodes_to_process_deduped.append(node)
+
+    nodes_to_process = nodes_to_process_deduped
+
+    return tree, nodes_to_process
 
 
 def safe_convert_count(count_as_str: str = None, float_sep: str = None) -> Union[int, float]:
@@ -109,6 +129,146 @@ def safe_convert_count(count_as_str: str = None, float_sep: str = None) -> Union
             return int(count_as_str)
     except ValueError:
         return def_value
+
+
+def sort_to_process_topologically(nodes_to_process):
+    """Sorts nodes_to_process to have parents appear before their children"""
+    id_to_node = {node.updated_id: node for node in nodes_to_process}
+
+    graph_dict = {node.updated_id: [] for node in nodes_to_process}
+
+    for node in nodes_to_process:
+        if node.original_parent_id:
+            for parent_id in node.updated_parent_ids:  # Each node has set of parent IDs.
+                if parent_id is None:  # Skip if parent_id is None.
+                    continue
+                graph_dict[parent_id].append(node.updated_id)
+
+    result = []  # this list will store the result.
+    Q = deque()  # create an empty deque.
+
+    # calculate in-degrees for all nodes.
+    in_degree = {k: 0 for k in graph_dict}
+
+    for node_id in graph_dict:
+        for child_id in graph_dict[node_id]:
+            in_degree[child_id] += 1
+
+    # identify all nodes without parents.
+    for id, degree in in_degree.items():
+        if degree == 0:
+            Q.appendleft(id)
+
+    # remove nodes without parents.
+    while Q:
+        id = Q.pop()
+        result.append(id)
+
+        if id not in graph_dict:  # Handle cases for nodes that were parents but not a child themselves.
+            continue
+
+        for child_id in graph_dict[id]:
+            in_degree[child_id] -= 1
+            if in_degree[child_id] == 0:
+                Q.appendleft(child_id)
+
+    if len(result) != len(graph_dict):
+        raise RuntimeError("Graph contains a cycle or a disconnected segment.")
+
+    sorted_nodes = [id_to_node[id] for id in result]
+
+    return sorted_nodes
+
+
+def construct_complete_tree(nodes_to_process: list, tree: dict) -> None:
+    last_size = len(nodes_to_process)
+
+    while nodes_to_process:
+        uninserted_nodes = []
+
+        for node in nodes_to_process:
+            inserted = False
+            for parent_id_updated in node.updated_parent_ids:
+                for sub_tree_id, sub_tree in tree.items():
+                    if parent_id_updated in sub_tree.keys():
+                        node.level = tree[sub_tree_id][parent_id_updated]["level"] + 1
+                        tree[sub_tree_id][node.updated_id] = node.as_dict()
+                        inserted = True
+                        break
+                if inserted:
+                    break
+
+            if not inserted:
+                uninserted_nodes.append(node)
+
+        clear_uninserted_nodes_if_only_root_nodes_remain(uninserted_nodes)
+
+        nodes_to_process = uninserted_nodes
+        if len(nodes_to_process) == last_size:
+            print(f"Can't insert any more nodes, they will be dropped: {nodes_to_process}")
+            return
+
+        last_size = len(nodes_to_process)
+    print("Constructed tree")
+
+
+def clear_uninserted_nodes_if_only_root_nodes_remain(uninserted_nodes: list):
+    only_root_nodes = all([False if _.original_parent_id else True for _ in uninserted_nodes])
+    if only_root_nodes:
+        uninserted_nodes.clear()
+
+
+def validate_longest_chain(tree: dict):
+    longest_chain = {
+        "x99902827_x99902971": False,
+        "x99903372_x99903533": False,
+        "x99904082_x99904236": False,
+        "x99905136_x99905259_x99905369": False,
+        "x99905705_x99905844": False,
+        "x99906758_x99906904": False,
+        "x99910659_x99910771_x99910863_x99910953": False,
+        "x99911101_x99911213_x99911325_x99911452_x99911576": False,
+        "x99911641_x99911753_x99911865": False,
+        "x99913118_x99913207_x99913277": False,
+        "x99913394_x99913503_x99913595": False,
+        "x99913733_x99913822": False,
+        "x99914757_x99914847": False,
+        "x99915197": False,
+        "x99915523_x99915607": False,
+        "x99917162": False,
+        "x99917946_x99918006": False,
+        "x99919131": False,
+        "Collagen": False,
+    }
+    for sub_tree_id, sub_tree in tree.items():
+        for updated_node_id, node in sub_tree.items():
+            original_node_id = node["node_object"].original_id
+            if original_node_id in longest_chain.keys():
+                longest_chain[original_node_id] = True
+
+    # these are original ids, and not the updated ids generated by duplication
+    longest_chain_child_to_parent = {
+        "x99902827_x99902971": "x99903372_x99903533",
+        "x99903372_x99903533": "x99904082_x99904236",
+        "x99904082_x99904236": "x99905136_x99905259_x99905369",
+        "x99905136_x99905259_x99905369": "x99905705_x99905844",
+        "x99905705_x99905844": "x99906758_x99906904",
+        "x99906758_x99906904": "x99910659_x99910771_x99910863_x99910953",
+        "x99910659_x99910771_x99910863_x99910953": "x99911101_x99911213_x99911325_x99911452_x99911576",
+        "x99911101_x99911213_x99911325_x99911452_x99911576": "x99911641_x99911753_x99911865",
+        "x99911641_x99911753_x99911865": "x99913118_x99913207_x99913277",
+        "x99913118_x99913207_x99913277": "x99913394_x99913503_x99913595",
+        "x99913394_x99913503_x99913595": "x99913733_x99913822",
+        "x99913733_x99913822": "x99914757_x99914847",
+        "x99914757_x99914847": "x99915197",
+        "x99915197": "x99915523_x99915607",
+        "x99915523_x99915607": "x99917162",
+        "x99917162": "x99917946_x99918006",
+        "x99917946_x99918006": "x99919131",
+        "x99919131": "Collagen",
+        "Collagen": "",
+    }
+
 
 
 def normalize_tree_counts_from_float_to_int(tree: dict = None):

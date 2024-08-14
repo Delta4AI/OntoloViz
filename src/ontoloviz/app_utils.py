@@ -2,12 +2,14 @@ import json
 from re import match
 from functools import partial
 from traceback import format_exc
+
 from tkinter import Toplevel, messagebox, ttk, StringVar, BooleanVar, IntVar, END
 from tkinter.ttk import LabelFrame, Frame
 from tkinter import Label as LabelOG, Entry as EntryOG
 from tkinter.colorchooser import askcolor
-from .core import MeSHSunburst, ATCSunburst
-from .core_utils import rgb_to_hex, hex_to_rgb
+
+from src.ontoloviz.core import MeSHSunburst, ATCSunburst
+from src.ontoloviz.core_utils import rgb_to_hex, hex_to_rgb
 
 
 _key_release = "<KeyRelease>"

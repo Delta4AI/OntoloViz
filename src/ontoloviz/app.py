@@ -5,13 +5,15 @@ from functools import partial
 from threading import Thread
 import time
 import textwrap
+
 from tkinter import Tk, StringVar, BooleanVar, IntVar, filedialog, messagebox, END
 from tkinter.ttk import LabelFrame, Frame, Style
-from .core import MeSHSunburst, ATCSunburst
-from .obo_utils import get_remote_ontology, build_non_separator_based_tree
-from .app_utils import Button, Entry, Combobox, Checkbutton, Label, Radiobutton
-from .app_utils import create_tooltip, exception_as_popup
-from .app_utils import ExportPopup, ColorScalePopup, BorderPopup, SelectOptionsPopup
+
+from src.ontoloviz.core import MeSHSunburst, ATCSunburst
+from src.ontoloviz.obo_utils import get_remote_ontology, build_non_separator_based_tree
+from src.ontoloviz.app_utils import Button, Entry, Combobox, Checkbutton, Label, Radiobutton
+from src.ontoloviz.app_utils import create_tooltip, exception_as_popup
+from src.ontoloviz.app_utils import ExportPopup, ColorScalePopup, BorderPopup, SelectOptionsPopup
 
 
 class App(Tk):
@@ -20,7 +22,7 @@ class App(Tk):
         """App Initialization, styles, memory variables"""
         super().__init__()
         self.title("OntoloViz")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.minsize(400, 80)
 
         # highres settings for screenshot

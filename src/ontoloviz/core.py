@@ -7,16 +7,16 @@ from difflib import get_close_matches
 from re import match
 from string import ascii_uppercase
 from textwrap import wrap
-from tkinter import Tk, messagebox
-from typing import List, Dict, Any
 
+from tkinter import Tk, messagebox
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
 from plotly.graph_objects import Figure, Sunburst, Icicle, Treemap
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
-from .obo_utils import sanitize_string
-from .core_utils import chunks, generate_color_range, prioritize_bright_colors
+
+from src.ontoloviz.obo_utils import sanitize_string
+from src.ontoloviz.core_utils import chunks, generate_color_range, prioritize_bright_colors
 
 
 class SunburstBase:

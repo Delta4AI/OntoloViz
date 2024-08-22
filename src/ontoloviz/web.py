@@ -2,12 +2,15 @@ from dataclasses import dataclass
 from collections import defaultdict
 import base64
 import io
-from typing import Any
+from typing import Any, Tuple, List, Dict
 
-from dash import Dash, dash_table, dcc, html, Input, Output, State, callback
+from dash import Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
+from dash.html import Div
+from dash_bootstrap_components import Popover
 
 FAKE_ONE: float = 1 + 1337e-9
 ZERO: float = 1337e-9
@@ -155,8 +158,8 @@ def get_layout_navbar() -> dbc.Navbar:
                         className="g-0",
                     ),
                     href="https://www.delta4.ai",
-                    style={"textDecoration": "none"},
-                    target="_blank"
+                    target="_blank",
+                    id="navbar-brand-text",
                 ),
                 dbc.Nav(
                     children=[
@@ -193,22 +196,13 @@ def get_layout_data_table() -> dbc.Collapse:
             dcc.Upload(
                 id="datatable-upload",
                 children=html.Div(["Drag and Drop or ", html.A("Select File")]),
-                style={
-                    "width": "98.8%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px"
-                },
             ),
             dash_table.DataTable(
-                id="datatable-upload-container",
+                id="datatable",
                 page_current=0,
                 page_size=10,
                 editable=True,
+                row_deletable=True,
                 sort_action="native",
                 style_table={
                     "padding": "6px",
@@ -226,53 +220,106 @@ def get_layout_data_table() -> dbc.Collapse:
                     "selector": ".dash-table-tooltip",
                     "rule": "background-color: #C33D35; color: white;"
                 }],
-            )
+            ),
+            html.Button('Add Row', id='datatable-add-row-button', n_clicks=0, className="ms-2 me-2"),
         ]), id="collapse-load", is_open=True,
     )
 
 
 def get_layout_config() -> dbc.Collapse:
     return dbc.Collapse(
-        dbc.Card(
+        dbc.Card([
             dbc.CardBody([
-                html.Div([
-                    *_get_label_badge_combo(description="Ontology Type", tooltip="EDIT ME Ontology type description"),
-                    dcc.RadioItems(["Parent-based", "Separator-based"], "Parent-based"),
-                ], className="me-5"),
-                html.Div([
-                    *_get_label_badge_combo(description="Separator Character", tooltip="EDIT ME Separator Character description"),
-                    dcc.Dropdown(
-                        id="separator-character",
-                        options=[
-                            {'label': '.', 'value': '.'},
-                            {'label': ',', 'value': ','},
-                            {'label': '|', 'value': '|'}
-                        ],
-                        value=".",
-                    ),
-                ], id="separator-character-row", className="me-5"),
-                html.Div([
-                    *_get_label_badge_combo(description="ID Column", tooltip="EDIT ME ID Column description"),
-                    dcc.Dropdown(id="id-column"),
-                ], className="me-5"),
-                html.Div([
-                    *_get_label_badge_combo(description="Parent Column", tooltip="EDIT ME Parent Column description"),
-                    dcc.Dropdown(id="parent-column"),
-                ], id="parent-column-row", className="me-5"),
-                html.Div([
-                    *_get_label_badge_combo(description="Label Column", tooltip="EDIT ME Label Column description"),
-                    dcc.Dropdown(id="label-column"),
-                ], className="me-5")
-            ], style={"display": "flex", "flexWrap": "wrap", "alignItems": "center"})
-        ), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
+                dbc.Row([
+                    dbc.Col([
+                        *_get_label_badge_combo(description="Ontology Type", tooltip="EDIT ME Ontology type description")],
+                        className="collapse-card-header"),
+                    dbc.Col([html.Div([
+                        dcc.RadioItems(["Parent-based", "Separator-based"], "Parent-based", inline=True,
+                                       labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
+                                       id="ontology-type"),
+                    ], className="me-5"), ], className="collapse-card")
+                ]),
+                dbc.Row([
+                    dbc.Col(html.Span("Data Mapping"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_data_elements(), className="collapse-card")
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Visualization"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_visualization_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+            ]),
+        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
     )
 
 
-def _get_label_badge_combo(description: str, tooltip: str) -> tuple[dbc.Label, dbc.Badge, dbc.Popover]:
+def get_layout_config_data_elements() -> list[html.Div]:
+    return [
+        html.Div([
+            *_get_label_badge_combo(description="Level Separator",
+                                    tooltip="EDIT ME Separator Character description"),
+            dcc.Dropdown(
+                id="separator-character",
+                options=[
+                    {'label': '.', 'value': '.'},
+                    {'label': ',', 'value': ','},
+                    {'label': '|', 'value': '|'}
+                ],
+                value=".",
+            ),
+        ], id="separator-character-row", className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="ID Column", tooltip="EDIT ME ID Column description"),
+            dcc.Dropdown(id="id-column"),
+        ], className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="Parent Column", tooltip="EDIT ME Parent Column description"),
+            dcc.Dropdown(id="parent-column"),
+        ], id="parent-column-row", className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="Label Column", tooltip="EDIT ME Label Column description"),
+            dcc.Dropdown(id="label-column"),
+        ], className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="Description Column",
+                                    tooltip="EDIT ME Description Column description"),
+            dcc.Dropdown(id="description-column"),
+        ], className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="Count Column", tooltip="EDIT ME Count Column description"),
+            dcc.Dropdown(id="count-column"),
+        ], className="me-5"),
+        html.Div([
+            *_get_label_badge_combo(description="Color Column", tooltip="EDIT ME Color Column description"),
+            dcc.Dropdown(id="color-column"),
+        ], className="me-5"), ]
+
+
+def get_layout_config_visualization_elements() -> list[html.Div]:
+    return [
+
+    ]
+
+
+def _get_label_badge_combo(description: str, tooltip: str) -> tuple[Div, Popover]:
     _id = description.lower().replace(" ", "-")
-    return (dbc.Label(description),
-            dbc.Badge("i", color="info", className="ms-2", pill=True, id=f"{_id}-target"),
-            dbc.Popover(dbc.PopoverBody(tooltip), target=f"{_id}-target", trigger="click"))
+    return (
+        html.Div(
+            [
+                dbc.Label(description),
+                dbc.Button(
+                    dbc.Badge("i", color="info", pill=True),
+                    id=f"{_id}-target", className="btn-link popover-info-badge"
+                ),
+            ],
+            className="popover-info-container"
+        ),
+        dbc.Popover([
+            dbc.PopoverHeader(description),
+            dbc.PopoverBody(tooltip)
+        ], target=f"{_id}-target", trigger="focus"
+        )
+    )
 
 
 def get_layout_export() -> dbc.Collapse:
@@ -304,6 +351,10 @@ def get_layout_graph() -> dcc.Graph:
     })
 
 
+"""
+############################## Collapse open/close events ###########################
+"""
+
 @callback(
     Output("collapse-load", "is_open"),
     Output("collapse-load-button", "active"),
@@ -334,6 +385,11 @@ def toggle_collapse_load(n, is_open):
     return (not is_open, not is_open) if n else (is_open, is_open)
 
 
+"""
+############################## Events to hide/show configuration parameters based on ontology type ###################
+"""
+
+
 def parse_contents(contents, filename):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
@@ -345,33 +401,77 @@ def parse_contents(contents, filename):
         return pd.read_csv(io.StringIO(decoded.decode("utf-8")), delimiter="\t")
 
 
-@callback(Output('datatable-upload-container', 'data'),
-          Output('datatable-upload-container', 'columns'),
-          Output('datatable-upload-container', 'tooltip_data'),
-          Output("id-column", "options"),
-          Input('datatable-upload', 'contents'),
-          State('datatable-upload', 'filename'))
-def update_output(contents, filename):
-    if contents is None:
-        df = pd.read_csv("../../templates/custom_template_parent_based_1D.tsv", delimiter="\t")
-        # return [{}], [], [{}]
-    else:
-        df = parse_contents(contents, filename)
+@callback(
+    [Output('datatable', 'data'),
+     Output('datatable', 'columns'),
+     Output('datatable', 'tooltip_data'),
+     Output("id-column", "options"),
+     Output('parent-column-row', 'style'),
+     Output('separator-character-row', 'style')],
+    [Input('datatable-upload', 'contents'),
+     Input('datatable-add-row-button', 'n_clicks'),
+     Input("ontology-type", "value")],
+    [State('datatable-upload', 'filename'),
+     State('datatable', 'data'),
+     State('datatable', 'columns')]
+)
+def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
+    triggered = [t['prop_id'] for t in callback_context.triggered]
 
+    # parent_column_opt = {"display": "block" if value == "Parent-based" else "none"}
+    # separator_column_opt = {"display": "none" if value == "Parent-based" else "block"}
+
+    # vars below must match number of output parameters defined in callback above and must be returned
+    datatable_data = no_update
+    datatable_columns = no_update
+    datatable_tooltip_data = no_update
+    id_column_options = no_update
+    parent_column_row = {"display": "block" if value == "Parent-based" else "none"}
+    separator_character_row = {"display": "none" if value == "Parent-based" else "block"}
+
+    # initial load of a template
+    if triggered == ["."] or triggered == ["ontology-type.value"]:
+        template = "custom_template_separator_based.tsv" if value == "Separator-based" else "custom_template_parent_based.tsv"
+        df = pd.read_csv(f"../../templates/{template}", delimiter="\t")
+        datatable_data, datatable_columns, datatable_tooltip_data, id_column_options = get_table_objects(df=df)
+
+    # trigger for "Add Row" button
+    elif 'datatable-add-row-button.n_clicks' in triggered and add_row_n_clicks > 0:
+        datatable_data = rows + [{c['id']: '' for c in columns}]
+
+    # trigger for file upload
+    elif 'datatable-upload.contents' in triggered:
+        df = parse_contents(contents, filename)
+        datatable_data, datatable_columns, datatable_tooltip_data, id_column_options = get_table_objects(df=df)
+
+    return [
+        datatable_data,
+        datatable_columns,
+        datatable_tooltip_data,
+        id_column_options,
+        parent_column_row,
+        separator_character_row
+    ]
+
+def get_table_objects(df: pd.DataFrame) -> tuple:
     _data = df.to_dict('records')
-    _columns = [{"name": i, "id": i} for i in df.columns]
+    _columns = [{"name": i, "id": i, "deletable": True} for i in df.columns]
     _tooltip_data = [{column: {
         'value': str(value), 'type': 'markdown'
     } for column, value in row.items()} for row in _data]
-    _id_column_options = [{"label": _, "value": _} for _ in [list(_.values())[0] for _ in _columns]]
-    return _data, _columns, _tooltip_data, _id_column_options
+    _column_options = [{"label": _, "value": _} for _ in [list(_.values())[0] for _ in _columns]]
+
+    return _data, _columns, _tooltip_data, _column_options
 
 
 @callback(
     Output("table-output", "figure"),
-    Input("datatable-upload-container", "data"),
-    Input("datatable-upload-container", "columns"))
-def display_output(rows, columns):
+    Input("datatable", "data"),
+    Input("datatable", "columns"),
+    Input("ontology-type", "value")
+)
+def display_output(rows, columns, value):
+    print(value)
     tree = Tree(id_separator="|", level_separator=".", parent_based=True, id_col="ID", parent_col="Parent",
                 label_col="Label", description_col="Description", count_col="Count", color_col="Color")
     tree.add_rows(rows=rows)
@@ -412,7 +512,11 @@ def display_output(rows, columns):
 
 
 if __name__ == "__main__":
-    app = Dash(__name__, external_stylesheets=["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.SANDSTONE])
+    app = Dash(__name__, external_stylesheets=[
+        # "https://codepen.io/chriddyp/pen/bWLwgP.css",
+        "/assets/style.css",
+        dbc.themes.SANDSTONE
+    ])
     app.layout = html.Div([
         get_layout_navbar(),
         get_layout_data_table(),
@@ -420,4 +524,4 @@ if __name__ == "__main__":
         get_layout_export(),
         get_layout_graph(),
     ])
-    app.run(debug=True)
+    app.run(debug=True, dev_tools_hot_reload=True)

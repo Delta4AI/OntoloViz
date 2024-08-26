@@ -1,10 +1,12 @@
 from dataclasses import dataclass
+import datetime
 from collections import defaultdict
 import base64
 import io
 from typing import Any, Tuple, List, Dict
+import urllib
 
-from dash import Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update
+from dash import Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update, clientside_callback
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -22,10 +24,10 @@ UNDEFINED: str = "Undefined"
 class Leaf:
     id: str = ""
     parent: str = ""
-    color: str = ""
-    count: int = 0
-    label: str = ""
-    description: str = ""
+    color: str = WHITE
+    count: int = FAKE_ONE
+    label: str = UNDEFINED
+    description: str = UNDEFINED
     level: int = 0
     children: int = 0
 
@@ -79,12 +81,11 @@ class Branch:
 
 
 class Tree:
-    def __init__(self, id_separator: str = "|", level_separator: str = ".", parent_based: bool = True,
-                 id_col: str = "ID", parent_col: str = "Parent", label_col: str = "Label",
-                 description_col: str = "Description", count_col: str = "Count", color_col: str = "Color"):
+    def __init__(self, id_separator: str = "|", level_separator: str = ".", id_col: str = "ID",
+                 parent_col: str = "Parent", label_col: str = "Label", description_col: str = "Description",
+                 count_col: str = "Count", color_col: str = "Color"):
         self.id_separator = id_separator
         self.level_separator = level_separator
-        self.parent_based = parent_based
         self.id_col = id_col
         self.parent_col = parent_col
         self.label_col = label_col
@@ -93,10 +94,11 @@ class Tree:
         self.color_col = color_col
 
         self.branches: defaultdict[str, Branch] = defaultdict(Branch)
+        self.branch_title_lookup = []
 
-    def add_rows(self, rows: list[dict[str, Any]]):
+    def add_parent_based_rows(self, rows: list[dict[str, Any]]):
         test_row = rows[0]
-        if self.parent_based and self.parent_col not in test_row.keys():
+        if self.parent_col not in test_row.keys():
             raise KeyError(f"Parent-based ontology expected, but '{self.parent_col}' not found in table.")
         if self.id_col not in test_row.keys():
             raise KeyError(f"ID column '{self.id_col}' not found in table.")
@@ -120,22 +122,61 @@ class Tree:
                 )
                 if not _parent:
                     self.branches[leaf_id].leaves[leaf_id] = leaf
+                    self.branch_title_lookup.append(leaf_id)
                 else:
                     post_process.append(leaf)
 
         while len(post_process) != len(processed):
-            while len(post_process) != len(processed):
-                for leaf in post_process:
-                    if leaf.id in processed:
-                        continue
-                    for branch in self.branches.values():
-                        if leaf.parent in branch.leaves:
-                            branch.leaves[leaf.id] = leaf
-                            processed.append(leaf.id)
-                            break
+            for leaf in post_process:
+                if leaf.id in processed:
+                    continue
+                for branch in self.branches.values():
+                    if leaf.parent in branch.leaves:
+                        branch.leaves[leaf.id] = leaf
+                        processed.append(leaf.id)
+                        break
 
         for branch in self.branches.values():
             branch.count_levels_and_children()
+
+    def add_id_based_rows(self, rows):
+        table_data = dict()
+
+        for row in rows:
+            _id = row[self.id_col]
+            if not _id:
+                continue
+
+            for leaf_id in _id.split(self.id_separator):
+                table_data[leaf_id] = row
+
+                # pre-populate all available leaves
+                for uncertain_leaf_id in reversed([leaf_id.rsplit(self.level_separator, i)[0] for i in
+                                                   range(leaf_id.count(self.level_separator) + 1)]):
+                    parent = uncertain_leaf_id.rsplit(self.level_separator, 1)[0]
+                    parent = parent if parent != uncertain_leaf_id else None
+                    leaf = Leaf(
+                        id=uncertain_leaf_id,
+                        parent=parent,
+                    )
+
+                    first_level_id = uncertain_leaf_id.split(self.level_separator)[0]
+                    if first_level_id not in self.branches:
+                        self.branch_title_lookup.append(first_level_id)
+                    self.branches[first_level_id].leaves[uncertain_leaf_id] = leaf
+
+        # transfer table data to available leaves
+        for row in table_data.values():
+            _id = row[self.id_col]
+            if not _id:
+                continue
+
+            for leaf_id in _id.split(self.id_separator):
+                first_level_id = leaf_id.split(self.level_separator)[0]
+                self.branches[first_level_id].leaves[leaf_id].color = row.get(self.color_col) or WHITE
+                self.branches[first_level_id].leaves[leaf_id].count = row.get(self.count_col) or FAKE_ONE
+                self.branches[first_level_id].leaves[leaf_id].label = row.get(self.label_col) or UNDEFINED
+                self.branches[first_level_id].leaves[leaf_id].description = row.get(self.description_col) or UNDEFINED
 
     def get_traces(self) -> list[go.Sunburst]:
         return [_.get_sunburst_object() for _ in self.branches.values()]
@@ -195,12 +236,13 @@ def get_layout_data_table() -> dbc.Collapse:
         html.Div([
             dcc.Upload(
                 id="datatable-upload",
-                children=html.Div(["Drag and Drop or ", html.A("Select File")]),
+                children=html.Div(["Drag and Drop or ", html.A("Click to Upload")]),
             ),
             dash_table.DataTable(
                 id="datatable",
                 page_current=0,
                 page_size=10,
+                export_format="csv",
                 editable=True,
                 row_deletable=True,
                 sort_action="native",
@@ -221,7 +263,7 @@ def get_layout_data_table() -> dbc.Collapse:
                     "rule": "background-color: #C33D35; color: white;"
                 }],
             ),
-            html.Button('Add Row', id='datatable-add-row-button', n_clicks=0, className="ms-2 me-2"),
+            dbc.Button('Add Row', id='datatable-add-row-button', n_clicks=0, className="ms-2 me-2"),
         ]), id="collapse-load", is_open=True,
     )
 
@@ -249,7 +291,7 @@ def get_layout_config() -> dbc.Collapse:
                     dbc.Col(get_layout_config_visualization_elements(), className="collapse-card"),
                 ], className="border-top mt-4 pt-2"),
             ]),
-        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
+        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=False,
     )
 
 
@@ -263,7 +305,9 @@ def get_layout_config_data_elements() -> list[html.Div]:
                 options=[
                     {'label': '.', 'value': '.'},
                     {'label': ',', 'value': ','},
-                    {'label': '|', 'value': '|'}
+                    {'label': ';', 'value': ';'},
+                    {'label': '_', 'value': '_'},
+                    {'label': 'space', 'value': ' '},
                 ],
                 value=".",
             ),
@@ -326,9 +370,16 @@ def get_layout_export() -> dbc.Collapse:
     return dbc.Collapse(
         dbc.Card(
             dbc.CardBody(
-                children=[
-                    "Export Section"
-                ]
+                dbc.Row([
+                    dbc.Col(html.Span("Export as"), className="collapse-card-header"),
+                    dbc.Col([
+                        html.Button("Table", className="me-2", id="export-table-button", n_clicks=0,
+                                    **{"data-dummy": ""}),
+                        html.Button("HTML", className="me-2", id="export-html-button", n_clicks=0),
+                        html.A("Download Now", className="text-primary", id="download-link",
+                               download="export.html", style={"display": "none"}),
+                    ], className="collapse-card")
+                ]),
             )
         ), id="collapse-export", className="ms-2 me-2 mt-2 mb-2", is_open=False,
     )
@@ -351,9 +402,32 @@ def get_layout_graph() -> dcc.Graph:
     })
 
 
+def parse_contents(contents, filename):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    if "csv" in filename:
+        return pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+    elif "xls" in filename:
+        return pd.read_excel(io.BytesIO(decoded))
+    elif "tsv" in filename:
+        return pd.read_csv(io.StringIO(decoded.decode("utf-8")), delimiter="\t")
+
+
+def get_table_objects(df: pd.DataFrame) -> tuple:
+    _data = df.to_dict('records')
+    _columns = [{"name": i, "id": i, "deletable": True} for i in df.columns]
+    _tooltip_data = [{column: {
+        'value': str(value), 'type': 'markdown'
+    } for column, value in row.items()} for row in _data]
+    _column_options = [{"label": _, "value": _} for _ in [list(_.values())[0] for _ in _columns]]
+
+    return _data, _columns, _tooltip_data, _column_options
+
+
 """
 ############################## Collapse open/close events ###########################
 """
+
 
 @callback(
     Output("collapse-load", "is_open"),
@@ -390,22 +464,22 @@ def toggle_collapse_load(n, is_open):
 """
 
 
-def parse_contents(contents, filename):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    if "csv" in filename:
-        return pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-    elif "xls" in filename:
-        return pd.read_excel(io.BytesIO(decoded))
-    elif "tsv" in filename:
-        return pd.read_csv(io.StringIO(decoded.decode("utf-8")), delimiter="\t")
-
-
 @callback(
     [Output('datatable', 'data'),
      Output('datatable', 'columns'),
      Output('datatable', 'tooltip_data'),
      Output("id-column", "options"),
+     Output("id-column", "value"),
+     Output("parent-column", "options"),
+     Output("parent-column", "value"),
+     Output("label-column", "options"),
+     Output("label-column", "value"),
+     Output("description-column", "options"),
+     Output("description-column", "value"),
+     Output("count-column", "options"),
+     Output("count-column", "value"),
+     Output("color-column", "options"),
+     Output("color-column", "value"),
      Output('parent-column-row', 'style'),
      Output('separator-character-row', 'style')],
     [Input('datatable-upload', 'contents'),
@@ -425,7 +499,7 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
     datatable_data = no_update
     datatable_columns = no_update
     datatable_tooltip_data = no_update
-    id_column_options = no_update
+    column_options = no_update
     parent_column_row = {"display": "block" if value == "Parent-based" else "none"}
     separator_character_row = {"display": "none" if value == "Parent-based" else "block"}
 
@@ -433,7 +507,7 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
     if triggered == ["."] or triggered == ["ontology-type.value"]:
         template = "custom_template_separator_based.tsv" if value == "Separator-based" else "custom_template_parent_based.tsv"
         df = pd.read_csv(f"../../templates/{template}", delimiter="\t")
-        datatable_data, datatable_columns, datatable_tooltip_data, id_column_options = get_table_objects(df=df)
+        datatable_data, datatable_columns, datatable_tooltip_data, column_options = get_table_objects(df=df)
 
     # trigger for "Add Row" button
     elif 'datatable-add-row-button.n_clicks' in triggered and add_row_n_clicks > 0:
@@ -442,62 +516,80 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
     # trigger for file upload
     elif 'datatable-upload.contents' in triggered:
         df = parse_contents(contents, filename)
-        datatable_data, datatable_columns, datatable_tooltip_data, id_column_options = get_table_objects(df=df)
+        datatable_data, datatable_columns, datatable_tooltip_data, column_options = get_table_objects(df=df)
 
     return [
         datatable_data,
         datatable_columns,
         datatable_tooltip_data,
-        id_column_options,
+        column_options,
+        "ID" if column_options != no_update and "ID" in [_["value"] for _ in column_options] else no_update,
+        column_options,
+        "Parent" if column_options != no_update and "Parent" in [_["value"] for _ in column_options] else no_update,
+        column_options,
+        "Label" if column_options != no_update and "Label" in [_["value"] for _ in column_options] else no_update,
+        column_options,
+        "Description" if column_options != no_update and "Description" in [_["value"] for _ in column_options] else no_update,
+        column_options,
+        "Count" if column_options != no_update and "Count" in [_["value"] for _ in column_options] else no_update,
+        column_options,
+        "Color" if column_options != no_update and "Color" in [_["value"] for _ in column_options] else no_update,
         parent_column_row,
         separator_character_row
     ]
 
-def get_table_objects(df: pd.DataFrame) -> tuple:
-    _data = df.to_dict('records')
-    _columns = [{"name": i, "id": i, "deletable": True} for i in df.columns]
-    _tooltip_data = [{column: {
-        'value': str(value), 'type': 'markdown'
-    } for column, value in row.items()} for row in _data]
-    _column_options = [{"label": _, "value": _} for _ in [list(_.values())[0] for _ in _columns]]
 
-    return _data, _columns, _tooltip_data, _column_options
+"""
+############################## Visualize plot ###################
+"""
 
 
 @callback(
     Output("table-output", "figure"),
     Input("datatable", "data"),
     Input("datatable", "columns"),
-    Input("ontology-type", "value")
+    Input("ontology-type", "value"),
+    Input("separator-character", "value"),
+    Input("id-column", "value"),
+    Input("parent-column", "value"),
+    Input("label-column", "value"),
+    Input("description-column", "value"),
+    Input("count-column", "value"),
+    Input("color-column", "value"),
 )
-def display_output(rows, columns, value):
-    print(value)
-    tree = Tree(id_separator="|", level_separator=".", parent_based=True, id_col="ID", parent_col="Parent",
-                label_col="Label", description_col="Description", count_col="Count", color_col="Color")
-    tree.add_rows(rows=rows)
+def display_output(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
+                   count_col, color_col):
+    tree = Tree(
+        id_separator="|",
+        level_separator=level_separator,
+        id_col=id_col,
+        parent_col=parent_col,
+        label_col=label_col,
+        description_col=description_col,
+        count_col=count_col,
+        color_col=color_col
+    )
+    if ontology_type == "Parent-based":
+        tree.add_parent_based_rows(rows=rows)
+    else:
+        tree.add_id_based_rows(rows=rows)
     traces = tree.get_traces()
 
     buttons = []
     for i in range(len(traces)):
-        buttons.append({"label": f"Header {i}",
+        buttons.append({"label": f"Tree {tree.branch_title_lookup[i]}",
                         "method": "update",
-                        "args": [{"visible": [i == j for j in range(len(traces))]},
-                                 {"title": f"Specific Header {i}"}]})
+                        "args": [{"visible": [i == j for j in range(len(traces))]}]})
 
     menu = [{
-        "active": -1,
+        "active": 0,
         "buttons": buttons,
         "yanchor": "bottom",
-        "pad": {"t": 2, "b": 10},
+        "pad": {"t": 0, "b": 10},
         "x": 0.5,
         "xanchor": "center"
     }]
     layout = {
-        "title": {
-            "text": "Overall title?",
-            "x": 0.5,
-            "xanchor": "center"
-        },
         "showlegend": False,
         "updatemenus": menu
     }
@@ -506,17 +598,72 @@ def display_output(rows, columns, value):
     if len(traces) > 1:
         fig = go.Figure(data=traces, layout=layout)
         fig.update_traces(visible="legendonly")
+        fig.data[0].update(visible=True)
     else:
         fig = go.Figure(data=traces[0])
     return fig
 
 
+"""
+############################## Export ###################
+"""
+
+
+@callback(
+    Output("download-link", "href"),
+    Output("download-link", "download"),
+    Output("download-link", "children"),
+    Output("download-link", "style"),
+    Input("export-html-button", "n_clicks"),
+    State("datatable", "data"),
+    State("datatable", "columns"),
+    State("ontology-type", "value"),
+    State("separator-character", "value"),
+    State("id-column", "value"),
+    State("parent-column", "value"),
+    State("label-column", "value"),
+    State("description-column", "value"),
+    State("count-column", "value"),
+    State("color-column", "value"),
+)
+def export_html(export_html_n_clicks, rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
+                count_col, color_col):
+    if export_html_n_clicks > 0:
+        fig = display_output(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
+                             description_col,
+                             count_col, color_col)
+        buffer = io.StringIO()
+        fig.write_html(buffer)
+        html_string = buffer.getvalue()
+        data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(html_string)
+        fn = get_timestamp() + "_plot.html"
+        return data_url, fn, f"Click to download: {fn}", {"display": "block"}
+    return no_update, no_update, no_update, no_update
+
+
+def get_timestamp():
+    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+clientside_callback(
+    """
+    function(n_clicks) {
+        if (n_clicks > 0)
+            document.querySelector("#datatable button.export").click()
+        return ""
+    }
+    """,
+    Output("export-table-button", "data-dummy"),
+    [Input("export-table-button", "n_clicks")]
+)
+
+
 if __name__ == "__main__":
-    app = Dash(__name__, external_stylesheets=[
-        # "https://codepen.io/chriddyp/pen/bWLwgP.css",
-        "/assets/style.css",
-        dbc.themes.SANDSTONE
-    ])
+    app = Dash(
+        __name__,
+        external_scripts=["/assets/scripts.js"],
+        external_stylesheets=["/assets/style.css", dbc.themes.SANDSTONE]
+    )
     app.layout = html.Div([
         get_layout_navbar(),
         get_layout_data_table(),

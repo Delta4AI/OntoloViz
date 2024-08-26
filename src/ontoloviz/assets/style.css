@@ -46,6 +46,11 @@
   margin: 10px;
 }
 
+/* hide download button */
+#datatable button.export {
+    display: none;
+}
+
 /* Cards
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 .collapse-card-header {

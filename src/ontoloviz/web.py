@@ -17,6 +17,9 @@ import plotly.graph_objects as go
 from dash.html import Div
 from dash_bootstrap_components import Popover
 
+from src.ontoloviz.core import SunburstBase
+
+
 """ ########################## Tree Components ############################### """
 FAKE_ONE: float = 1 + 1337e-9
 ZERO: float = 1337e-9
@@ -99,6 +102,7 @@ class Tree:
 
         self.branches: defaultdict[str, Branch] = defaultdict(Branch)
         self.branch_title_lookup = []
+        self.traces = None
 
     def add_parent_based_rows(self, rows: list[dict[str, Any]]):
         test_row = rows[0]
@@ -182,8 +186,45 @@ class Tree:
                 self.branches[first_level_id].leaves[leaf_id].label = row.get(self.label_col) or UNDEFINED
                 self.branches[first_level_id].leaves[leaf_id].description = row.get(self.description_col) or UNDEFINED
 
-    def get_traces(self) -> list[go.Sunburst]:
-        return [_.get_sunburst_object() for _ in self.branches.values()]
+    def get_traces(self):
+        self.traces = [_.get_sunburst_object() for _ in self.branches.values()]
+
+    def get_individual_plots(self) -> go.Figure:
+        buttons = []
+        for i in range(len(self.traces)):
+            buttons.append({"label": f"Tree {self.branch_title_lookup[i]}",
+                            "method": "update",
+                            "args": [{"visible": [i == j for j in range(len(self.traces))]}]})
+
+        menu = [{
+            "active": 0,
+            "buttons": buttons,
+            "yanchor": "bottom",
+            "pad": {"t": 0, "b": 10},
+            "x": 0.5,
+            "xanchor": "center"
+        }]
+        layout = {
+            "showlegend": False,
+            "updatemenus": menu
+        }
+
+        # create figure, hide initial data
+        if len(self.traces) > 1:
+            fig = go.Figure(data=self.traces, layout=layout)
+            fig.update_traces(visible="legendonly")
+            fig.data[0].update(visible=True)
+        else:
+            fig = go.Figure(data=self.traces[0])
+        return fig
+
+    def get_summary_plot(self, cols: int):
+        return SunburstBase.generate_subplot_figure(
+            cols=cols,
+            traces=self.traces,
+            headers=[f"Tree {_}" for _ in self.branch_title_lookup],
+            title=f"Summary of {len(self.traces)} trees"
+        )
 
 
 """ ########################## Utility ############################### """
@@ -199,14 +240,13 @@ class ColorPicker:
     def sample_scale_style(self):
         gradient_str = ", ".join([f"{v} {k}%" for k, v in self.marks.items()])
         return {
-            "background-image": f"linear-gradient(to right, {gradient_str})",
+            "background-image": f"linear-gradient(to right, transparent 0%, {gradient_str}, transparent 100%)",
             "width": "500px",
             "height": "12px",
             "margin-left": "2rem",
             "margin-right": "2rem",
             "border-radius": "20px",
         }
-
 
     def remove_picker(self, n_clicks: int):
         max_value = max(map(int, self.marks.keys()))
@@ -219,11 +259,14 @@ class ColorPicker:
         self._update_marks()
 
     def picker_event(self, picker_obj: dict[str, Any], colors: list[str]):
-        colors = set([_.lstrip("#").lower() for _ in colors])
-        mark_key_to_replace = [k for k, v in self.marks.items() if v.lstrip("#").lower() not in colors][0]
-        new_color = list(colors - set([_.lstrip("#").lower() for _ in self.marks.values()]))[0]
-
-        self.marks[mark_key_to_replace] = f"#{str(new_color).upper()}"
+        colors_uniq = set([_.lstrip("#").lower() for _ in colors])
+        mark_key_to_replace = [k for k, v in self.marks.items() if v.lstrip("#").lower() not in colors_uniq][0]
+        try:
+            new_color = list(colors_uniq - set([_.lstrip("#").lower() for _ in self.marks.values()]))[0]
+            self.marks[mark_key_to_replace] = f"#{str(new_color).upper()}"
+        except IndexError:
+            # in case of duplicate color, ignore potential index errors
+            self.marks = {str(v): c.upper() for v, c in zip(self.values, colors)}
 
     def add_picker(self, n_clicks: int):
         new_color = self.get_random_hex_color()
@@ -367,7 +410,8 @@ def get_layout_config() -> dbc.Collapse:
                 dbc.Row([
                     dbc.Col([
                         *_get_label_badge_combo(description="Ontology Type",
-                                                tooltip="EDIT ME Ontology type description")],
+                                                tooltip="EDIT ME Ontology type description",
+                                                bold_italic=False)],
                         className="collapse-card-header"),
                     dbc.Col([html.Div([
                         dcc.RadioItems(["Parent-based", "Separator-based"], "Parent-based", inline=True,
@@ -388,7 +432,12 @@ def get_layout_config() -> dbc.Collapse:
                     dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
                 ], className="border-top mt-4 pt-2"),
                 dbc.Row([
-                    dbc.Col(html.Span("Propagation"), className="collapse-card-header"),
+                    dbc.Col([
+                        *_get_label_badge_combo(description="Propagation",
+                                                tooltip="By enabling propagation, counts and colors can be "
+                                                        "up-propagated up to the central node of the tree",
+                                                bold_italic=False)],
+                        className="collapse-card-header"),
                     dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
                 ], className="border-top mt-4 pt-2"),
                 dbc.Row([
@@ -397,7 +446,7 @@ def get_layout_config() -> dbc.Collapse:
                 ], className="border-top mt-4 pt-2"),
                 dbc.Row([
                     dbc.Col(html.Span("Legend"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
+                    dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
                 ], className="border-top mt-4 pt-2"),
                 dbc.Row([
                     dbc.Col(html.Span("Plot Type"), className="collapse-card-header"),
@@ -523,48 +572,91 @@ def update_color_picker(n_clicks_add, n_clicks_rm, slider_values, colorpicker_va
 
 def get_layout_config_label_elements() -> list[html.Div]:
     return [
-
+        *_get_label_badge_combo(description="Show Labels", tooltip="EDIT ME Show Labels description"),
+        dcc.Dropdown(
+            id="show-labels",
+            options=[
+                {"label": "all", "value": "all"},
+                {"label": "none", "value": "none"},
+                {"label": "first", "value": "first"},
+                {"label": "last", "value": "last"},
+                {"label": "first + last", "value": "first + last"},
+            ],
+            value="all",
+            className="fixed-width"
+        ),
     ]
 
 
 def get_layout_config_propagate_elements() -> list[html.Div]:
     return [
-
+        html.Div([
+            dbc.Checkbox(label="Enable", value=False, id="propagate-enable", className="me-5"),
+        ]),
+        html.Div([
+            html.Div([
+                *_get_label_badge_combo(description="Scale",
+                                        tooltip="This option controls whether the propagation should "
+                                                "be limited to each tree (Individual), or to consider "
+                                                "the entire ontology (Global)"),
+                dcc.RadioItems(["Individual", "Global"], "Individual",
+                               inline=True, labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
+                               id="propagate-individual-global")
+            ], className="d-flex flex-row align-items-center ms-2 me-5"),
+            html.Div([
+                *_get_label_badge_combo(description="Level", tooltip="Determine to which level in the tree the counts "
+                                                                     "should be up-propagated"),
+                dbc.Input(type="number", min=1, max=15, step=1, value=1, id="propagate-level")
+            ], className="d-flex flex-row align-items-center ms-5")
+        ], id="propagate-wrapper", style={"display": "none"})
     ]
 
 
 def get_layout_config_border_elements() -> list[html.Div]:
     return [
-
+        html.Div([dbc.Label("Color: ", className="me-2")]),
+        html.Div([dbc.Input(
+                      type="color",
+                      id="border-color",
+                      value="#000000",
+                      className="color-picker ms-2")]),
+        html.Div([dcc.Slider(min=0, max=100, step=1, value=100, marks=None,
+                             tooltip={"placement": "right", "always_visible": True, "template": "Opacity: {value}%"},
+                             className="me-5 mt-4 fixed-width-2x", id="border-opacity")]),
+        html.Div([dcc.Slider(min=0, max=10, step=0.1, value=2, marks=None,
+                             tooltip={"placement": "right", "always_visible": True, "template": "Width: {value}px"},
+                             className="me-2 mt-4 fixed-width-2x", id="border-width")]),
     ]
 
 
 def get_layout_config_legend_elements() -> list[html.Div]:
     return [
-
+        html.Div([
+            dbc.Checkbox(label="Enable", value=True, id="legend-enable", className="me-5"),
+        ]),
     ]
 
 
 def get_layout_plot_type_elements() -> list[html.Div]:
     return [
         html.Div([
-            dcc.RadioItems(["Individual Plots & Menu", "Summary Plot"], "Individual Plots", inline=True,
-                           labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
+            dcc.RadioItems(["Individual Plots & Menu", "Summary Plot"], "Individual Plots & Menu",
+                           inline=True, labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
                            id="plot-type"),
         ], className="me-2"),
-        html.Div([html.Span("Columns: ")], className="me-2"),
         html.Div([
-            dbc.Input(type="number", min=1, max=15, step=1, id="plot-type-cols")
+            dbc.Input(type="number", min=1, max=15, step=1, value=3, id="plot-type-cols", placeholder="Columns",
+                      disabled=True)
         ])
     ]
 
 
-def _get_label_badge_combo(description: str, tooltip: str) -> tuple[Div, Popover]:
+def _get_label_badge_combo(description: str, tooltip: str, bold_italic: bool = True) -> tuple[Div, Popover]:
     _id = description.lower().replace(" ", "-")
     return (
         html.Div(
             [
-                dbc.Label(description),
+                dbc.Label(description, className="fw-bold fst-italic" if bold_italic else ""),
                 dbc.Button(
                     dbc.Badge("i", color="info", pill=True),
                     id=f"{_id}-target", className="btn-link popover-info-badge"
@@ -639,7 +731,7 @@ def get_table_objects(df: pd.DataFrame) -> tuple:
 
 
 """
-############################## Collapse open/close events ###########################
+############################## Collapse open/close events and active toggles ###########################
 """
 
 
@@ -664,46 +756,56 @@ def toggle_collapse_load(n, is_open):
 
 
 @callback(
-    Output("collapse-export", "is_open"),
-    Output("collapse-export-button", "active"),
-    [Input("collapse-export-button", "n_clicks")],
-    [State("collapse-export", "is_open")],
+    Output("plot-type-cols", "disabled"),
+    Input("plot-type", "value"),
 )
-def toggle_collapse_load(n, is_open):
-    return (not is_open, not is_open) if n else (is_open, is_open)
-
-
-"""
-############################## Events to hide/show configuration parameters based on ontology type ###################
-"""
+def toggle_plot_type_columns(value):
+    return True if value == "Individual Plots & Menu" else False
 
 
 @callback(
-    [Output('datatable', 'data'),
-     Output('datatable', 'columns'),
-     Output('datatable', 'tooltip_data'),
-     Output("id-column", "options"),
-     Output("id-column", "value"),
-     Output("parent-column", "options"),
-     Output("parent-column", "value"),
-     Output("label-column", "options"),
-     Output("label-column", "value"),
-     Output("description-column", "options"),
-     Output("description-column", "value"),
-     Output("count-column", "options"),
-     Output("count-column", "value"),
-     Output("color-column", "options"),
-     Output("color-column", "value"),
-     Output('parent-column-row', 'style'),
-     Output('separator-character-row', 'style')],
-    [Input('datatable-upload', 'contents'),
-     Input('datatable-add-row-button', 'n_clicks'),
-     Input("ontology-type", "value")],
-    [State('datatable-upload', 'filename'),
-     State('datatable', 'data'),
-     State('datatable', 'columns')]
-)
-def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
+    Output("propagate-wrapper", "style"),
+    Input("propagate-enable", "value"))
+def toggle_propagate_elements(value):
+    if value:
+        return {"display": "flex", "flex-direction": "row"}
+    else:
+        return {"display": "none"}
+
+
+"""
+############################## Plot brain callback ###########################
+"""
+
+
+@callback([
+    Output('datatable', 'data'),
+    Output('datatable', 'columns'),
+    Output('datatable', 'tooltip_data'),
+    Output("id-column", "options"),
+    Output("id-column", "value"),
+    Output("parent-column", "options"),
+    Output("parent-column", "value"),
+    Output("label-column", "options"),
+    Output("label-column", "value"),
+    Output("description-column", "options"),
+    Output("description-column", "value"),
+    Output("count-column", "options"),
+    Output("count-column", "value"),
+    Output("color-column", "options"),
+    Output("color-column", "value"),
+    Output('parent-column-row', 'style'),
+    Output('separator-character-row', 'style')
+], [
+    Input('datatable-upload', 'contents'),
+    Input('datatable-add-row-button', 'n_clicks'),
+    Input("ontology-type", "value")
+], [
+    State('datatable-upload', 'filename'),
+    State('datatable', 'data'),
+    State('datatable', 'columns')
+])
+def update_output(contents, add_row_n_clicks, value, filename, datatable_rows, datatable_columns):
     triggered = [t['prop_id'] for t in callback_context.triggered]
 
     # parent_column_opt = {"display": "block" if value == "Parent-based" else "none"}
@@ -711,7 +813,7 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
 
     # vars below must match number of output parameters defined in callback above and must be returned
     datatable_data = no_update
-    datatable_columns = no_update
+    datatable_columns = datatable_columns if "datatable-add-row-button.n_clicks" in triggered else no_update
     datatable_tooltip_data = no_update
     column_options = no_update
     parent_column_row = {"display": "block" if value == "Parent-based" else "none"}
@@ -725,7 +827,7 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
 
     # trigger for "Add Row" button
     elif 'datatable-add-row-button.n_clicks' in triggered and add_row_n_clicks > 0:
-        datatable_data = rows + [{c['id']: '' for c in columns}]
+        datatable_data = datatable_rows + [{c['id']: '' for c in datatable_columns}]
 
     # trigger for file upload
     elif 'datatable-upload.contents' in triggered:
@@ -754,26 +856,43 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
     ]
 
 
+@callback(
+    Output("collapse-export", "is_open"),
+    Output("collapse-export-button", "active"),
+    [Input("collapse-export-button", "n_clicks")],
+    [State("collapse-export", "is_open")],
+)
+def toggle_collapse_load(n, is_open):
+    return (not is_open, not is_open) if n else (is_open, is_open)
+
+
+"""
+############################## Events to hide/show configuration parameters based on ontology type ###################
+"""
+
+
 """
 ############################## Visualize plot ###################
 """
 
 
 @callback(
-    Output("table-output", "figure"),
-    Input("datatable", "data"),
-    Input("datatable", "columns"),
-    Input("ontology-type", "value"),
-    Input("separator-character", "value"),
-    Input("id-column", "value"),
-    Input("parent-column", "value"),
-    Input("label-column", "value"),
-    Input("description-column", "value"),
-    Input("count-column", "value"),
-    Input("color-column", "value"),
-)
+    Output("table-output", "figure"), [
+        Input("datatable", "data"),
+        Input("datatable", "columns"),
+        Input("ontology-type", "value"),
+        Input("separator-character", "value"),
+        Input("id-column", "value"),
+        Input("parent-column", "value"),
+        Input("label-column", "value"),
+        Input("description-column", "value"),
+        Input("count-column", "value"),
+        Input("color-column", "value"),
+        Input("plot-type", "value"),
+        Input("plot-type-cols", "value")
+    ])
 def update_color_picker(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
-                        count_col, color_col):
+                        count_col, color_col, plot_type, plot_type_cols):
     tree = Tree(
         id_separator="|",
         level_separator=level_separator,
@@ -788,35 +907,11 @@ def update_color_picker(rows, columns, ontology_type, level_separator, id_col, p
         tree.add_parent_based_rows(rows=rows)
     else:
         tree.add_id_based_rows(rows=rows)
-    traces = tree.get_traces()
-
-    buttons = []
-    for i in range(len(traces)):
-        buttons.append({"label": f"Tree {tree.branch_title_lookup[i]}",
-                        "method": "update",
-                        "args": [{"visible": [i == j for j in range(len(traces))]}]})
-
-    menu = [{
-        "active": 0,
-        "buttons": buttons,
-        "yanchor": "bottom",
-        "pad": {"t": 0, "b": 10},
-        "x": 0.5,
-        "xanchor": "center"
-    }]
-    layout = {
-        "showlegend": False,
-        "updatemenus": menu
-    }
-
-    # create figure, hide initial data
-    if len(traces) > 1:
-        fig = go.Figure(data=traces, layout=layout)
-        fig.update_traces(visible="legendonly")
-        fig.data[0].update(visible=True)
+    tree.get_traces()
+    if plot_type == "Individual Plots & Menu":
+        return tree.get_individual_plots()
     else:
-        fig = go.Figure(data=traces[0])
-    return fig
+        return tree.get_summary_plot(cols=plot_type_cols)
 
 
 """

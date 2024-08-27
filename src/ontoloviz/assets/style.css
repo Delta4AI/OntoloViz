@@ -399,6 +399,18 @@ label > .label-body {
   margin-left: .5rem;
   font-weight: normal; }
 
+#plot-type-cols {
+  width: 120px;
+}
+
+.fixed-width {
+  width: 140px;
+}
+
+.fixed-width-2x {
+  width: 200px;
+}
+
 
 /* Lists
 –––––––––––––––––––––––––––––––––––––––––––––––––– */

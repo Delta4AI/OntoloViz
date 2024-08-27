@@ -33,6 +33,49 @@
     z-index: 1002;
 }*/
 
+/* Color Scale
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.color-picker-wrapper > * {
+  margin-bottom: 2px;
+}
+
+.color-picker {
+  display: inline-block;
+  width: 75px;
+  height: 24px;
+}
+
+.color-picker-close {
+  width: 20px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: unset;
+}
+
+.color-picker-scale {
+  /*calc( 100% - 10px );*/
+  min-height: 36px;
+  width: 500px;
+  margin-top: 4rem;
+  margin-left: 2rem;
+  margin-right: 2rem;
+}
+
+.rc-slider-tooltip {
+  cursor: grab;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 /* DataTable
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 #datatable-upload {

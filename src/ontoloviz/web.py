@@ -5,8 +5,11 @@ import base64
 import io
 from typing import Any, Tuple, List, Dict
 import urllib
+import random
+import json
 
-from dash import Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update, clientside_callback
+from dash import (Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update,
+                  clientside_callback, ALL, MATCH)
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -14,6 +17,7 @@ import plotly.graph_objects as go
 from dash.html import Div
 from dash_bootstrap_components import Popover
 
+""" ########################## Tree Components ############################### """
 FAKE_ONE: float = 1 + 1337e-9
 ZERO: float = 1337e-9
 WHITE: str = "#FFFFFF"
@@ -182,6 +186,93 @@ class Tree:
         return [_.get_sunburst_object() for _ in self.branches.values()]
 
 
+""" ########################## Utility ############################### """
+
+
+class ColorPicker:
+    def __init__(self, children: list[dict[str, Any]] = None, marks: dict[str, str] = None, values: list[int] = None):
+        self.children = children if children else no_update
+        self.marks = marks if marks else no_update
+        self.values = values if values else no_update
+
+    @property
+    def sample_scale_style(self):
+        gradient_str = ", ".join([f"{v} {k}%" for k, v in self.marks.items()])
+        return {
+            "background-image": f"linear-gradient(to right, {gradient_str})",
+            "width": "500px",
+            "height": "12px",
+            "margin-left": "2rem",
+            "margin-right": "2rem",
+            "border-radius": "20px",
+        }
+
+
+    def remove_picker(self, n_clicks: int):
+        max_value = max(map(int, self.marks.keys()))
+        removed_color = self.marks.pop(str(max_value), None)
+        child_idx = [c["props"]["children"][0]["props"]["value"] for c in self.children].index(removed_color)
+        self.children.pop(child_idx)
+        self.values.pop(self.values.index(max_value))
+
+    def slider_event(self):
+        self._update_marks()
+
+    def picker_event(self, picker_obj: dict[str, Any], colors: list[str]):
+        colors = set([_.lstrip("#").lower() for _ in colors])
+        mark_key_to_replace = [k for k, v in self.marks.items() if v.lstrip("#").lower() not in colors][0]
+        new_color = list(colors - set([_.lstrip("#").lower() for _ in self.marks.values()]))[0]
+
+        self.marks[mark_key_to_replace] = f"#{str(new_color).upper()}"
+
+    def add_picker(self, n_clicks: int):
+        new_color = self.get_random_hex_color()
+        if isinstance(self.children, dict):
+            self.children = [self.children]
+
+        self.children.append(self.get_row(idx=n_clicks, color=new_color))
+
+        self._update_values(n_clicks=n_clicks)
+        self._add_to_marks(new_color=new_color)
+        self._order_marks()
+
+    def _update_values(self, n_clicks: int):
+        if n_clicks > 1:
+            self.values = [value * 0.5 for value in self.values]
+        self.values.append(100)
+
+    def _update_marks(self):
+        self.marks = {str(_): v for v, _ in zip(self.marks.values(), self.values)}
+
+    def _add_to_marks(self, new_color: str):
+        self.marks = {int(value): self.marks[old_value] if old_value in self.marks else new_color
+                      for value, old_value in zip(self.values, self.marks.keys())}
+        self.marks[100] = new_color
+        self._update_marks()
+
+    def _order_marks(self):
+        self.marks = dict(sorted(self.marks.items(), key=lambda x: int(float(x[0]))))
+        self.marks = {str(int(float(k))): v for k, v in self.marks.items()}
+
+    @staticmethod
+    def get_random_hex_color() -> str:
+        return "#" + "".join([random.choice("0123456789ABCDEF") for _ in range(6)])
+
+    @staticmethod
+    def get_row(idx: int, color: str) -> dbc.Row:
+        return dbc.Row([
+            dbc.Input(
+                type="color",
+                id={"type": "colorpicker_input", "index": idx},
+                value=color,
+                className="color-picker ms-2",
+            ),
+        ], id={"type": "colorpicker-holder", "index": idx}, className="color-picker-wrapper")
+
+
+""" ########################## Dash Components ############################### """
+
+
 def get_layout_navbar() -> dbc.Navbar:
     return dbc.Navbar(
         dbc.Container(
@@ -205,7 +296,7 @@ def get_layout_navbar() -> dbc.Navbar:
                 dbc.Nav(
                     children=[
                         dbc.NavItem(dbc.NavLink("Load & Edit", active=True, id="collapse-load-button", n_clicks=0)),
-                        dbc.NavItem(dbc.NavLink("Configure", active=True, id="collapse-config-button", n_clicks=0)),
+                        dbc.NavItem(dbc.NavLink("Configure", active=False, id="collapse-config-button", n_clicks=0)),
                         dbc.NavItem(dbc.NavLink("Export", active=False, id="collapse-export-button", n_clicks=0)),
                         dbc.DropdownMenu(
                             children=[
@@ -272,9 +363,11 @@ def get_layout_config() -> dbc.Collapse:
     return dbc.Collapse(
         dbc.Card([
             dbc.CardBody([
+                html.Div(id="dummy-div", style={"display": "none"}),
                 dbc.Row([
                     dbc.Col([
-                        *_get_label_badge_combo(description="Ontology Type", tooltip="EDIT ME Ontology type description")],
+                        *_get_label_badge_combo(description="Ontology Type",
+                                                tooltip="EDIT ME Ontology type description")],
                         className="collapse-card-header"),
                     dbc.Col([html.Div([
                         dcc.RadioItems(["Parent-based", "Separator-based"], "Parent-based", inline=True,
@@ -287,11 +380,31 @@ def get_layout_config() -> dbc.Collapse:
                     dbc.Col(get_layout_config_data_elements(), className="collapse-card")
                 ], className="border-top mt-4 pt-2"),
                 dbc.Row([
-                    dbc.Col(html.Span("Visualization"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_visualization_elements(), className="collapse-card"),
+                    dbc.Col(html.Span("Colors"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Labels"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Propagation"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Border"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Legend"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Plot Type"), className="collapse-card-header"),
+                    dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
                 ], className="border-top mt-4 pt-2"),
             ]),
-        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=False,
+        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
     )
 
 
@@ -339,9 +452,110 @@ def get_layout_config_data_elements() -> list[html.Div]:
         ], className="me-5"), ]
 
 
-def get_layout_config_visualization_elements() -> list[html.Div]:
+def get_layout_config_color_elements() -> list[html.Div]:
+    return [
+        html.Div([
+            ColorPicker.get_row(idx=0, color="#000000"),
+            ColorPicker.get_row(idx=1, color="#C33D35"),
+        ], id="colorpicker-container"),
+        html.Div(dbc.Button("Add", id="colorpicker-add", n_clicks=1, className="ms-4")),
+        html.Div(dbc.Button("Remove", id="colorpicker-rm", n_clicks=0, className="ms-2 me-2")),
+        dbc.Col([
+            dbc.Row([dcc.RangeSlider(
+                id="colorpicker-slider",
+                min=0, max=100, value=[0, 100],
+                pushable=2,
+                className="color-picker-scale",
+                marks={0: "#000000", 100: "#C33D35"},
+                tooltip={"always_visible": True, "template": "{value}%"}
+                # tooltip={"always_visible": True, "transform": "hexColorToToolTip"}
+            )]),
+            dbc.Row([html.Div(id="colorpicker-sample")]),
+        ]),
+        html.Div(
+            dbc.Button("Apply to Table", id="colorpicker-apply", n_clicks=0, className="ms-4")
+        ),
+    ]
+
+
+@callback(
+    [
+        Output("colorpicker-container", "children"),
+        Output("colorpicker-slider", "marks"),
+        Output("colorpicker-slider", "value"),
+        Output("colorpicker-sample", "style"),
+    ],
+    [
+        Input("colorpicker-add", "n_clicks"),
+        Input("colorpicker-rm", "n_clicks"),
+        Input("colorpicker-slider", "value"),
+        Input({"type": "colorpicker_input", "index": ALL}, "value"),
+    ],
+    [
+        State("colorpicker-container", "children"),
+        State("colorpicker-slider", "marks"),
+    ]
+)
+def update_color_picker(n_clicks_add, n_clicks_rm, slider_values, colorpicker_values, container_children, slider_marks):
+    if not callback_context.triggered:
+        if n_clicks_add == 1:
+            cp = ColorPicker(children=container_children, marks=slider_marks, values=slider_values)
+            return cp.children, cp.marks, cp.values, cp.sample_scale_style
+        raise PreventUpdate
+
+    button_id = callback_context.triggered[0]['prop_id'].split('.')[0]
+    cp = ColorPicker(children=container_children, marks=slider_marks, values=slider_values)
+
+    if button_id == "colorpicker-add":
+        cp.add_picker(n_clicks=n_clicks_add)
+
+    elif button_id == "colorpicker-slider":
+        cp.slider_event()
+
+    elif button_id == "colorpicker-rm":
+        cp.remove_picker(n_clicks=n_clicks_rm)
+
+    elif "colorpicker_input" in button_id:
+        cp.picker_event(picker_obj=json.loads(button_id), colors=colorpicker_values)
+
+    return cp.children, cp.marks, cp.values, cp.sample_scale_style
+
+
+def get_layout_config_label_elements() -> list[html.Div]:
     return [
 
+    ]
+
+
+def get_layout_config_propagate_elements() -> list[html.Div]:
+    return [
+
+    ]
+
+
+def get_layout_config_border_elements() -> list[html.Div]:
+    return [
+
+    ]
+
+
+def get_layout_config_legend_elements() -> list[html.Div]:
+    return [
+
+    ]
+
+
+def get_layout_plot_type_elements() -> list[html.Div]:
+    return [
+        html.Div([
+            dcc.RadioItems(["Individual Plots & Menu", "Summary Plot"], "Individual Plots", inline=True,
+                           labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
+                           id="plot-type"),
+        ], className="me-2"),
+        html.Div([html.Span("Columns: ")], className="me-2"),
+        html.Div([
+            dbc.Input(type="number", min=1, max=15, step=1, id="plot-type-cols")
+        ])
     ]
 
 
@@ -529,7 +743,8 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
         column_options,
         "Label" if column_options != no_update and "Label" in [_["value"] for _ in column_options] else no_update,
         column_options,
-        "Description" if column_options != no_update and "Description" in [_["value"] for _ in column_options] else no_update,
+        "Description" if column_options != no_update and "Description" in [_["value"] for _ in
+                                                                           column_options] else no_update,
         column_options,
         "Count" if column_options != no_update and "Count" in [_["value"] for _ in column_options] else no_update,
         column_options,
@@ -557,8 +772,8 @@ def update_output(contents, add_row_n_clicks, value, filename, rows, columns):
     Input("count-column", "value"),
     Input("color-column", "value"),
 )
-def display_output(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
-                   count_col, color_col):
+def update_color_picker(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
+                        count_col, color_col):
     tree = Tree(
         id_separator="|",
         level_separator=level_separator,
@@ -626,12 +841,13 @@ def display_output(rows, columns, ontology_type, level_separator, id_col, parent
     State("count-column", "value"),
     State("color-column", "value"),
 )
-def export_html(export_html_n_clicks, rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
+def export_html(export_html_n_clicks, rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
+                description_col,
                 count_col, color_col):
     if export_html_n_clicks > 0:
-        fig = display_output(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
-                             description_col,
-                             count_col, color_col)
+        fig = update_color_picker(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
+                                  description_col,
+                                  count_col, color_col)
         buffer = io.StringIO()
         fig.write_html(buffer)
         html_string = buffer.getvalue()
@@ -656,7 +872,6 @@ clientside_callback(
     Output("export-table-button", "data-dummy"),
     [Input("export-table-button", "n_clicks")]
 )
-
 
 if __name__ == "__main__":
     app = Dash(

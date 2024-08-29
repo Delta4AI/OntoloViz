@@ -253,7 +253,10 @@ class ColorPicker:
         removed_color = self.marks.pop(str(max_value), None)
         child_idx = [c["props"]["children"][0]["props"]["value"] for c in self.children].index(removed_color)
         self.children.pop(child_idx)
-        self.values.pop(self.values.index(max_value))
+        try:
+            self.values.pop(self.values.index(max_value))
+        except ValueError:
+            self.values.pop(len(self.values) - 1)
 
     def slider_event(self):
         self._update_marks()
@@ -503,11 +506,7 @@ def get_layout_config_data_elements() -> list[html.Div]:
 
 def get_layout_config_color_elements() -> list[html.Div]:
     return [
-        html.Div([
-            ColorPicker.get_row(idx=0, color="#000000"),
-            ColorPicker.get_row(idx=1, color="#C33D35"),
-        ], id="colorpicker-container"),
-        html.Div(dbc.Button("Add", id="colorpicker-add", n_clicks=1, className="ms-4")),
+        html.Div(dbc.Button("Add", id="colorpicker-add", n_clicks=1)),
         html.Div(dbc.Button("Remove", id="colorpicker-rm", n_clicks=0, className="ms-2 me-2")),
         dbc.Col([
             dbc.Row([dcc.RangeSlider(
@@ -520,6 +519,10 @@ def get_layout_config_color_elements() -> list[html.Div]:
                 # tooltip={"always_visible": True, "transform": "hexColorToToolTip"}
             )]),
             dbc.Row([html.Div(id="colorpicker-sample")]),
+            html.Div([
+                ColorPicker.get_row(idx=0, color="#000000"),
+                ColorPicker.get_row(idx=1, color="#C33D35"),
+            ], id="colorpicker-container"),
         ]),
         html.Div(
             dbc.Button("Apply to Table", id="colorpicker-apply", n_clicks=0, className="ms-4")
@@ -634,6 +637,13 @@ def get_layout_config_legend_elements() -> list[html.Div]:
         html.Div([
             dbc.Checkbox(label="Enable", value=True, id="legend-enable", className="me-5"),
         ]),
+        html.Div([
+            html.Div([
+                dcc.RadioItems(["Continuous", "Discrete"], "Continuous", inline=True,
+                               labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
+                               id="legend-type")
+            ])
+        ], id="legend-wrapper", style={"display": "none"})
     ]
 
 
@@ -767,6 +777,16 @@ def toggle_plot_type_columns(value):
     Output("propagate-wrapper", "style"),
     Input("propagate-enable", "value"))
 def toggle_propagate_elements(value):
+    if value:
+        return {"display": "flex", "flex-direction": "row"}
+    else:
+        return {"display": "none"}
+
+
+@callback(
+    Output("legend-wrapper", "style"),
+    Input("legend-enable", "value"))
+def toggle_legend_elements(value):
     if value:
         return {"display": "flex", "flex-direction": "row"}
     else:

@@ -241,10 +241,9 @@ class ColorPicker:
         gradient_str = ", ".join([f"{v} {k}%" for k, v in self.marks.items()])
         return {
             "background-image": f"linear-gradient(to right, transparent 0%, {gradient_str}, transparent 100%)",
-            "width": "500px",
+            "width": "75%",
             "height": "12px",
-            "margin-left": "2rem",
-            "margin-right": "2rem",
+            "margin-left": "0.25rem",
             "border-radius": "20px",
         }
 
@@ -257,6 +256,7 @@ class ColorPicker:
             self.values.pop(self.values.index(max_value))
         except ValueError:
             self.values.pop(len(self.values) - 1)
+        self._redistribute_values_and_marks(add=False)
 
     def slider_event(self):
         self._update_marks()
@@ -277,15 +277,15 @@ class ColorPicker:
             self.children = [self.children]
 
         self.children.append(self.get_row(idx=n_clicks, color=new_color))
+        self._redistribute_values_and_marks(add=True, new_color=new_color)
 
-        self._update_values(n_clicks=n_clicks)
-        self._add_to_marks(new_color=new_color)
-        self._order_marks()
-
-    def _update_values(self, n_clicks: int):
-        if n_clicks > 1:
-            self.values = [value * 0.5 for value in self.values]
-        self.values.append(100)
+    def _redistribute_values_and_marks(self, add: bool, new_color: str = None):
+        target_length = len(self.values) + 1 if add else len(self.values)
+        self.values = [int(i * 100 / (target_length - 1)) for i in range(target_length)]
+        if add:
+            self.marks = {k: v for k, v in zip(self.values[:-1], self.marks.values())} | {100: new_color}
+        else:
+            self.marks = {k: v for k, v in zip(self.values, self.marks.values())}
 
     def _update_marks(self):
         self.marks = {str(_): v for v, _ in zip(self.marks.values(), self.values)}
@@ -295,10 +295,6 @@ class ColorPicker:
                       for value, old_value in zip(self.values, self.marks.keys())}
         self.marks[100] = new_color
         self._update_marks()
-
-    def _order_marks(self):
-        self.marks = dict(sorted(self.marks.items(), key=lambda x: int(float(x[0]))))
-        self.marks = {str(int(float(k))): v for k, v in self.marks.items()}
 
     @staticmethod
     def get_random_hex_color() -> str:
@@ -311,7 +307,7 @@ class ColorPicker:
                 type="color",
                 id={"type": "colorpicker_input", "index": idx},
                 value=color,
-                className="color-picker ms-2",
+                className="color-picker",
             ),
         ], id={"type": "colorpicker-holder", "index": idx}, className="color-picker-wrapper")
 
@@ -523,7 +519,7 @@ def get_layout_config_color_elements() -> list[html.Div]:
                 ColorPicker.get_row(idx=0, color="#000000"),
                 ColorPicker.get_row(idx=1, color="#C33D35"),
             ], id="colorpicker-container"),
-        ]),
+        ], className="ms-4"),
         html.Div(
             dbc.Button("Apply to Table", id="colorpicker-apply", n_clicks=0, className="ms-4")
         ),

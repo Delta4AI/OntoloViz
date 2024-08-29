@@ -60,12 +60,9 @@
 }
 
 .color-picker-scale {
-  /*calc( 100% - 10px );*/
   min-height: 36px;
-  width: 500px;
+  width: 75%;
   margin-top: 4rem;
-  margin-left: 2rem;
-  margin-right: 2rem;
 }
 
 .rc-slider-tooltip {
@@ -79,12 +76,9 @@
 #colorpicker-container {
   display: flex;
   flex-direction: row;
-  width: 500px;
+  width: 75%;
   justify-content: space-between;
-  margin-left: 1rem;
-  margin-right: 3rem;
   margin-top: 0.5rem;
-
 }
 
 /* DataTable

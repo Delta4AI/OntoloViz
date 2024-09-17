@@ -81,17 +81,41 @@
   margin-top: 0.5rem;
 }
 
+#colorpicker-rm, #colorpicker-add {
+  width: 30px;
+}
+
+.colorpicker-col1 {
+  flex: 1 0;
+}
+
+.colorpicker-col2 {
+  flex: 0 0 10%;
+}
+
+.colorpicker-col3 {
+  flex: 0 0 10%;
+}
+
+/*#rc-slider-track {*/
+/*  background-color: unset;*/
+/*}*/
+
+/*#rc-slider-rail {*/
+/*  background-image: linear-gradient(to right, transparent 0%, rgb(0, 0, 0) 0%, rgb(195, 61, 53) 33%, rgb(255, 120, 0) 66%, rgb(184, 109, 18) 100%, transparent 100%);*/
+/*  height: 6px;*/
+/*}*/
+
 /* DataTable
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 #datatable-upload {
-  width: 98.8%;
   height: 60px;
   line-height: 60px;
-  border-width: 1px;
-  border-style: dashed;
+  border: 1px dashed grey;
   border-radius: 5px;
   text-align: center;
-  margin: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 /* hide download button */
@@ -327,6 +351,8 @@ input[type="button"].button-primary:focus {
   margin-left: 0.5rem;
   cursor: help;
   border: none;
+  padding: unset;
+  height: unset;
 }
 
 .popover-info-badge:hover,
@@ -497,6 +523,26 @@ hr {
   border-width: 0;
   border-top: 1px solid #E1E1E1; }
 
+.error {
+  border: 2px solid #C33D35;
+  border-radius: 5px;
+}
+
+.plus-minus-btn {
+  border: 0.05rem solid black;
+  border-radius: 10px;
+  color: black;
+}
+
+.config-inactive {
+  opacity: 50%;
+  pointer-events: none;
+}
+
+.config-active {
+  opacity: unset;
+  pointer-events: unset;
+}
 
 /* Clearing
 –––––––––––––––––––––––––––––––––––––––––––––––––– */

@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 import datetime
 from collections import defaultdict
@@ -18,13 +19,21 @@ from dash.html import Div
 from dash_bootstrap_components import Popover
 
 from src.ontoloviz.core import SunburstBase
+from src.ontoloviz.core_utils import generate_color_range, generate_composite_color_range
 
 
 """ ########################## Tree Components ############################### """
 FAKE_ONE: float = 1 + 1337e-9
 ZERO: float = 1337e-9
-WHITE: str = "#FFFFFF"
+WHITE: str = "#FFFFFFFF"
+TRANSPARENT: str = "#FFFFFF00"
 UNDEFINED: str = "Undefined"
+INDIVIDUAL_PLOTS: str = "Individual Plots & Menu"
+SUMMARY_PLOT: str = "Summary Plot"
+PARENT_BASED_ONTOLOGY: str = "Parent-based"
+SEPARATOR_BASED_ONTOLOGY: str = "Separator-based"
+GLOBAL: str = "global"
+LOCAL: str = "local"
 
 
 @dataclass
@@ -32,7 +41,7 @@ class Leaf:
     id: str = ""
     parent: str = ""
     color: str = WHITE
-    count: int = FAKE_ONE
+    count: [float, int] = FAKE_ONE
     label: str = UNDEFINED
     description: str = UNDEFINED
     level: int = 0
@@ -42,6 +51,9 @@ class Leaf:
 class Branch:
     def __init__(self):
         self.leaves: defaultdict[str, Leaf] = defaultdict(Leaf)
+        self.max_val: float = 0.0
+        self.min_val: float = 0.0
+        self.unique_vals: set = set()
 
     def count_levels_and_children(self):
         for leaf_id, leaf in self.leaves.items():
@@ -52,6 +64,13 @@ class Branch:
                 current_leaf.children += 1
                 level += 1
             leaf.level = level
+            if leaf.count not in [FAKE_ONE, ZERO]:
+                count = float(leaf.count)
+                if count >= self.max_val:
+                    self.max_val = count
+                if count <= self.min_val:
+                    self.min_val = count
+                self.unique_vals.add(count)
 
     def get_sunburst_object(self) -> go.Sunburst:
         return go.Sunburst(
@@ -77,13 +96,13 @@ class Branch:
                     _.count if _.count != FAKE_ONE else 0
                 ] for _ in self.leaves.values()
             ],
-            marker={
-                "colors": [_.color for _ in self.leaves.values()],
-                "line": {
-                    "color": "black",
-                    "width": 2
-                }
-            }
+            marker=dict(
+                colors=[_.color for _ in self.leaves.values()],
+                line=dict(
+                    color="black",
+                    width=2
+                ),
+            ),
         )
 
 
@@ -102,12 +121,45 @@ class Tree:
 
         self.branches: defaultdict[str, Branch] = defaultdict(Branch)
         self.branch_title_lookup = []
+        self.id_to_leaf = dict()
         self.traces = None
 
-    def add_parent_based_rows(self, rows: list[dict[str, Any]]):
+    def apply_color(self, color_scale: dict[str, str], global_scale: bool):
+        global_max_val = None
+        global_min_val = None
+        global_unique_vals = None
+        global_color_range = None
+        cs = {float(k): v for k, v in sorted(color_scale.items(), key=lambda x: int(x[0]))}
+        if global_scale:
+            global_max_val = max(_.max_val for _ in self.branches.values())
+            global_min_val = min(_.min_val for _ in self.branches.values())
+            global_unique_vals = set(v for branch in self.branches.values() for v in branch.unique_vals)
+            global_color_range = {k: v for k, v in zip(global_unique_vals, generate_composite_color_range(color_scale=cs, total_colors=len(global_unique_vals)))}
+
+        for branch in self.branches.values():
+            _max = global_max_val if global_max_val else branch.max_val
+            _min = global_min_val if global_min_val else branch.min_val
+            _vals = global_unique_vals if global_unique_vals else branch.unique_vals
+            _cr = global_color_range if global_color_range else {k: v for k, v in zip(
+                _vals, generate_composite_color_range(color_scale=cs, total_colors=len(_vals)))}
+            for leaf in branch.leaves.values():
+                if leaf.count not in [FAKE_ONE, ZERO] and leaf.color == WHITE:
+                    leaf.color = _cr[float(leaf.count)]
+                    # print(f"Apply color to {leaf} based on min: {_min} and max: {_max}")
+
+
+    def add_rows(self, rows: list[dict[str, Any]], ontology_type: str):
+        if ontology_type == PARENT_BASED_ONTOLOGY:
+            self._add_parent_based_rows(rows=rows)
+        else:
+            self._add_id_based_rows(rows=rows)
+        for branch in self.branches.values():
+            branch.count_levels_and_children()
+
+    def _add_parent_based_rows(self, rows: list[dict[str, Any]]):
         test_row = rows[0]
         if self.parent_col not in test_row.keys():
-            raise KeyError(f"Parent-based ontology expected, but '{self.parent_col}' not found in table.")
+            raise KeyError(f"{PARENT_BASED_ONTOLOGY} ontology expected, but '{self.parent_col}' not found in table.")
         if self.id_col not in test_row.keys():
             raise KeyError(f"ID column '{self.id_col}' not found in table.")
 
@@ -128,12 +180,18 @@ class Tree:
                     label=row.get(self.label_col) or UNDEFINED,
                     description=row.get(self.description_col) or UNDEFINED,
                 )
+                self.id_to_leaf[leaf_id] = leaf
                 if not _parent:
                     self.branches[leaf_id].leaves[leaf_id] = leaf
                     self.branch_title_lookup.append(leaf_id)
                 else:
                     post_process.append(leaf)
 
+        if len(self.branches) == 0:
+            raise ValueError("Could not identify any branch! Make sure the Parent Column is set correctly, and that at "
+                             "least one ID without a parent exists to create a new branch.")
+
+        iterations = 0
         while len(post_process) != len(processed):
             for leaf in post_process:
                 if leaf.id in processed:
@@ -143,11 +201,11 @@ class Tree:
                         branch.leaves[leaf.id] = leaf
                         processed.append(leaf.id)
                         break
+            iterations += 1
+            if iterations == 100:
+                raise ValueError("Could not build tree. Make sure the Columns are set properly.")
 
-        for branch in self.branches.values():
-            branch.count_levels_and_children()
-
-    def add_id_based_rows(self, rows):
+    def _add_id_based_rows(self, rows):
         table_data = dict()
 
         for row in rows:
@@ -167,6 +225,7 @@ class Tree:
                         id=uncertain_leaf_id,
                         parent=parent,
                     )
+                    self.id_to_leaf[uncertain_leaf_id] = leaf
 
                     first_level_id = uncertain_leaf_id.split(self.level_separator)[0]
                     if first_level_id not in self.branches:
@@ -198,15 +257,18 @@ class Tree:
 
         menu = [{
             "active": 0,
+            "type": "buttons",
+            "direction": "right",
             "buttons": buttons,
             "yanchor": "bottom",
             "pad": {"t": 0, "b": 10},
             "x": 0.5,
+            "y": 1.2,
             "xanchor": "center"
         }]
         layout = {
             "showlegend": False,
-            "updatemenus": menu
+            "updatemenus": menu,
         }
 
         # create figure, hide initial data
@@ -216,6 +278,7 @@ class Tree:
             fig.data[0].update(visible=True)
         else:
             fig = go.Figure(data=self.traces[0])
+
         return fig
 
     def get_summary_plot(self, cols: int):
@@ -367,36 +430,60 @@ def get_layout_navbar() -> dbc.Navbar:
 def get_layout_data_table() -> dbc.Collapse:
     return dbc.Collapse(
         html.Div([
-            dcc.Upload(
-                id="datatable-upload",
-                children=html.Div(["Drag and Drop or ", html.A("Click to Upload")]),
-            ),
-            dash_table.DataTable(
-                id="datatable",
-                page_current=0,
-                page_size=10,
-                export_format="csv",
-                editable=True,
-                row_deletable=True,
-                sort_action="native",
-                style_table={
-                    "padding": "6px",
-                },
-                style_cell={
-                    "overflow": "hidden",
-                    "textOverflow": "ellipsis",
-                    "maxWidth": 0,
-                    "padding": "2px",
-                },
-                style_data={},
-                tooltip_duration=None,
-                tooltip_delay=1000,
-                css=[{
-                    "selector": ".dash-table-tooltip",
-                    "rule": "background-color: #C33D35; color: white;"
-                }],
-            ),
-            dbc.Button('Add Row', id='datatable-add-row-button', n_clicks=0, className="ms-2 me-2"),
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            *_get_label_badge_combo(label="Ontology Type",
+                                                    tooltip=(
+                                                        "You can load two types of ontologies: parent-based and "
+                                                        "separator-based. Parent-based ontologies include columns for "
+                                                        "IDs and their respective parents. Separator-based ontologies "
+                                                        "use an ID with tree-syntax, such as the MeSH ontology with "
+                                                        "IDs like 'C01.001'. When loading custom files, please ensure "
+                                                        "you set the appropriate ontology type beforehand."
+                                                    ),
+                                                    bold=False, italic=False)],
+                            className="collapse-card-header"),
+                        dbc.Col([html.Div([
+                            dcc.RadioItems(
+                                options=[PARENT_BASED_ONTOLOGY, SEPARATOR_BASED_ONTOLOGY],
+                                value=PARENT_BASED_ONTOLOGY,
+                                inline=True,
+                                labelStyle={"padding-right": "20px"},
+                                inputStyle={"margin-right": "4px"},
+                                id="ontology-type"
+                            ),
+                        ]), ])
+                    ]),
+                    dcc.Upload(
+                        id="datatable-upload",
+                        children=html.Div(["Drag and Drop or ", html.A("Click to Upload")]),
+                    ),
+                    dash_table.DataTable(
+                        id="datatable",
+                        page_current=0,
+                        page_size=10,
+                        export_format="csv",
+                        editable=True,
+                        row_deletable=True,
+                        sort_action="native",
+                        style_cell={
+                            "overflow": "hidden",
+                            "textOverflow": "ellipsis",
+                            "maxWidth": 0,
+                            "padding": "2px",
+                        },
+                        style_data={},
+                        tooltip_duration=None,
+                        tooltip_delay=1000,
+                        css=[{
+                            "selector": ".dash-table-tooltip",
+                            "rule": "background-color: #C33D35; color: white;"
+                        }],
+                    ),
+                    dbc.Button("Add Row", id='datatable-add-row-button', n_clicks=0, className="mt-2 mb-2"),
+                ])], className="ms-2 me-2 mt-2 mb-2"),
         ]), id="collapse-load", is_open=True,
     )
 
@@ -407,50 +494,47 @@ def get_layout_config() -> dbc.Collapse:
             dbc.CardBody([
                 html.Div(id="dummy-div", style={"display": "none"}),
                 dbc.Row([
-                    dbc.Col([
-                        *_get_label_badge_combo(description="Ontology Type",
-                                                tooltip="EDIT ME Ontology type description",
-                                                bold_italic=False)],
-                        className="collapse-card-header"),
-                    dbc.Col([html.Div([
-                        dcc.RadioItems(["Parent-based", "Separator-based"], "Parent-based", inline=True,
-                                       labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
-                                       id="ontology-type"),
-                    ], className="me-5"), ], className="collapse-card")
-                ]),
-                dbc.Row([
                     dbc.Col(html.Span("Data Mapping"), className="collapse-card-header"),
                     dbc.Col(get_layout_config_data_elements(), className="collapse-card")
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col(html.Span("Colors"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col(html.Span("Labels"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col([
-                        *_get_label_badge_combo(description="Propagation",
-                                                tooltip="By enabling propagation, counts and colors can be "
-                                                        "up-propagated up to the central node of the tree",
-                                                bold_italic=False)],
-                        className="collapse-card-header"),
-                    dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col(html.Span("Border"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col(html.Span("Legend"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
-                dbc.Row([
-                    dbc.Col(html.Span("Plot Type"), className="collapse-card-header"),
-                    dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                ], className="border-top mt-4 pt-2", id="data-columns-config"),
+                html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            *_get_label_badge_combo(label="Colors",
+                                                    tooltip="Applies the defined color scale to rows with a count value. "
+                                                            "Rows with a manually defined color are not overwritten. "
+                                                            "Values outside of the defined thresholds will remain "
+                                                            "transparent. 0% represents the row with the lowest count, "
+                                                            "100% the row with the highest count.",
+                                                    bold=False, italic=False)], className="collapse-card-header"),
+                        dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                    dbc.Row([
+                        dbc.Col(html.Span("Labels"), className="collapse-card-header"),
+                        dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                    dbc.Row([
+                        dbc.Col([
+                            *_get_label_badge_combo(label="Propagation",
+                                                    tooltip="By enabling propagation, counts and colors can be "
+                                                            "up-propagated up to the central node of the tree",
+                                                    bold=False, italic=False)],
+                            className="collapse-card-header"),
+                        dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                    dbc.Row([
+                        dbc.Col(html.Span("Border"), className="collapse-card-header"),
+                        dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                    dbc.Row([
+                        dbc.Col(html.Span("Legend"), className="collapse-card-header"),
+                        dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                    dbc.Row([
+                        dbc.Col(html.Span("Plot Style"), className="collapse-card-header"),
+                        dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
+                    ], className="border-top mt-4 pt-2"),
+                ], id="config-inactive-controller"),
             ]),
         ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
     )
@@ -459,8 +543,9 @@ def get_layout_config() -> dbc.Collapse:
 def get_layout_config_data_elements() -> list[html.Div]:
     return [
         html.Div([
-            *_get_label_badge_combo(description="Level Separator",
-                                    tooltip="EDIT ME Separator Character description"),
+            *_get_label_badge_combo(label="Level Separator",
+                                    tooltip="Select the character that is used to distinguish hierarchical levels in "
+                                            "the ID values of your data"),
             dcc.Dropdown(
                 id="separator-character",
                 options=[
@@ -474,40 +559,46 @@ def get_layout_config_data_elements() -> list[html.Div]:
             ),
         ], id="separator-character-row", className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="ID Column", tooltip="EDIT ME ID Column description"),
+            *_get_label_badge_combo(label="ID Column", tooltip="Select the column in your data that contains IDs"),
             dcc.Dropdown(id="id-column"),
         ], className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="Parent Column", tooltip="EDIT ME Parent Column description"),
+            *_get_label_badge_combo(label="Parent Column", tooltip="Select the column in your data that contains "
+                                                                   "parent IDs"),
             dcc.Dropdown(id="parent-column"),
         ], id="parent-column-row", className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="Label Column", tooltip="EDIT ME Label Column description"),
+            *_get_label_badge_combo(label="Label Column", tooltip="Select the column in your data that contains "
+                                                                  "labels"),
             dcc.Dropdown(id="label-column"),
         ], className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="Description Column",
-                                    tooltip="EDIT ME Description Column description"),
+            *_get_label_badge_combo(label="Description Column", tooltip="Select the column in your data that contains "
+                                                                        "descriptions (shown as interactive tooltips"),
             dcc.Dropdown(id="description-column"),
         ], className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="Count Column", tooltip="EDIT ME Count Column description"),
+            *_get_label_badge_combo(label="Count Column", tooltip="Select the column in your data that contains "
+                                                                  "counts (int or float values greater than 0)"),
             dcc.Dropdown(id="count-column"),
         ], className="me-5"),
         html.Div([
-            *_get_label_badge_combo(description="Color Column", tooltip="EDIT ME Color Column description"),
+            *_get_label_badge_combo(label="Color Column", tooltip="Select the column in your data that contains "
+                                                                  "colors (hex codes with preceding #, e.g. #FF0000)"),
             dcc.Dropdown(id="color-column"),
-        ], className="me-5"), ]
+        ], className="me-5"),
+        html.Span(id="data-columns-config-status", className="mt-2 text-danger")
+    ]
 
 
-def get_layout_config_color_elements() -> list[html.Div]:
+def get_layout_config_color_elements() -> list[dbc.Col]:
     return [
-        html.Div(dbc.Button("Add", id="colorpicker-add", n_clicks=1)),
-        html.Div(dbc.Button("Remove", id="colorpicker-rm", n_clicks=0, className="ms-2 me-2")),
         dbc.Col([
             dbc.Row([dcc.RangeSlider(
                 id="colorpicker-slider",
-                min=0, max=100, value=[0, 100],
+                min=0,
+                max=100,
+                value=[0, 100],
                 pushable=2,
                 className="color-picker-scale",
                 marks={0: "#000000", 100: "#C33D35"},
@@ -519,10 +610,31 @@ def get_layout_config_color_elements() -> list[html.Div]:
                 ColorPicker.get_row(idx=0, color="#000000"),
                 ColorPicker.get_row(idx=1, color="#C33D35"),
             ], id="colorpicker-container"),
-        ], className="ms-4"),
-        html.Div(
-            dbc.Button("Apply to Table", id="colorpicker-apply", n_clicks=0, className="ms-4")
-        ),
+        ], className="ms-4 colorpicker-col1"),
+        dbc.Col([
+            *_get_label_badge_combo(label="Thresholds", tooltip="Add/remove threshold levels to the color scale",
+                                    bold=True, italic=False),
+            dbc.ButtonGroup([
+                dbc.Button(" - ", id="colorpicker-rm", n_clicks=0, disabled=True,
+                           className="plus-minus-btn btn-danger"),
+                dbc.Button(" + ", id="colorpicker-add", n_clicks=1, disabled=False,
+                           className="plus-minus-btn btn-success"),
+            ], className="d-flex justify-content-center")
+        ], className="colorpicker-col2"),
+        dbc.Col([
+            html.Div([
+                dcc.RadioItems([GLOBAL, LOCAL], GLOBAL, inline=True,
+                               inputStyle={"margin-right": "4px", "margin-left": "4px"},
+                               id="colorpicker-global-local"),
+                *_get_label_badge_combo(label=None,
+                                        tooltip="apply the color scale based on the maximum values of the entire tree "
+                                                "(global) or each sub-tree individually (local)")
+            ], className="d-flex justify-content-center mb-2"),
+            html.Div([
+                dbc.Button("Clear", id="colorpicker-reset", n_clicks=0, className="ms-2 me-2 btn-warning"),
+                dbc.Button("Apply", id="colorpicker-apply", n_clicks=0)
+            ], className="d-flex justify-content-center"),
+        ], className="colorpicker-col3")
     ]
 
 
@@ -532,6 +644,8 @@ def get_layout_config_color_elements() -> list[html.Div]:
         Output("colorpicker-slider", "marks"),
         Output("colorpicker-slider", "value"),
         Output("colorpicker-sample", "style"),
+        Output("colorpicker-add", "disabled"),
+        Output("colorpicker-rm", "disabled"),
     ],
     [
         Input("colorpicker-add", "n_clicks"),
@@ -548,7 +662,7 @@ def update_color_picker(n_clicks_add, n_clicks_rm, slider_values, colorpicker_va
     if not callback_context.triggered:
         if n_clicks_add == 1:
             cp = ColorPicker(children=container_children, marks=slider_marks, values=slider_values)
-            return cp.children, cp.marks, cp.values, cp.sample_scale_style
+            return cp.children, cp.marks, cp.values, cp.sample_scale_style, no_update, no_update
         raise PreventUpdate
 
     button_id = callback_context.triggered[0]['prop_id'].split('.')[0]
@@ -566,12 +680,16 @@ def update_color_picker(n_clicks_add, n_clicks_rm, slider_values, colorpicker_va
     elif "colorpicker_input" in button_id:
         cp.picker_event(picker_obj=json.loads(button_id), colors=colorpicker_values)
 
-    return cp.children, cp.marks, cp.values, cp.sample_scale_style
+    add_btn_disabled = True if len(cp.values) >= 20 else False
+    rm_btn_disabled = True if len(cp.values) <= 2 else False
+
+    return cp.children, cp.marks, cp.values, cp.sample_scale_style, add_btn_disabled, rm_btn_disabled
 
 
 def get_layout_config_label_elements() -> list[html.Div]:
     return [
-        *_get_label_badge_combo(description="Show Labels", tooltip="EDIT ME Show Labels description"),
+        *_get_label_badge_combo(label="Show Labels", tooltip="EDIT ME Show Labels description",
+                                bold=True, italic=False),
         dcc.Dropdown(
             id="show-labels",
             options=[
@@ -582,7 +700,7 @@ def get_layout_config_label_elements() -> list[html.Div]:
                 {"label": "first + last", "value": "first + last"},
             ],
             value="all",
-            className="fixed-width"
+            className="ms-2 fixed-width"
         ),
     ]
 
@@ -594,7 +712,7 @@ def get_layout_config_propagate_elements() -> list[html.Div]:
         ]),
         html.Div([
             html.Div([
-                *_get_label_badge_combo(description="Scale",
+                *_get_label_badge_combo(label="Scale",
                                         tooltip="This option controls whether the propagation should "
                                                 "be limited to each tree (Individual), or to consider "
                                                 "the entire ontology (Global)"),
@@ -603,7 +721,7 @@ def get_layout_config_propagate_elements() -> list[html.Div]:
                                id="propagate-individual-global")
             ], className="d-flex flex-row align-items-center ms-2 me-5"),
             html.Div([
-                *_get_label_badge_combo(description="Level", tooltip="Determine to which level in the tree the counts "
+                *_get_label_badge_combo(label="Level", tooltip="Determine to which level in the tree the counts "
                                                                      "should be up-propagated"),
                 dbc.Input(type="number", min=1, max=15, step=1, value=1, id="propagate-level")
             ], className="d-flex flex-row align-items-center ms-5")
@@ -646,23 +764,27 @@ def get_layout_config_legend_elements() -> list[html.Div]:
 def get_layout_plot_type_elements() -> list[html.Div]:
     return [
         html.Div([
-            dcc.RadioItems(["Individual Plots & Menu", "Summary Plot"], "Individual Plots & Menu",
+            dcc.RadioItems([INDIVIDUAL_PLOTS, SUMMARY_PLOT], INDIVIDUAL_PLOTS,
                            inline=True, labelStyle={"padding-right": "20px"}, inputStyle={"margin-right": "4px"},
                            id="plot-type"),
         ], className="me-2"),
         html.Div([
             dbc.Input(type="number", min=1, max=15, step=1, value=3, id="plot-type-cols", placeholder="Columns",
                       disabled=True)
-        ])
+        ], className="me-2"),
+        html.Div([dcc.Slider(min=10, max=3000, step=10, value=800, marks=None,
+                             tooltip={"placement": "right", "always_visible": True,
+                                      "template": "Plot Height: {value}px"},
+                             className="me-5 mt-4", id="plot-height")], style={"width": "33%"}),
     ]
 
 
-def _get_label_badge_combo(description: str, tooltip: str, bold_italic: bool = True) -> tuple[Div, Popover]:
-    _id = description.lower().replace(" ", "-")
+def _get_label_badge_combo(label: str | None, tooltip: str, bold: bool = True, italic: bool = True) -> tuple[Div, Popover]:
+    _id = label.lower().replace(" ", "-") if label else str(uuid.uuid4())
     return (
         html.Div(
             [
-                dbc.Label(description, className="fw-bold fst-italic" if bold_italic else ""),
+                dbc.Label(label, className=f"{['', 'fw-bold'][bold]} {['', 'fst-italic'][italic]}") if label else None,
                 dbc.Button(
                     dbc.Badge("i", color="info", pill=True),
                     id=f"{_id}-target", className="btn-link popover-info-badge"
@@ -671,10 +793,9 @@ def _get_label_badge_combo(description: str, tooltip: str, bold_italic: bool = T
             className="popover-info-container"
         ),
         dbc.Popover([
-            dbc.PopoverHeader(description),
-            dbc.PopoverBody(tooltip)
-        ], target=f"{_id}-target", trigger="focus"
-        )
+            dbc.PopoverHeader(label, style={"font-weight": "bold", "font-size": "16px"}),
+            dbc.PopoverBody(tooltip, style={"font-size": "14px"})
+        ], target=f"{_id}-target", trigger="hover", style={"max-width": "50%", "width": "auto"})
     )
 
 
@@ -766,7 +887,7 @@ def toggle_collapse_load(n, is_open):
     Input("plot-type", "value"),
 )
 def toggle_plot_type_columns(value):
-    return True if value == "Individual Plots & Menu" else False
+    return True if value == INDIVIDUAL_PLOTS else False
 
 
 @callback(
@@ -790,7 +911,7 @@ def toggle_legend_elements(value):
 
 
 """
-############################## Plot brain callback ###########################
+############################## Table brain callback ###########################
 """
 
 
@@ -815,29 +936,43 @@ def toggle_legend_elements(value):
 ], [
     Input('datatable-upload', 'contents'),
     Input('datatable-add-row-button', 'n_clicks'),
-    Input("ontology-type", "value")
+    Input("ontology-type", "value"),
+    Input("colorpicker-apply", "n_clicks"),
+    Input("colorpicker-reset", "n_clicks"),
 ], [
     State('datatable-upload', 'filename'),
     State('datatable', 'data'),
-    State('datatable', 'columns')
+    State('datatable', 'columns'),
+    State("colorpicker-slider", "marks"),
+    State("colorpicker-global-local", "value"),
+    State("plot-type", "value"),
+    State("separator-character", "value"),
+    State("id-column", "value"),
+    State("parent-column", "value"),
+    State("label-column", "value"),
+    State("description-column", "value"),
+    State("count-column", "value"),
+    State("color-column", "value"),
 ])
-def update_output(contents, add_row_n_clicks, value, filename, datatable_rows, datatable_columns):
+def update_output(contents, add_row_n_clicks, ontology_type, colorpicker_apply_n_clicks, colorpicker_reset_n_clicks,
+                  filename, datatable_rows, datatable_columns, colorpicker_slider_marks, colorpicker_global_local,
+                  plot_type, level_separator, id_col, parent_col, label_col, description_col, count_col, color_col):
     triggered = [t['prop_id'] for t in callback_context.triggered]
 
-    # parent_column_opt = {"display": "block" if value == "Parent-based" else "none"}
-    # separator_column_opt = {"display": "none" if value == "Parent-based" else "block"}
+    # parent_column_opt = {"display": "block" if value == PARENT_BASED_ONTOLOGY else "none"}
+    # separator_column_opt = {"display": "none" if value == PARENT_BASED_ONTOLOGY else "block"}
 
     # vars below must match number of output parameters defined in callback above and must be returned
     datatable_data = no_update
     datatable_columns = datatable_columns if "datatable-add-row-button.n_clicks" in triggered else no_update
     datatable_tooltip_data = no_update
     column_options = no_update
-    parent_column_row = {"display": "block" if value == "Parent-based" else "none"}
-    separator_character_row = {"display": "none" if value == "Parent-based" else "block"}
+    parent_column_row = {"display": "block" if ontology_type == PARENT_BASED_ONTOLOGY else "none"}
+    separator_character_row = {"display": "none" if ontology_type == PARENT_BASED_ONTOLOGY else "block"}
 
     # initial load of a template
     if triggered == ["."] or triggered == ["ontology-type.value"]:
-        template = "custom_template_separator_based.tsv" if value == "Separator-based" else "custom_template_parent_based.tsv"
+        template = "custom_template_separator_based.tsv" if ontology_type == SEPARATOR_BASED_ONTOLOGY else "custom_template_parent_based.tsv"
         df = pd.read_csv(f"../../templates/{template}", delimiter="\t")
         datatable_data, datatable_columns, datatable_tooltip_data, column_options = get_table_objects(df=df)
 
@@ -849,6 +984,37 @@ def update_output(contents, add_row_n_clicks, value, filename, datatable_rows, d
     elif 'datatable-upload.contents' in triggered:
         df = parse_contents(contents, filename)
         datatable_data, datatable_columns, datatable_tooltip_data, column_options = get_table_objects(df=df)
+
+    elif "colorpicker-reset.n_clicks" in triggered and colorpicker_reset_n_clicks > 0:
+        if color_col not in datatable_rows[0].keys():
+            return
+        for row in datatable_rows:
+            row[color_col] = None
+        datatable_data = datatable_rows
+
+    elif "colorpicker-apply.n_clicks" in triggered and colorpicker_apply_n_clicks > 0:
+        tree = Tree(
+            id_separator="|",
+            level_separator=level_separator,
+            id_col=id_col,
+            parent_col=parent_col,
+            label_col=label_col,
+            description_col=description_col,
+            count_col=count_col,
+            color_col=color_col
+        )
+        tree.add_rows(rows=datatable_rows, ontology_type=ontology_type)
+
+        # add 0 and 100 as transparent marks if not existent
+        color_scale = colorpicker_slider_marks | {k: TRANSPARENT for k in ["0", "100"]
+                                                  if k not in colorpicker_slider_marks.keys()}
+        tree.apply_color(color_scale=color_scale, global_scale=True if colorpicker_global_local == "global" else False)
+        datatable_data = []
+        for row in datatable_rows:
+            if not row[color_col] and row[count_col]:
+                first_id = row[id_col].split("|")[0]
+                row[color_col] = tree.id_to_leaf[first_id].color
+            datatable_data.append(row)
 
     return [
         datatable_data,
@@ -893,7 +1059,12 @@ def toggle_collapse_load(n, is_open):
 
 
 @callback(
-    Output("table-output", "figure"), [
+    [
+        Output("table-output", "figure"),
+        Output("data-columns-config", "className"),
+        Output("data-columns-config-status", "children"),
+        Output("config-inactive-controller", "style"),
+     ], [
         Input("datatable", "data"),
         Input("datatable", "columns"),
         Input("ontology-type", "value"),
@@ -905,10 +1076,11 @@ def toggle_collapse_load(n, is_open):
         Input("count-column", "value"),
         Input("color-column", "value"),
         Input("plot-type", "value"),
-        Input("plot-type-cols", "value")
+        Input("plot-type-cols", "value"),
+        Input("plot-height", "value"),
     ])
-def update_color_picker(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col, description_col,
-                        count_col, color_col, plot_type, plot_type_cols):
+def visualize(datatable_data, datatable_columns, ontology_type, level_separator, id_col, parent_col, label_col,
+              description_col, count_col, color_col, plot_type, plot_type_cols, plot_height):
     tree = Tree(
         id_separator="|",
         level_separator=level_separator,
@@ -919,16 +1091,31 @@ def update_color_picker(rows, columns, ontology_type, level_separator, id_col, p
         count_col=count_col,
         color_col=color_col
     )
-    if ontology_type == "Parent-based":
-        tree.add_parent_based_rows(rows=rows)
-    else:
-        tree.add_id_based_rows(rows=rows)
-    tree.get_traces()
-    if plot_type == "Individual Plots & Menu":
-        return tree.get_individual_plots()
-    else:
-        return tree.get_summary_plot(cols=plot_type_cols)
+    try:
+        tree.add_rows(rows=datatable_data, ontology_type=ontology_type)
+        tree.get_traces()
+        if plot_type == INDIVIDUAL_PLOTS:
+            figure = tree.get_individual_plots()
+        else:
+            figure = tree.get_summary_plot(cols=plot_type_cols)
+        figure.update_traces(leaf=dict(opacity=1))
+        figure.update_layout(height=plot_height)
+        toggle_config_inactivity(inactive=False)
+        return figure, "border-top mt-4 pt-2", "", {"opacity": "unset", "pointer-events": "unset"}
 
+    except Exception as e:
+        toggle_config_inactivity(inactive=True)
+        return no_update, "mt-4 pt-2 error", str(e), {"opacity": "50%", "pointer-events": "none"}
+
+
+def toggle_config_inactivity(inactive: bool):
+    for element in app.layout.children:
+        if isinstance(element, dbc.Row) and "config-inactive-controller" in element.className:
+            if inactive:
+                element.className = element.className.replace("config-inactive-controller-active", "config-inactive-controller-inactive")
+            else:
+                element.className = element.className.replace("config-inactive-controller-inactive",
+                                                              "config-inactive-controller-active")
 
 """
 ############################## Export ###################
@@ -951,14 +1138,14 @@ def update_color_picker(rows, columns, ontology_type, level_separator, id_col, p
     State("description-column", "value"),
     State("count-column", "value"),
     State("color-column", "value"),
+    State("plot-type", "value"),
+    State("plot-type-cols", "value")
 )
-def export_html(export_html_n_clicks, rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
-                description_col,
-                count_col, color_col):
+def export_html(export_html_n_clicks, datatable_data, datatable_columns, ontology_type, level_separator, id_col,
+                parent_col, label_col, description_col, count_col, color_col, plot_type, plot_type_cols):
     if export_html_n_clicks > 0:
-        fig = update_color_picker(rows, columns, ontology_type, level_separator, id_col, parent_col, label_col,
-                                  description_col,
-                                  count_col, color_col)
+        fig = visualize(datatable_data, datatable_columns, ontology_type, level_separator, id_col, parent_col,
+                        label_col, description_col, count_col, color_col, plot_type, plot_type_cols)
         buffer = io.StringIO()
         fig.write_html(buffer)
         html_string = buffer.getvalue()

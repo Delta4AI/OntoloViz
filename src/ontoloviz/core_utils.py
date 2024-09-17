@@ -45,6 +45,29 @@ def generate_color_range(start_color: str = None, stop_color: str = None,
         return [rgb_to_hex(start_color)]
 
 
+def generate_composite_color_range(color_scale: dict, total_colors: int) -> list:
+    sorted_scale = sorted((float(k), v) for k, v in color_scale.items())
+    composite_colors = []
+
+    if total_colors == 1:
+        return [sorted_scale[-1][1]]
+
+    for i in range(len(sorted_scale) - 1):
+        start_threshold, start_color = sorted_scale[i]
+        stop_threshold, stop_color = sorted_scale[i + 1]
+
+        num_colors = int((stop_threshold - start_threshold) / 100 * total_colors)
+        composite_colors.extend(generate_color_range(start_color, stop_color, num_colors))
+
+    # Ensure total_colors length
+    if len(composite_colors) < total_colors:
+        composite_colors = sorted(composite_colors, reverse=True)
+        additional_colors = composite_colors[:total_colors - len(composite_colors)]
+        composite_colors.extend(additional_colors)
+
+    return composite_colors[:total_colors]
+
+
 def get_brightness(rgb_color: tuple = None) -> float:
     """
     Get the brightness of a rgb color triplet

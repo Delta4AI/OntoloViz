@@ -33,6 +33,15 @@
     z-index: 1002;
 }*/
 
+/* Loading
+–––––––––––––––––––––––––––––––––––––––––––––––––– */
+.dash-spinner-container {
+  background-color: #403C5340 !important;
+}
+.dash-default-spinner > div {
+  background-color: #C33D35 !important;
+}
+
 /* Color Scale
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 .color-picker-wrapper {
@@ -532,6 +541,7 @@ hr {
   border: 0.05rem solid black;
   border-radius: 10px;
   color: black;
+  width: 20px;
 }
 
 .config-inactive {

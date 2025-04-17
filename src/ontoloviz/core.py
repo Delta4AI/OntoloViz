@@ -822,6 +822,8 @@ class SunburstBase:
         for sub_tree, max_count in zip(plot_tree.values(), counts_max):
             sub_scale = []
             for node in sub_tree.values():
+                if node["imported_counts"] == self.zero:
+                    continue
                 if node["color"]:
                     global_scale[node["imported_counts"]] = node["color"]
                 try:

@@ -18,6 +18,23 @@ from plotly.subplots import make_subplots
 from src.ontoloviz.obo_utils import sanitize_string
 from src.ontoloviz.core_utils import chunks, generate_color_range, prioritize_bright_colors
 
+# Set to True to ignore wedge size based sorting and sort based on counts from .tsv
+SORT_WEDGES_BY_COUNTS: bool = False
+
+# Set wedge size to fixed width, irrespective of counts; -1 to disable
+FIXED_WEDGE_SIZE: int = -1
+
+# Set minimum wedge size; -1 to disable; Cannot be combined with FIXED_WEDGE_SIZE (fixed size has precedence)
+MIN_WEDGE_SIZE: int = -1
+
+# Override legend parameters
+LEGEND_OVERRIDE: bool = False
+LEGEND_OVERRIDE_PARAMS: dict = {
+    "title": "",
+    "tickvals": [0.025, 0.07, 0.98],
+    "ticktext": ["non significant", "down regulation", "up regulation"],
+    "tickfont": {"size": 14}
+}
 
 class SunburstBase:
     """Generalized base class"""
@@ -90,8 +107,6 @@ class SunburstBase:
                             file_type = "mesh_tsv"
                         else:
                             return None
-                            # raise ValueError("TSV verification failed. Expected 6 columns for "
-                            #                  "ATC-tree, 7 columns for MeSH tree")
                         print(f"TSV verified as '{file_type}': {fn}")
                         return file_type
 
@@ -114,19 +129,12 @@ class SunburstBase:
                 cols = workbook.worksheets[0].max_column
                 if cols not in req.values():
                     return None
-                    # raise ValueError(
-                    #     "Excel verification without settings failed: Amount of columns does not "
-                    #     "match any known configuration!\nThis files columns: "
-                    #     f"{cols}\nPossible values: {req}\nException: {exc}") from exc
                 flipped_req = {v: k for k, v in req.items()}
                 return flipped_req[cols] + "_no_settings"
 
             # check for number of columns in 'Tree' tab
             if workbook["Tree"].max_column != req[file_type[0]]:
                 return None
-                # raise ValueError("Excel verification failed: Columns in tab 'Tree' do not match "
-                #                  "expected number. Expected: "
-                #                  f"{req[file_type[0]]}, actual: {workbook['Tree'].max_column}")
 
             print(f"Excel verified as '{file_type[0]}': {fn}")
             return file_type[0]
@@ -424,7 +432,6 @@ class SunburstBase:
             try:
                 ws.append(s)
             except ValueError:
-                # for [[0, '#FFFFFF'], [0.2, '#403C53'], [1, '#C33D35']]
                 ws.append(tuple(str(_) for _ in s))
 
         return self.save_workbook(fn=fn, wb=wb)
@@ -740,9 +747,6 @@ class SunburstBase:
                 sum_dict[sub_tree_id][parent] += 1
 
                 # traverse parents up until root-node and increment counters
-                # parents = node["parent"].split("|")
-                # for parent in parents:
-                #     self._update_parent_counts(sub_tree_id, parent, sum_dict, sub_tree)
                 while True:
                     parent = sub_tree[parent]["parent"]
                     if not parent:
@@ -751,34 +755,26 @@ class SunburstBase:
 
         return sum_dict
 
-    # @staticmethod
-    # def _update_parent_counts(sub_tree_id: str, parent: str = None,
-    #                           sum_dict: dict = None, sub_tree: dict = None) -> None:
-    #     """Traverse parents up"""
-    #     sum_dict[sub_tree_id][parent] += 1
-    #
-    #     while True:
-    #         parent_ids = parent.split("|")
-    #         parent = None
-    #         for parent_id in parent_ids:
-    #             if parent_id in sub_tree:
-    #                 parent = sub_tree[parent_id]["parent"]
-    #                 sum_dict[sub_tree_id][parent_id] += 1
-    #
-    #         if parent is None:
-    #             break
-
     def _add_color_scale_to_trace(self, trace: Sunburst, cmax: int = None,
                                   cmap: list = None) -> None:
         """Adds a color scale (legend) to a trace"""
         if not cmap:
             cmap = self.s["color_scale"]
+
+        scale_min = min(_[0] for _ in cmap)
+        scale_max = max(_[0] for _ in cmap)
+
+        if scale_min != 0:
+            cmap.insert(0, (0.0, cmap[0][1]))
+            scale_min = 0.0
+
+        trace.marker.cmin = scale_min if scale_min else 0
+        trace.marker.cmax = scale_max if scale_max else 1
+
         trace.marker.colorscale = cmap
-        trace.marker.cmin = 0
-        if cmax == 0:
-            cmax = 1
-        trace.marker.cmax = cmax
-        trace.marker.colorbar = {"title": "values"}
+
+        cbar = {"title": "values"}
+        trace.marker.colorbar = {**cbar, **LEGEND_OVERRIDE_PARAMS} if LEGEND_OVERRIDE else cbar
 
     def _set_default_row_data(self, entity_id: str = None, label: str = None,
                               description: str = None, counts: str = None,
@@ -848,11 +844,19 @@ class SunburstBase:
         else:
             plot_type = Sunburst
 
+        def format_counts(dict_values):
+            if FIXED_WEDGE_SIZE != -1:
+                return [FIXED_WEDGE_SIZE for _ in dict_values]
+            elif MIN_WEDGE_SIZE != -1:
+                return [_["counts"] if _["counts"] > MIN_WEDGE_SIZE else MIN_WEDGE_SIZE for _ in dict_values]
+            else:
+                return [_["counts"] for _ in dict_values]
+
         # create list of traces
         traces = [plot_type(
             labels=labels[idx],
             parents=[_["parent"] for _ in v.values()],
-            values=[_["counts"] for _ in v.values()],
+            values=format_counts(v.values()),
             ids=[_["id"] for _ in v.values()],
             branchvalues=str("remainder" if isinstance(self, MeSHSunburst)
                              else self.s["atc_wedge_width"]),
@@ -865,7 +869,7 @@ class SunburstBase:
 
         # plot configuration
         config = {"displaylogo": False,
-                  "responsive": False,
+                  "responsive": True,
                   "scrollZoom": True,
                   "displayModeBar": True,
                   "showLink": False,
@@ -900,9 +904,6 @@ class SunburstBase:
             title = str("Drug Sunburst" + ["", " Overview"][bool(summary_plot)]
                         + f" for {self.phenotype_name}")
             file_name = f"drug_sunburst_{self.phenotype_name.lower().replace(' ', '_')}.html"
-
-        # traces[0].marker["colorscale": self.s["color_scale"], "cmin": 0, "cmax": 100,
-        # "colorbar": {"title": "values"}]
 
         # create figure
         self.set_thread_status("Creating figure ..")
@@ -962,6 +963,9 @@ class SunburstBase:
             fig = Figure(data=traces, layout=layout)
             fig.update_traces(visible="legendonly")
 
+        if SORT_WEDGES_BY_COUNTS:
+            fig.update_traces(sort=False, selector=dict(type='sunburst'))
+
         # save / plot figure
         if self.s["export_plot"]:
             # fig.update_layout(legend=dict(x=0, y=1), autosize=False, width=1280, height=900)
@@ -980,7 +984,7 @@ class SunburstBase:
             # export template as is currently configured
 
         else:
-            self.set_thread_status("Sunburst created")
+            self.set_thread_status("Sunburst created. Initializing plot ..")
             fig.show(config=config)
 
     @staticmethod
@@ -999,10 +1003,6 @@ class SunburstBase:
                                                   number_of_chunks=cols)):
             for row_idx, original_idx in enumerate(row_idxs):
                 idx_to_grid[original_idx] = (col_idx, row_idx)
-
-        # # update domain of traces to reflect grid structure
-        # for idx in range(len(traces)):
-        #     traces[idx].domain = dict(column=idx_to_grid[idx][0], row=idx_to_grid[idx][1])
 
         fig = make_subplots(rows=max(idx_to_grid.values(), key=lambda x: x[1])[-1] + 1,
                             cols=cols,
@@ -1023,7 +1023,6 @@ class SunburstBase:
                           margin=dict(l=0, r=0, b=0))
 
         # update subtitle sizes
-        # fig.for_each_annotation(lambda a: a.update(text=f"<b>{a.text}</b>"))
         fig.update_annotations(font_size=10)
         return fig
 

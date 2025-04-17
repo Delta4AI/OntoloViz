@@ -15,8 +15,8 @@ from plotly.graph_objects import Figure, Sunburst, Icicle, Treemap
 from plotly.offline import plot as plotly_plot
 from plotly.subplots import make_subplots
 
-from src.ontoloviz.obo_utils import sanitize_string
-from src.ontoloviz.core_utils import chunks, generate_color_range, prioritize_bright_colors
+from ontoloviz.obo_utils import sanitize_string
+from ontoloviz.core_utils import chunks, generate_color_range, prioritize_bright_colors
 
 # Set to True to ignore wedge size based sorting and sort based on counts from .tsv
 SORT_WEDGES_BY_COUNTS: bool = False

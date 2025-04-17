@@ -8,8 +8,8 @@ from tkinter.ttk import LabelFrame, Frame
 from tkinter import Label as LabelOG, Entry as EntryOG
 from tkinter.colorchooser import askcolor
 
-from src.ontoloviz.core import MeSHSunburst, ATCSunburst
-from src.ontoloviz.core_utils import rgb_to_hex, hex_to_rgb
+from ontoloviz.core import MeSHSunburst, ATCSunburst
+from ontoloviz.core_utils import rgb_to_hex, hex_to_rgb
 
 
 _key_release = "<KeyRelease>"

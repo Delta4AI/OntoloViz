@@ -103,6 +103,9 @@ class Branch:
                     width=2
                 ),
             ),
+            textfont=dict(
+                size=24,
+            )
         )
 
 
@@ -426,7 +429,6 @@ def get_layout_navbar() -> dbc.Navbar:
         className="mb-5",
     )
 
-
 def get_layout_data_table() -> dbc.Collapse:
     return dbc.Collapse(
         html.Div([
@@ -618,8 +620,8 @@ def get_layout_config_color_elements() -> list[dbc.Col]:
                 dbc.Button(" - ", id="colorpicker-rm", n_clicks=0, disabled=True,
                            className="plus-minus-btn btn-danger"),
                 dbc.Button(" + ", id="colorpicker-add", n_clicks=1, disabled=False,
-                           className="plus-minus-btn btn-success"),
-            ], className="d-flex justify-content-center")
+                           className="plus-minus-btn"),
+            ], className="d-flex justify-content-center", style={"width": "100px"})
         ], className="colorpicker-col2"),
         dbc.Col([
             html.Div([
@@ -631,7 +633,7 @@ def get_layout_config_color_elements() -> list[dbc.Col]:
                                                 "(global) or each sub-tree individually (local)")
             ], className="d-flex justify-content-center mb-2"),
             html.Div([
-                dbc.Button("Clear", id="colorpicker-reset", n_clicks=0, className="ms-2 me-2 btn-warning"),
+                dbc.Button("Clear", id="colorpicker-reset", n_clicks=0, className="ms-2 me-2 btn-danger"),
                 dbc.Button("Apply", id="colorpicker-apply", n_clicks=0)
             ], className="d-flex justify-content-center"),
         ], className="colorpicker-col3")
@@ -1177,11 +1179,20 @@ if __name__ == "__main__":
         external_scripts=["/assets/scripts.js"],
         external_stylesheets=["/assets/style.css", dbc.themes.SANDSTONE]
     )
-    app.layout = html.Div([
-        get_layout_navbar(),
-        get_layout_data_table(),
-        get_layout_config(),
-        get_layout_export(),
-        get_layout_graph(),
-    ])
+    app.layout = dcc.Loading(
+        id="loading-spinner",
+        type="default",
+        overlay_style={
+            "visibility": "visible",
+        },
+        delay_show=250,
+        fullscreen=True,
+        children=html.Div([
+            get_layout_navbar(),
+            get_layout_data_table(),
+            get_layout_config(),
+            get_layout_export(),
+            get_layout_graph(),
+        ])
+    )
     app.run(debug=True, dev_tools_hot_reload=True)

@@ -18,9 +18,8 @@ import plotly.graph_objects as go
 from dash.html import Div
 from dash_bootstrap_components import Popover
 
-from src.ontoloviz.core import SunburstBase
-from src.ontoloviz.core_utils import generate_color_range, generate_composite_color_range
-
+from ontoloviz.core import SunburstBase
+from ontoloviz.core_utils import generate_color_range, generate_composite_color_range
 
 """ ########################## Tree Components ############################### """
 FAKE_ONE: float = 1 + 1337e-9
@@ -34,6 +33,26 @@ PARENT_BASED_ONTOLOGY: str = "Parent-based"
 SEPARATOR_BASED_ONTOLOGY: str = "Separator-based"
 GLOBAL: str = "global"
 LOCAL: str = "local"
+
+app = None
+
+TEMPLATE_PARENT_BASED_TSV: str = """ID	Parent	Label	Description	Count	Color
+A		group 1
+X001	A	child 1	Child attached to group 1	1
+X002	A	child 2	Child attached to group 1	1
+X003	X002	child 3	Child attached to child 2	1	#0000FF
+B		group 2			
+X004|X005|X006	B	child X	Multiple children attached to group	2	#FF0000
+X007|X008	X005	child Y	Multiple children attached to child 5		
+"""
+
+TEMPLATE_SEPARATOR_BASED_TSV: str = """ID	Label	Description	Count	Color
+A	my group			
+A.1	child 1	Child attached to group
+A.1.2	child 2	Child attached to child 1
+A.1.3	child 3	Child attached to child 1	1	#0000FF
+B.1.2.3.4|C.1.2.3.4.5	child 4	Child without any parent	2	#FF0000
+"""
 
 
 @dataclass
@@ -137,7 +156,9 @@ class Tree:
             global_max_val = max(_.max_val for _ in self.branches.values())
             global_min_val = min(_.min_val for _ in self.branches.values())
             global_unique_vals = set(v for branch in self.branches.values() for v in branch.unique_vals)
-            global_color_range = {k: v for k, v in zip(global_unique_vals, generate_composite_color_range(color_scale=cs, total_colors=len(global_unique_vals)))}
+            global_color_range = {k: v for k, v in zip(global_unique_vals,
+                                                       generate_composite_color_range(color_scale=cs, total_colors=len(
+                                                           global_unique_vals)))}
 
         for branch in self.branches.values():
             _max = global_max_val if global_max_val else branch.max_val
@@ -149,7 +170,6 @@ class Tree:
                 if leaf.count not in [FAKE_ONE, ZERO] and leaf.color == WHITE:
                     leaf.color = _cr[float(leaf.count)]
                     # print(f"Apply color to {leaf} based on min: {_min} and max: {_max}")
-
 
     def add_rows(self, rows: list[dict[str, Any]], ontology_type: str):
         if ontology_type == PARENT_BASED_ONTOLOGY:
@@ -403,16 +423,19 @@ def get_layout_navbar() -> dbc.Navbar:
                 ),
                 dbc.Nav(
                     children=[
-                        dbc.NavItem(dbc.NavLink("Load & Edit", active=True, id="collapse-load-button", n_clicks=0)),
-                        dbc.NavItem(dbc.NavLink("Configure", active=False, id="collapse-config-button", n_clicks=0)),
-                        dbc.NavItem(dbc.NavLink("Export", active=False, id="collapse-export-button", n_clicks=0)),
+                        dbc.NavItem(dbc.NavLink("Load & Edit Data", active=True, id="load-navlink", n_clicks=0)),
+                        dbc.NavItem(dbc.NavLink("Configure Plot", active=False, id="configure-navlink", n_clicks=0)),
+                        dbc.NavItem(dbc.NavLink("Export", active=False, id="export-navlink", n_clicks=0)),
                         dbc.DropdownMenu(
                             children=[
-                                dbc.DropdownMenuItem("More pages", header=True),
-                                dbc.DropdownMenuItem("Delta 4 AI", className="text-capitalize",
+                                dbc.DropdownMenuItem("Find us on the web", header=True),
+                                dbc.DropdownMenuItem([html.I(className="bi bi-info-circle-fill me-2"), "Delta 4 AI"],
+                                                     className="text-capitalize",
                                                      href="https://www.delta4.ai", target="_blank"),
                                 dbc.DropdownMenuItem("OntoloViz GitHub", className="text-capitalize",
                                                      href="https://www.github.com/Delta4AI/OntoloViz", target="_blank"),
+                                dbc.DropdownMenuItem("Matthias Ley", className="text-capitalize",
+                                                     href="https://www.linkedin.com/in/matthias-ley", target="_blank"),
                             ],
                             nav=True,
                             in_navbar=True,
@@ -428,6 +451,7 @@ def get_layout_navbar() -> dbc.Navbar:
         dark=True,
         className="mb-5",
     )
+
 
 def get_layout_data_table() -> dbc.Collapse:
     return dbc.Collapse(
@@ -462,6 +486,7 @@ def get_layout_data_table() -> dbc.Collapse:
                         id="datatable-upload",
                         children=html.Div(["Drag and Drop or ", html.A("Click to Upload")]),
                     ),
+
                     dash_table.DataTable(
                         id="datatable",
                         page_current=0,
@@ -486,60 +511,58 @@ def get_layout_data_table() -> dbc.Collapse:
                     ),
                     dbc.Button("Add Row", id='datatable-add-row-button', n_clicks=0, className="mt-2 mb-2"),
                 ])], className="ms-2 me-2 mt-2 mb-2"),
-        ]), id="collapse-load", is_open=True,
+        ]), id="load-collapse", is_open=False,
     )
 
 
-def get_layout_config() -> dbc.Collapse:
-    return dbc.Collapse(
-        dbc.Card([
-            dbc.CardBody([
-                html.Div(id="dummy-div", style={"display": "none"}),
+def get_layout_config() -> dbc.Card:
+    return dbc.Card([
+        dbc.CardBody([
+            html.Div(id="dummy-div", style={"display": "none"}),
+            dbc.Row([
+                dbc.Col(html.Span("Data Mapping"), className="collapse-card-header"),
+                dbc.Col(get_layout_config_data_elements(), className="collapse-card")
+            ], className="border-top mt-4 pt-2", id="data-columns-config"),
+            html.Div([
                 dbc.Row([
-                    dbc.Col(html.Span("Data Mapping"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_data_elements(), className="collapse-card")
-                ], className="border-top mt-4 pt-2", id="data-columns-config"),
-                html.Div([
-                    dbc.Row([
-                        dbc.Col([
-                            *_get_label_badge_combo(label="Colors",
-                                                    tooltip="Applies the defined color scale to rows with a count value. "
-                                                            "Rows with a manually defined color are not overwritten. "
-                                                            "Values outside of the defined thresholds will remain "
-                                                            "transparent. 0% represents the row with the lowest count, "
-                                                            "100% the row with the highest count.",
-                                                    bold=False, italic=False)], className="collapse-card-header"),
-                        dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                    dbc.Row([
-                        dbc.Col(html.Span("Labels"), className="collapse-card-header"),
-                        dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                    dbc.Row([
-                        dbc.Col([
-                            *_get_label_badge_combo(label="Propagation",
-                                                    tooltip="By enabling propagation, counts and colors can be "
-                                                            "up-propagated up to the central node of the tree",
-                                                    bold=False, italic=False)],
-                            className="collapse-card-header"),
-                        dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                    dbc.Row([
-                        dbc.Col(html.Span("Border"), className="collapse-card-header"),
-                        dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                    dbc.Row([
-                        dbc.Col(html.Span("Legend"), className="collapse-card-header"),
-                        dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                    dbc.Row([
-                        dbc.Col(html.Span("Plot Style"), className="collapse-card-header"),
-                        dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
-                    ], className="border-top mt-4 pt-2"),
-                ], id="config-inactive-controller"),
-            ]),
-        ]), id="collapse-config", className="ms-2 me-2 mt-2 mb-2", is_open=True,
-    )
+                    dbc.Col([
+                        *_get_label_badge_combo(label="Colors",
+                                                tooltip="Applies the defined color scale to rows with a count value. "
+                                                        "Rows with a manually defined color are not overwritten. "
+                                                        "Values outside of the defined thresholds will remain "
+                                                        "transparent. 0% represents the row with the lowest count, "
+                                                        "100% the row with the highest count.",
+                                                bold=False, italic=False)], className="collapse-card-header"),
+                    dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Labels"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col([
+                        *_get_label_badge_combo(label="Propagation",
+                                                tooltip="By enabling propagation, counts and colors can be "
+                                                        "up-propagated up to the central node of the tree",
+                                                bold=False, italic=False)],
+                        className="collapse-card-header"),
+                    dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Border"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Legend"), className="collapse-card-header"),
+                    dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+                dbc.Row([
+                    dbc.Col(html.Span("Plot Style"), className="collapse-card-header"),
+                    dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
+                ], className="border-top mt-4 pt-2"),
+            ], id="config-inactive-controller"),
+        ]),
+    ])
 
 
 def get_layout_config_data_elements() -> list[html.Div]:
@@ -724,7 +747,7 @@ def get_layout_config_propagate_elements() -> list[html.Div]:
             ], className="d-flex flex-row align-items-center ms-2 me-5"),
             html.Div([
                 *_get_label_badge_combo(label="Level", tooltip="Determine to which level in the tree the counts "
-                                                                     "should be up-propagated"),
+                                                               "should be up-propagated"),
                 dbc.Input(type="number", min=1, max=15, step=1, value=1, id="propagate-level")
             ], className="d-flex flex-row align-items-center ms-5")
         ], id="propagate-wrapper", style={"display": "none"})
@@ -735,10 +758,10 @@ def get_layout_config_border_elements() -> list[html.Div]:
     return [
         html.Div([dbc.Label("Color: ", className="me-2")]),
         html.Div([dbc.Input(
-                      type="color",
-                      id="border-color",
-                      value="#000000",
-                      className="color-picker ms-2")]),
+            type="color",
+            id="border-color",
+            value="#000000",
+            className="color-picker ms-2")]),
         html.Div([dcc.Slider(min=0, max=100, step=1, value=100, marks=None,
                              tooltip={"placement": "right", "always_visible": True, "template": "Opacity: {value}%"},
                              className="me-5 mt-4 fixed-width-2x", id="border-opacity")]),
@@ -781,7 +804,8 @@ def get_layout_plot_type_elements() -> list[html.Div]:
     ]
 
 
-def _get_label_badge_combo(label: str | None, tooltip: str, bold: bool = True, italic: bool = True) -> tuple[Div, Popover]:
+def _get_label_badge_combo(label: str | None, tooltip: str, bold: bool = True, italic: bool = True) -> tuple[
+    Div, Popover]:
     _id = label.lower().replace(" ", "-") if label else str(uuid.uuid4())
     return (
         html.Div(
@@ -801,22 +825,20 @@ def _get_label_badge_combo(label: str | None, tooltip: str, bold: bool = True, i
     )
 
 
-def get_layout_export() -> dbc.Collapse:
-    return dbc.Collapse(
-        dbc.Card(
-            dbc.CardBody(
-                dbc.Row([
-                    dbc.Col(html.Span("Export as"), className="collapse-card-header"),
-                    dbc.Col([
-                        html.Button("Table", className="me-2", id="export-table-button", n_clicks=0,
-                                    **{"data-dummy": ""}),
-                        html.Button("HTML", className="me-2", id="export-html-button", n_clicks=0),
-                        html.A("Download Now", className="text-primary", id="download-link",
-                               download="export.html", style={"display": "none"}),
-                    ], className="collapse-card")
-                ]),
-            )
-        ), id="collapse-export", className="ms-2 me-2 mt-2 mb-2", is_open=False,
+def get_layout_export() -> dbc.Card:
+    return dbc.Card(
+        dbc.CardBody(
+            dbc.Row([
+                dbc.Col(html.Span("Export as"), className="collapse-card-header"),
+                dbc.Col([
+                    html.Button("Table", className="me-2", id="export-table-button", n_clicks=0,
+                                **{"data-dummy": ""}),
+                    html.Button("HTML", className="me-2", id="export-html-button", n_clicks=0),
+                    html.A("Download Now", className="text-primary", id="download-link",
+                           download="export.html", style={"display": "none"}),
+                ], className="collapse-card")
+            ]),
+        )
     )
 
 
@@ -865,23 +887,57 @@ def get_table_objects(df: pd.DataFrame) -> tuple:
 
 
 @callback(
-    Output("collapse-load", "is_open"),
-    Output("collapse-load-button", "active"),
-    [Input("collapse-load-button", "n_clicks")],
-    [State("collapse-load", "is_open")],
+    Output("load-collapse", "is_open"),
+    Output("load-navlink", "active"),
+    [Input("load-navlink", "n_clicks")],
+    [State("load-collapse", "is_open")],
 )
 def toggle_collapse_load(n, is_open):
     return (not is_open, not is_open) if n else (is_open, is_open)
 
 
 @callback(
-    Output("collapse-config", "is_open"),
-    Output("collapse-config-button", "active"),
-    [Input("collapse-config-button", "n_clicks")],
-    [State("collapse-config", "is_open")],
+    Output("configure-offcanvas", "is_open"),
+    Output("configure-navlink", "active"),
+    Input("configure-navlink", "n_clicks"),
+    Input("configure-offcanvas", "is_open"),
+    State("configure-offcanvas", "is_open")
 )
-def toggle_collapse_load(n, is_open):
-    return (not is_open, not is_open) if n else (is_open, is_open)
+
+def toggle_collapse_configure(n_clicks, new_state, old_state):
+    if not callback_context.triggered:
+        raise PreventUpdate
+
+    trigger_id = callback_context.triggered[0]["prop_id"].split(".")[0]
+
+    # Case 1: user clicked the nav link
+    if trigger_id == "configure-navlink":
+        new_open = not old_state
+        return new_open, new_open
+
+    # Case 2: user closed (or opened) offcanvas manually
+    return new_state, new_state
+
+
+@callback(
+    Output("export-offcanvas", "is_open"),
+    Output("export-navlink", "active"),
+    Input("export-navlink", "n_clicks"),
+    Input("export-offcanvas", "is_open"),
+    State("export-offcanvas", "is_open")
+)
+
+def toggle_collapse_configure(n_clicks, new_state, old_state):
+    if not callback_context.triggered:
+        raise PreventUpdate
+
+    trigger_id = callback_context.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == "export-navlink":
+        new_open = not old_state
+        return new_open, new_open
+
+    return new_state, new_state
 
 
 @callback(
@@ -961,9 +1017,6 @@ def update_output(contents, add_row_n_clicks, ontology_type, colorpicker_apply_n
                   plot_type, level_separator, id_col, parent_col, label_col, description_col, count_col, color_col):
     triggered = [t['prop_id'] for t in callback_context.triggered]
 
-    # parent_column_opt = {"display": "block" if value == PARENT_BASED_ONTOLOGY else "none"}
-    # separator_column_opt = {"display": "none" if value == PARENT_BASED_ONTOLOGY else "block"}
-
     # vars below must match number of output parameters defined in callback above and must be returned
     datatable_data = no_update
     datatable_columns = datatable_columns if "datatable-add-row-button.n_clicks" in triggered else no_update
@@ -974,8 +1027,9 @@ def update_output(contents, add_row_n_clicks, ontology_type, colorpicker_apply_n
 
     # initial load of a template
     if triggered == ["."] or triggered == ["ontology-type.value"]:
-        template = "custom_template_separator_based.tsv" if ontology_type == SEPARATOR_BASED_ONTOLOGY else "custom_template_parent_based.tsv"
-        df = pd.read_csv(f"../../templates/{template}", delimiter="\t")
+        df = pd.read_csv(io.StringIO(
+            TEMPLATE_SEPARATOR_BASED_TSV if ontology_type == SEPARATOR_BASED_ONTOLOGY else TEMPLATE_PARENT_BASED_TSV
+        ), delimiter="\t")
         datatable_data, datatable_columns, datatable_tooltip_data, column_options = get_table_objects(df=df)
 
     # trigger for "Add Row" button
@@ -1039,21 +1093,9 @@ def update_output(contents, add_row_n_clicks, ontology_type, colorpicker_apply_n
         separator_character_row
     ]
 
-
-@callback(
-    Output("collapse-export", "is_open"),
-    Output("collapse-export-button", "active"),
-    [Input("collapse-export-button", "n_clicks")],
-    [State("collapse-export", "is_open")],
-)
-def toggle_collapse_load(n, is_open):
-    return (not is_open, not is_open) if n else (is_open, is_open)
-
-
 """
 ############################## Events to hide/show configuration parameters based on ontology type ###################
 """
-
 
 """
 ############################## Visualize plot ###################
@@ -1066,7 +1108,7 @@ def toggle_collapse_load(n, is_open):
         Output("data-columns-config", "className"),
         Output("data-columns-config-status", "children"),
         Output("config-inactive-controller", "style"),
-     ], [
+    ], [
         Input("datatable", "data"),
         Input("datatable", "columns"),
         Input("ontology-type", "value"),
@@ -1114,10 +1156,12 @@ def toggle_config_inactivity(inactive: bool):
     for element in app.layout.children:
         if isinstance(element, dbc.Row) and "config-inactive-controller" in element.className:
             if inactive:
-                element.className = element.className.replace("config-inactive-controller-active", "config-inactive-controller-inactive")
+                element.className = element.className.replace("config-inactive-controller-active",
+                                                              "config-inactive-controller-inactive")
             else:
                 element.className = element.className.replace("config-inactive-controller-inactive",
                                                               "config-inactive-controller-active")
+
 
 """
 ############################## Export ###################
@@ -1173,11 +1217,14 @@ clientside_callback(
     [Input("export-table-button", "n_clicks")]
 )
 
-if __name__ == "__main__":
+
+def run_webapp():
+    global app
+
     app = Dash(
         __name__,
         external_scripts=["/assets/scripts.js"],
-        external_stylesheets=["/assets/style.css", dbc.themes.SANDSTONE]
+        external_stylesheets=["/assets/style.css", dbc.themes.SANDSTONE, dbc.icons.FONT_AWESOME]
     )
     app.layout = dcc.Loading(
         id="loading-spinner",
@@ -1189,10 +1236,24 @@ if __name__ == "__main__":
         fullscreen=True,
         children=html.Div([
             get_layout_navbar(),
-            get_layout_data_table(),
-            get_layout_config(),
-            get_layout_export(),
-            get_layout_graph(),
+            dbc.Offcanvas(
+                get_layout_config(),
+                id="configure-offcanvas",
+                scrollable=True,
+                is_open=False,
+                backdrop=True
+            ),
+            dbc.Offcanvas(
+                get_layout_export(),
+                id="export-offcanvas",
+                is_open=False,
+                placement="bottom"
+            ),
+            html.Div(children=[get_layout_data_table(), get_layout_graph()]),
         ])
     )
     app.run(debug=True, dev_tools_hot_reload=True)
+
+
+if __name__ == "__main__":
+    run_webapp()

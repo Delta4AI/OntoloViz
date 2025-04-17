@@ -1,6 +1,0 @@
-ID	Label	Description	Count	Color
-A	my group			
-A.1	child 1	Child attached to group
-A.1.2	child 2	Child attached to child 1
-A.1.3	child 3	Child attached to child 1	1	#0000FF
-B.1.2.3.4|C.1.2.3.4.5	child 4	Child without any parent	2	#FF0000

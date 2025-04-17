@@ -18,20 +18,27 @@ classifiers = [
 ]
 keywords = ["MeSH", "ATC", "ontology", "visualization", "sunburst", "drug", "phenotype", "GUI"]
 repository = "https://github.com/Delta4AI/OntoloViz"
+packages = [
+    { include = "ontoloviz", from = "src" }
+]
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/Delta4AI/OntoloViz/issues"
 "Releases" = "https://github.com/Delta4AI/OntoloViz/releases"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 plotly = "^5.15.0"
 openpyxl = "^3.1.2"
 packaging = "^23.0"
 requests = "^2.31.0"
+dash = "^3.0.3"
+dash-bootstrap-components = "^2.0.1"
+pandas = "^2.2.3"
 
 [tool.poetry.scripts]
 ontoloviz = "ontoloviz.app:run_app"
+ontoloviz-web = "ontoloviz.web:run_webapp"
 
 [build-system]
 requires = ["poetry-core"]

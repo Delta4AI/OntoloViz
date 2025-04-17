@@ -9,11 +9,11 @@ import textwrap
 from tkinter import Tk, StringVar, BooleanVar, IntVar, filedialog, messagebox, END
 from tkinter.ttk import LabelFrame, Frame, Style
 
-from src.ontoloviz.core import MeSHSunburst, ATCSunburst
-from src.ontoloviz.obo_utils import get_remote_ontology, build_non_separator_based_tree
-from src.ontoloviz.app_utils import Button, Entry, Combobox, Checkbutton, Label, Radiobutton
-from src.ontoloviz.app_utils import create_tooltip, exception_as_popup
-from src.ontoloviz.app_utils import ExportPopup, ColorScalePopup, BorderPopup, SelectOptionsPopup
+from ontoloviz.core import MeSHSunburst, ATCSunburst
+from ontoloviz.obo_utils import get_remote_ontology, build_non_separator_based_tree
+from ontoloviz.app_utils import Button, Entry, Combobox, Checkbutton, Label, Radiobutton
+from ontoloviz.app_utils import create_tooltip, exception_as_popup
+from ontoloviz.app_utils import ExportPopup, ColorScalePopup, BorderPopup, SelectOptionsPopup
 
 
 class App(Tk):

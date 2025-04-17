@@ -1,8 +1,0 @@
-ID	Parent	Label	Description	Count	Color
-A		group 1
-X001	A	child 1	Child attached to group 1	1
-X002	A	child 2	Child attached to group 1	1
-X003	X002	child 3	Child attached to child 2	1	#0000FF
-B		group 2			
-X004|X005|X006	B	child X	Multiple children attached to group	2	#FF0000
-X007|X008	X005	child Y	Multiple children attached to child 5		

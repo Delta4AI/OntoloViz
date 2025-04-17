@@ -4,9 +4,9 @@ from threading import Thread
 import tkinter
 import plotly
 
-from src.ontoloviz.core_utils import rgb_to_hex, chunks, generate_color_range
-from src.ontoloviz.core import SunburstBase, MeSHSunburst, ATCSunburst
-from src.ontoloviz.app import App, BorderPopup, ExportPopup, ColorScalePopup
+from ontoloviz.core_utils import rgb_to_hex, chunks, generate_color_range
+from ontoloviz.core import SunburstBase, MeSHSunburst, ATCSunburst
+from ontoloviz.app import App, BorderPopup, ExportPopup, ColorScalePopup
 
 
 def test_rgb_to_hex():

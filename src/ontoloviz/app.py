@@ -336,6 +336,7 @@ class App(Tk):
         # top frame
         p_frm = LabelFrame(self.mesh_frame, text="Display Settings", style="primary.TLabelframe")
         p_frm.pack(ipadx=2, ipady=2, fill="both")
+        p_frm.pack_propagate(True)
 
         if db_functions:
             # query data frame
@@ -568,6 +569,7 @@ class App(Tk):
         # top frame
         d_frm = LabelFrame(self.atc_frame, text="Display Settings", style="primary.TLabelframe")
         d_frm.pack(ipadx=2, ipady=2, fill="both")
+        d_frm.pack_propagate(True)
 
         if db_functions:
             # query data frame

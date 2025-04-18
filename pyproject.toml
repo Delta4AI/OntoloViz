@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ontoloviz"
-version = "1.7.5"
+version = "2.0.0"
 description = "OntoloViz drug- and phenotype-ontology visualization GUI"
 authors = ["Matthias Ley <matthias.ley@delta4.ai>"]
 license = "MIT"
@@ -32,13 +32,16 @@ plotly = "^5.15.0"
 openpyxl = "^3.1.2"
 packaging = "^23.0"
 requests = "^2.31.0"
-dash = "^3.0.3"
-dash-bootstrap-components = "^2.0.1"
-pandas = "^2.2.3"
+dash = { version = "^3.0.3", optional = true }
+dash-bootstrap-components = { version = "^2.0.1", optional = true }
+pandas = { version = "^2.2.3", optional = true }
+
+[tool.poetry.extras]
+web = ["dash", "dash-bootstrap-components", "pandas"]
 
 [tool.poetry.scripts]
 ontoloviz = "ontoloviz.app:run_app"
-ontoloviz-web = "ontoloviz.web:run_webapp"
+ontoloviz-web = { callable= "ontoloviz.web:run_webapp", extras = ["web"] }
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,3 +1,10 @@
+try:
+    from dash.exceptions import PreventUpdate
+except ImportError:
+    print("It looks like the optional web dependencies are not installed. Please run:")
+    print("    pip install ontoloviz[web]")
+    exit(1)
+
 import uuid
 from dataclasses import dataclass
 import datetime
@@ -11,7 +18,6 @@ import json
 
 from dash import (Dash, dash_table, dcc, html, Input, Output, State, callback, callback_context, no_update,
                   clientside_callback, ALL, MATCH)
-from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go

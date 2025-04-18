@@ -547,7 +547,7 @@ def get_layout_config() -> dbc.Card:
                 dbc.Row([
                     dbc.Col(html.Span("Labels"), className="collapse-card-header configure-header"),
                     dbc.Col(get_layout_config_label_elements(), className="collapse-card configure-cell"),
-                ], className="border-top configure-row"),
+                ], className="border-top configure-row disabled"),
                 dbc.Row([
                     dbc.Col([
                         *_get_label_badge_combo(label="Propagation",
@@ -556,15 +556,15 @@ def get_layout_config() -> dbc.Card:
                                                 bold=False, italic=False)],
                         className="collapse-card-header configure-header"),
                     dbc.Col(get_layout_config_propagate_elements(), className="collapse-card configure-cell"),
-                ], className="border-top configure-row"),
+                ], className="border-top configure-row disabled"),
                 dbc.Row([
                     dbc.Col(html.Span("Border"), className="collapse-card-header configure-header"),
                     dbc.Col(get_layout_config_border_elements(), className="collapse-card configure-cell"),
-                ], className="border-top configure-row"),
+                ], className="border-top configure-row disabled"),
                 dbc.Row([
                     dbc.Col(html.Span("Legend"), className="collapse-card-header configure-header"),
                     dbc.Col(get_layout_config_legend_elements(), className="collapse-card configure-cell"),
-                ], className="border-top configure-row"),
+                ], className="border-top configure-row disabled"),
                 dbc.Row([
                     dbc.Col(html.Span("Plot Style"), className="collapse-card-header configure-header"),
                     dbc.Col(get_layout_plot_type_elements(), className="collapse-card configure-cell"),

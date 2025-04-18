@@ -573,6 +573,11 @@ hr {
   pointer-events: unset;
 }
 
+.disabled {
+  opacity: 50%  !important;
+  pointer-events: none  !important;
+}
+
 /* Clearing
 –––––––––––––––––––––––––––––––––––––––––––––––––– */
 

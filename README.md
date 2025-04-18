@@ -19,14 +19,31 @@
 ---
 Quickstart
 ==========
-The GUI can be run by downloading the latest [release](https://github.com/Delta4AI/OntoloViz/releases) 
-or by installing the package via PyPi (OS independent, requires **Python 3.8+**):
 
-    pip install ontoloviz
+**Latest Version (via PyPI, Python 3.8+)**  
+1. Install OntoloViz:
+   ```bash
+   pip install ontoloviz
+   ```
+2. Run the GUI:
+   ```bash
+   ontoloviz
+   ```
 
-After the installation you can run the GUI from the command line with the following command:
+**Web-Based Version (Under Development)**
+1. Install OntoloViz with extras:
+    ```bash
+    pip install ontoloviz[web]
+    ```
 
-    ontoloviz
+2. Run the Webserver:
+   ```bash
+   ontoloviz-web
+   ```
+
+**Pre-built Windows Binaries**  
+Windows bindaries can be found in the [releases page](https://github.com/Delta4AI/OntoloViz/releases) (not necessarily the most recent version, no new binaries will be added). For the latest features, please install from PyPI.
+
 
 ---
 Usage
@@ -214,15 +231,6 @@ Screenshots and Demos
 </table>
 
 > **_Screenshot 3 & 4:_**  Left: define automatic color scales based on defined counts with thresholds and hex color codes, Right: define border properties (width, opacity, colors) or disable them entirely
-
----
-
-Special Thanks to
-=================
-
-* Paul Perco, who had the initial idea for this package and provided support throughout the entire process
-* Andreas Heinzel, for inspiration regarding architectural- and software-related topics
-* The Delta4 GmbH team for providing helpful inputs
 
 ---
 Reference

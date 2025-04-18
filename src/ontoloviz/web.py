@@ -327,7 +327,7 @@ class ColorPicker:
         gradient_str = ", ".join([f"{v} {k}%" for k, v in self.marks.items()])
         return {
             "background-image": f"linear-gradient(to right, transparent 0%, {gradient_str}, transparent 100%)",
-            "width": "75%",
+            "width": "100%",
             "height": "12px",
             "margin-left": "0.25rem",
             "border-radius": "20px",
@@ -428,14 +428,21 @@ def get_layout_navbar() -> dbc.Navbar:
                         dbc.NavItem(dbc.NavLink("Export", active=False, id="export-navlink", n_clicks=0)),
                         dbc.DropdownMenu(
                             children=[
-                                dbc.DropdownMenuItem("Find us on the web", header=True),
-                                dbc.DropdownMenuItem([html.I(className="bi bi-info-circle-fill me-2"), "Delta 4 AI"],
-                                                     className="text-capitalize",
-                                                     href="https://www.delta4.ai", target="_blank"),
-                                dbc.DropdownMenuItem("OntoloViz GitHub", className="text-capitalize",
-                                                     href="https://www.github.com/Delta4AI/OntoloViz", target="_blank"),
-                                dbc.DropdownMenuItem("Matthias Ley", className="text-capitalize",
-                                                     href="https://www.linkedin.com/in/matthias-ley", target="_blank"),
+                                dbc.DropdownMenuItem("Quick Links", header=True),
+                                dbc.DropdownMenuItem([
+                                    html.I(className="bi bi-globe me-2"),
+                                    "Delta 4 AI"
+                                ], className="text-capitalize", href="https://www.delta4.ai", target="_blank"),
+                                dbc.DropdownMenuItem([
+                                    html.I(className="bi bi-github me-2"),
+                                    "OntoloViz"
+                                ], className="text-capitalize", href="https://www.github.com/Delta4AI/OntoloViz",
+                                    target="_blank"),
+                                dbc.DropdownMenuItem([
+                                    html.I(className="bi bi-linkedin me-2"),
+                                    "Matthias Ley"
+                                ], className="text-capitalize", href="https://www.linkedin.com/in/matthias-ley",
+                                    target="_blank"),
                             ],
                             nav=True,
                             in_navbar=True,
@@ -518,48 +525,50 @@ def get_layout_data_table() -> dbc.Collapse:
 def get_layout_config() -> dbc.Card:
     return dbc.Card([
         dbc.CardBody([
-            html.Div(id="dummy-div", style={"display": "none"}),
-            dbc.Row([
-                dbc.Col(html.Span("Data Mapping"), className="collapse-card-header"),
-                dbc.Col(get_layout_config_data_elements(), className="collapse-card")
-            ], className="border-top mt-4 pt-2", id="data-columns-config"),
             html.Div([
                 dbc.Row([
-                    dbc.Col([
-                        *_get_label_badge_combo(label="Colors",
-                                                tooltip="Applies the defined color scale to rows with a count value. "
-                                                        "Rows with a manually defined color are not overwritten. "
-                                                        "Values outside of the defined thresholds will remain "
-                                                        "transparent. 0% represents the row with the lowest count, "
-                                                        "100% the row with the highest count.",
-                                                bold=False, italic=False)], className="collapse-card-header"),
-                    dbc.Col(get_layout_config_color_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                    dbc.Col(html.Span("Data Mapping"), className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_data_elements(), className="collapse-card configure-cell"),
+                ], className="configure-row", id="data-columns-config"),
                 dbc.Row([
-                    dbc.Col(html.Span("Labels"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_label_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                    dbc.Col(children=[
+                        dbc.Row([*_get_label_badge_combo(
+                            label="Colors",
+                            tooltip="Applies the defined color scale to rows with a count value. "
+                                    "Rows with a manually defined color are not overwritten. "
+                                    "Values outside of the defined thresholds will remain "
+                                    "transparent. 0% represents the row with the lowest count, "
+                                    "100% the row with the highest count.",
+                            bold=False, italic=False)]),
+                        get_colorpicker_plus_minus_buttons()
+                    ], className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_color_elements(), className="collapse-card configure-cell me-3"),
+                ], className="border-top configure-row"),
+                dbc.Row([
+                    dbc.Col(html.Span("Labels"), className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_label_elements(), className="collapse-card configure-cell"),
+                ], className="border-top configure-row"),
                 dbc.Row([
                     dbc.Col([
                         *_get_label_badge_combo(label="Propagation",
                                                 tooltip="By enabling propagation, counts and colors can be "
                                                         "up-propagated up to the central node of the tree",
                                                 bold=False, italic=False)],
-                        className="collapse-card-header"),
-                    dbc.Col(get_layout_config_propagate_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                        className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_propagate_elements(), className="collapse-card configure-cell"),
+                ], className="border-top configure-row"),
                 dbc.Row([
-                    dbc.Col(html.Span("Border"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_border_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                    dbc.Col(html.Span("Border"), className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_border_elements(), className="collapse-card configure-cell"),
+                ], className="border-top configure-row"),
                 dbc.Row([
-                    dbc.Col(html.Span("Legend"), className="collapse-card-header"),
-                    dbc.Col(get_layout_config_legend_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                    dbc.Col(html.Span("Legend"), className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_config_legend_elements(), className="collapse-card configure-cell"),
+                ], className="border-top configure-row"),
                 dbc.Row([
-                    dbc.Col(html.Span("Plot Style"), className="collapse-card-header"),
-                    dbc.Col(get_layout_plot_type_elements(), className="collapse-card"),
-                ], className="border-top mt-4 pt-2"),
+                    dbc.Col(html.Span("Plot Style"), className="collapse-card-header configure-header"),
+                    dbc.Col(get_layout_plot_type_elements(), className="collapse-card configure-cell"),
+                ], className="border-top configure-row"),
             ], id="config-inactive-controller"),
         ]),
     ])
@@ -616,52 +625,81 @@ def get_layout_config_data_elements() -> list[html.Div]:
     ]
 
 
-def get_layout_config_color_elements() -> list[dbc.Col]:
-    return [
+def get_colorpicker_slider() -> dbc.Row:
+    return dbc.Row([
         dbc.Col([
-            dbc.Row([dcc.RangeSlider(
-                id="colorpicker-slider",
-                min=0,
-                max=100,
-                value=[0, 100],
-                pushable=2,
-                className="color-picker-scale",
-                marks={0: "#000000", 100: "#C33D35"},
-                tooltip={"always_visible": True, "template": "{value}%"}
-                # tooltip={"always_visible": True, "transform": "hexColorToToolTip"}
-            )]),
-            dbc.Row([html.Div(id="colorpicker-sample")]),
+            dbc.Row([
+                dcc.RangeSlider(
+                    id="colorpicker-slider",
+                    min=0,
+                    max=100,
+                    value=[0, 100],
+                    pushable=2,
+                    className="color-picker-scale",
+                    marks={0: "#000000", 100: "#C33D35"},
+                    tooltip={"always_visible": True, "template": "{value}%"}
+                    # tooltip={"always_visible": True, "transform": "hexColorToToolTip"}
+                )]),
+            dbc.Row([
+                html.Div(id="colorpicker-sample")]),
             html.Div([
                 ColorPicker.get_row(idx=0, color="#000000"),
                 ColorPicker.get_row(idx=1, color="#C33D35"),
             ], id="colorpicker-container"),
-        ], className="ms-4 colorpicker-col1"),
-        dbc.Col([
-            *_get_label_badge_combo(label="Thresholds", tooltip="Add/remove threshold levels to the color scale",
-                                    bold=True, italic=False),
-            dbc.ButtonGroup([
-                dbc.Button(" - ", id="colorpicker-rm", n_clicks=0, disabled=True,
-                           className="plus-minus-btn btn-danger"),
-                dbc.Button(" + ", id="colorpicker-add", n_clicks=1, disabled=False,
-                           className="plus-minus-btn"),
-            ], className="d-flex justify-content-center", style={"width": "100px"})
-        ], className="colorpicker-col2"),
+        ])
+    ])
+
+
+def get_colorpicker_plus_minus_buttons() -> dbc.Row:
+    return dbc.Row([
+        dbc.ButtonGroup([
+            dbc.Button(" - ", id="colorpicker-rm", n_clicks=0, disabled=True,
+                       className="plus-minus-btn btn-danger"),
+            dbc.Button(" + ", id="colorpicker-add", n_clicks=1, disabled=False,
+                       className="plus-minus-btn"),
+        ])
+    ])
+
+
+def get_colorpicker_global_local_apply_elements() -> dbc.Row:
+    combo_div, combo_popover = _get_label_badge_combo(
+        label=None,
+        tooltip=(
+            "apply the color scale based on the maximum values of the entire tree (global) "
+            "or each sub-tree individually (local)"
+        )
+    )
+
+    return dbc.Row([
         dbc.Col([
             html.Div([
-                dcc.RadioItems([GLOBAL, LOCAL], GLOBAL, inline=True,
-                               inputStyle={"margin-right": "4px", "margin-left": "4px"},
-                               id="colorpicker-global-local"),
-                *_get_label_badge_combo(label=None,
-                                        tooltip="apply the color scale based on the maximum values of the entire tree "
-                                                "(global) or each sub-tree individually (local)")
-            ], className="d-flex justify-content-center mb-2"),
+                dcc.RadioItems(
+                    [GLOBAL, LOCAL],
+                    GLOBAL,
+                    inline=True,
+                    inputStyle={"margin-right": "4px", "margin-left": "4px"},
+                    id="colorpicker-global-local"
+                ),
+                html.Div([
+                    combo_div,
+                    combo_popover
+                ], className="d-inline-flex align-items-center"),
+            ], className="d-flex align-items-center justify-content-end"),
+        ], className="d-flex align-items-center justify-content-end"),
+        dbc.Col([
             html.Div([
                 dbc.Button("Clear", id="colorpicker-reset", n_clicks=0, className="ms-2 me-2 btn-danger"),
                 dbc.Button("Apply", id="colorpicker-apply", n_clicks=0)
-            ], className="d-flex justify-content-center"),
-        ], className="colorpicker-col3")
-    ]
+            ])
+        ], className="d-flex align-items-center justify-content-start")
+    ], className="mt-2")
 
+
+def get_layout_config_color_elements() -> dbc.Container:
+    return dbc.Container([
+        get_colorpicker_slider(),
+        get_colorpicker_global_local_apply_elements()
+    ], className="full-width")
 
 @callback(
     [
@@ -754,20 +792,34 @@ def get_layout_config_propagate_elements() -> list[html.Div]:
     ]
 
 
-def get_layout_config_border_elements() -> list[html.Div]:
+def get_layout_config_border_elements() -> list[dbc.Row]:
     return [
-        html.Div([dbc.Label("Color: ", className="me-2")]),
-        html.Div([dbc.Input(
-            type="color",
-            id="border-color",
-            value="#000000",
-            className="color-picker ms-2")]),
-        html.Div([dcc.Slider(min=0, max=100, step=1, value=100, marks=None,
-                             tooltip={"placement": "right", "always_visible": True, "template": "Opacity: {value}%"},
-                             className="me-5 mt-4 fixed-width-2x", id="border-opacity")]),
-        html.Div([dcc.Slider(min=0, max=10, step=0.1, value=2, marks=None,
-                             tooltip={"placement": "right", "always_visible": True, "template": "Width: {value}px"},
-                             className="me-2 mt-4 fixed-width-2x", id="border-width")]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Label(
+                    "Color: ",
+                    className="me-2"
+                )
+            ),
+            dbc.Col(
+                dbc.Input(
+                    type="color",
+                    id="border-color",
+                    value="#000000",
+                    className="color-picker ms-2"
+                )
+            ),
+            dbc.Col(
+                dcc.Slider(min=0, max=100, step=1, value=100, marks=None,
+                           tooltip={"placement": "right", "always_visible": True, "template": "Opacity: {value}%"},
+                           id="border-opacity", className="fixed-width-2x")
+            )
+        ]),
+        dbc.Row([
+            dcc.Slider(min=0, max=10, step=0.1, value=2, marks=None,
+                       tooltip={"placement": "right", "always_visible": True, "template": "Width: {value}px"},
+                       id="border-width", className="fixed-width-2x ms-5")
+        ])
     ]
 
 
@@ -797,10 +849,11 @@ def get_layout_plot_type_elements() -> list[html.Div]:
             dbc.Input(type="number", min=1, max=15, step=1, value=3, id="plot-type-cols", placeholder="Columns",
                       disabled=True)
         ], className="me-2"),
-        html.Div([dcc.Slider(min=10, max=3000, step=10, value=800, marks=None,
-                             tooltip={"placement": "right", "always_visible": True,
-                                      "template": "Plot Height: {value}px"},
-                             className="me-5 mt-4", id="plot-height")], style={"width": "33%"}),
+        html.Div([
+            dcc.Slider(min=10, max=3000, step=10, value=800, marks=None,
+                       tooltip={"placement": "right", "always_visible": True, "template": "Plot Height: {value}px"},
+                       className="me-5 mt-4", id="plot-height")
+        ], style={"width": "50%"}),
     ]
 
 
@@ -1145,11 +1198,11 @@ def visualize(datatable_data, datatable_columns, ontology_type, level_separator,
         figure.update_traces(leaf=dict(opacity=1))
         figure.update_layout(height=plot_height)
         toggle_config_inactivity(inactive=False)
-        return figure, "border-top mt-4 pt-2", "", {"opacity": "unset", "pointer-events": "unset"}
+        return figure, "configure-row", "", {"opacity": "unset", "pointer-events": "unset"}
 
     except Exception as e:
         toggle_config_inactivity(inactive=True)
-        return no_update, "mt-4 pt-2 error", str(e), {"opacity": "50%", "pointer-events": "none"}
+        return no_update, "configure-row error", str(e), {"opacity": "50%", "pointer-events": "none"}
 
 
 def toggle_config_inactivity(inactive: bool):
@@ -1224,7 +1277,7 @@ def run_webapp():
     app = Dash(
         __name__,
         external_scripts=["/assets/scripts.js"],
-        external_stylesheets=["/assets/style.css", dbc.themes.SANDSTONE, dbc.icons.FONT_AWESOME]
+        external_stylesheets=["/assets/style.css", dbc.themes.SPACELAB, dbc.icons.BOOTSTRAP]
     )
     app.layout = dcc.Loading(
         id="loading-spinner",
@@ -1241,7 +1294,10 @@ def run_webapp():
                 id="configure-offcanvas",
                 scrollable=True,
                 is_open=False,
-                backdrop=True
+                backdrop=True,
+                style={
+                    "width": "50%"
+                }
             ),
             dbc.Offcanvas(
                 get_layout_export(),

@@ -56,7 +56,7 @@
 
 .color-picker {
   display: inline-block;
-  width: 75px;
+  width: 50px;
   height: 24px;
 }
 
@@ -71,7 +71,7 @@
 
 .color-picker-scale {
   min-height: 36px;
-  width: 75%;
+  width: 100%;
   margin-top: 4rem;
 }
 
@@ -86,25 +86,18 @@
 #colorpicker-container {
   display: flex;
   flex-direction: row;
-  width: 75%;
+  width: 100%;
   justify-content: space-between;
   margin-top: 0.5rem;
 }
 
 #colorpicker-rm, #colorpicker-add {
   width: 30px;
+  height: 30px;
 }
 
-.colorpicker-col1 {
-  flex: 1 0;
-}
-
-.colorpicker-col2 {
-  flex: 0 0 10%;
-}
-
-.colorpicker-col3 {
-  flex: 0 0 10%;
+#colorpicker-reset, #colorpicker-apply {
+  height: 24px;
 }
 
 /*#rc-slider-track {*/
@@ -139,7 +132,8 @@
   flex: 0 0 auto;
   margin-right: 2rem;
   padding-right: 2rem;
-  width: 200px;
+  border-right: 1px solid #E1E1E1;
+  width: 120px;
   font-weight: bold;
 }
 
@@ -150,8 +144,19 @@
   flex-grow: 1;
 }
 
-.border-top {
-  border-top: 1px solid black;
+.configure-row {
+  margin-left: -10px;
+  margin-right: -10px;
+}
+
+.configure-header {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.configure-cell {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 /* Grid
@@ -450,6 +455,19 @@ label > .label-body {
 
 .fixed-width-2x {
   width: 200px;
+}
+
+.fixed-width-4x {
+  width: 400px;
+}
+
+.fifty-pct-width {
+  width: 50%;
+}
+
+.full-width {
+  width: 100%;
+  margin: 0;
 }
 
 

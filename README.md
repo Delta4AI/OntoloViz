@@ -20,7 +20,7 @@
 Quickstart
 ==========
 
-**Latest Version (via PyPI, Python 3.8+)**  
+**Latest Version (via PyPI, Python 3.9+)**  
 1. Install OntoloViz:
    ```bash
    pip install ontoloviz

@@ -39,8 +39,8 @@ app = None
 TEMPLATE_PARENT_BASED_TSV: str = """ID	Parent	Label	Description	Count	Color
 A		group 1
 X001	A	child 1	Child attached to group 1	1
-X002	A	child 2	Child attached to group 1	1
-X003	X002	child 3	Child attached to child 2	1	#0000FF
+X002	A	child 2	Child attached to group 1	2
+X003	X002	child 3	Child attached to child 2	3	#0000FF
 B		group 2			
 X004|X005|X006	B	child X	Multiple children attached to group	2	#FF0000
 X007|X008	X005	child Y	Multiple children attached to child 5		
@@ -674,8 +674,8 @@ def get_colorpicker_global_local_apply_elements() -> dbc.Row:
         dbc.Col([
             html.Div([
                 dcc.RadioItems(
-                    [GLOBAL, LOCAL],
-                    GLOBAL,
+                    [LOCAL, GLOBAL],
+                    LOCAL,
                     inline=True,
                     inputStyle={"margin-right": "4px", "margin-left": "4px"},
                     id="colorpicker-global-local"
@@ -1117,7 +1117,7 @@ def update_output(contents, add_row_n_clicks, ontology_type, colorpicker_apply_n
         # add 0 and 100 as transparent marks if not existent
         color_scale = colorpicker_slider_marks | {k: TRANSPARENT for k in ["0", "100"]
                                                   if k not in colorpicker_slider_marks.keys()}
-        tree.apply_color(color_scale=color_scale, global_scale=True if colorpicker_global_local == "global" else False)
+        tree.apply_color(color_scale=color_scale, global_scale=True if colorpicker_global_local == GLOBAL else False)
         datatable_data = []
         for row in datatable_rows:
             if not row[color_col] and row[count_col]:

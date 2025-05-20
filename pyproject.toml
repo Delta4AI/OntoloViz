@@ -1,9 +1,10 @@
-[tool.poetry]
+[project]
 name = "ontoloviz"
-version = "2.0.0"
+version = "2.0.1"
 description = "OntoloViz drug- and phenotype-ontology visualization GUI"
-authors = ["Matthias Ley <matthias.ley@delta4.ai>"]
-license = "MIT"
+authors = [
+    {name = "Matthias Ley", email = "matthias.ley@delta4.ai"},
+]
 readme = "README.md"
 classifiers = [
     "Operating System :: OS Independent",
@@ -13,36 +14,41 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+license = "MIT"
 keywords = ["MeSH", "ATC", "ontology", "visualization", "sunburst", "drug", "phenotype", "GUI"]
-repository = "https://github.com/Delta4AI/OntoloViz"
-packages = [
-    { include = "ontoloviz", from = "src" }
+requires-python = ">=3.9,<4.0"
+dependencies = [
+    "plotly>=5.15.0",
+    "openpyxl>=3.1.2",
+    "packaging>=23.0",
+    "requests>=2.31.0",
 ]
 
-[tool.poetry.urls]
+[project.optional-dependencies]
+web = [
+    "dash>=3.0.3",
+    "dash-bootstrap-components>=2.0.1",
+    "pandas>=2.2.3",
+]
+
+[project.urls]
+"Repository" = "https://github.com/Delta4AI/OntoloViz"
 "Bug Tracker" = "https://github.com/Delta4AI/OntoloViz/issues"
 "Releases" = "https://github.com/Delta4AI/OntoloViz/releases"
 
-[tool.poetry.dependencies]
-python = "^3.9"
-plotly = "^5.15.0"
-openpyxl = "^3.1.2"
-packaging = "^23.0"
-requests = "^2.31.0"
-dash = { version = "^3.0.3", optional = true }
-dash-bootstrap-components = { version = "^2.0.1", optional = true }
-pandas = { version = "^2.2.3", optional = true }
-
-[tool.poetry.extras]
-web = ["dash", "dash-bootstrap-components", "pandas"]
-
-[tool.poetry.scripts]
+[project.scripts]
 ontoloviz = "ontoloviz.app:run_app"
-ontoloviz-web = { callable= "ontoloviz.web:run_webapp", extras = ["web"] }
+ontoloviz-web = "ontoloviz.web:run_webapp"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=80.8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ontoloviz*"]
+
+[tool.setuptools.package-data]
+ontoloviz = ["assets/*"]

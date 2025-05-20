@@ -20,26 +20,27 @@
 Quickstart
 ==========
 
-**Latest Version (via PyPI, Python 3.9+)**  
-1. Install OntoloViz:
-   ```bash
-   pip install ontoloviz
-   ```
-2. Run the GUI:
-   ```bash
-   ontoloviz
-   ```
+**Install OntoloViz**
+- Using pip:
+  ```bash
+  pip install ontoloviz        # Classic UI
+  pip install ontoloviz[web]   # With experimental web interface
+  ```
+- Using uv:
+  ```bash
+  git clone https://github.com/Delta4AI/OntoloViz.git
+  cd OntoloViz
+  uv sync                      # Classic UI
+  uv sync --extra web          # With experimental web interface
+  ```
 
-**Web-Based Version (Under Development)**
-1. Install OntoloViz with extras:
-    ```bash
-    pip install ontoloviz[web]
-    ```
+**Run OntoloViz**
+```bash
+ontoloviz       # Launch classic UI
+ontoloviz-web   # Launch web interface
+```
 
-2. Run the Webserver:
-   ```bash
-   ontoloviz-web
-   ```
+
 
 **Pre-built Windows Binaries**  
 Windows bindaries can be found in the [releases page](https://github.com/Delta4AI/OntoloViz/releases) (not necessarily the most recent version, no new binaries will be added). For the latest features, please install from PyPI.

@@ -23,22 +23,32 @@ Quickstart
 **Install OntoloViz**
 - Using pip:
   ```bash
-  pip install ontoloviz        # Classic UI
-  pip install ontoloviz[web]   # With experimental web interface
+  pip install ontoloviz        # Classic desktop UI (Tkinter)
   ```
 - Using uv:
   ```bash
   git clone https://github.com/Delta4AI/OntoloViz.git
   cd OntoloViz
-  uv sync                      # Classic UI
-  uv sync --extra web          # With experimental web interface
+  uv sync                      # Classic desktop UI
   ```
 
 **Run OntoloViz**
 ```bash
 ontoloviz       # Launch classic UI
-ontoloviz-web   # Launch web interface
 ```
+
+> **V2 web app (in development)**
+>
+> A new browser-based app lives in `web/` (Vite + React + TS + D3 + Canvas) and
+> `server/` (FastAPI). Run both concurrently from the repo root:
+>
+> ```bash
+> make install   # one-time: installs frontend and backend deps
+> make dev       # runs Vite on :5173 and FastAPI on :8000
+> ```
+>
+> See [web/README.md](web/README.md) and [server/README.md](server/README.md)
+> for details. The previous experimental Dash port has been removed.
 
 
 

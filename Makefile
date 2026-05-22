@@ -1,4 +1,4 @@
-.PHONY: dev dev-web dev-server install test test-web test-server lint typecheck build clean
+.PHONY: dev dev-web dev-server install test test-web test-server lint typecheck build clean parity-fixtures
 
 # --- Top-level dev loop ----------------------------------------------------
 
@@ -44,6 +44,14 @@ typecheck:
 
 build:
 	cd web && pnpm build
+
+# --- Parity ----------------------------------------------------------------
+
+# Regenerate JSON fixtures under web/tests/fixtures/parity/ from the
+# Python reference (src/ontoloviz/core.py + tests/parity logic). Run after
+# changing the propagation semantics in either language.
+parity-fixtures:
+	uv run python tests/parity/generate_fixtures.py
 
 # --- Cleanup ---------------------------------------------------------------
 

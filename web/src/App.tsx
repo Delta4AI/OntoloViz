@@ -2,11 +2,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ExportMenu } from "./components/export/ExportMenu";
 import { HealthIndicator } from "./components/HealthIndicator";
+import { LandingPage } from "./components/landing/LandingPage";
+import { OboFoundryPicker } from "./components/landing/OboFoundryPicker";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { SummaryGrid } from "./components/grid/SummaryGrid";
 import { Sunburst } from "./components/sunburst/Sunburst";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { fetchObo } from "./lib/ontology/obo";
 import { parseTsv } from "./lib/ontology/parse";
 import { derivePropagated, useAppStore } from "./lib/store";
 
@@ -42,6 +45,7 @@ export function App() {
   const [tableOpen, setTableOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [oboPickerOpen, setOboPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const propagated = useMemo(
@@ -97,6 +101,49 @@ export function App() {
     }
   };
 
+  const handleOboFetch = async (url: string, label: string) => {
+    setOboPickerOpen(false);
+    setFileName(label);
+    setLoading({ stage: "Fetching OBO file…", detail: url, progress: 0.2 });
+    await yieldToPaint();
+    try {
+      const ontology = await fetchObo(url);
+      setLoading({
+        stage: "Propagating counts & colors…",
+        detail: `${ontology.nodeCount.toLocaleString()} nodes · ${ontology.subtrees.size} subtree(s)`,
+        progress: 0.85,
+      });
+      await yieldToPaint();
+      setOntology(ontology);
+      setLoading({ stage: "Rendering sunburst…", progress: 1 });
+      await yieldToPaint();
+      setLoading(null);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "fetch failed";
+      setLoading({
+        stage: "OBO fetch failed",
+        detail: message,
+        progress: 1,
+      });
+      setTimeout(() => setLoading(null), 1800);
+    }
+  };
+
+  // LandingPage's "Try Example" path fetches a bundled TSV and re-dispatches
+  // it through the standard upload pipeline via a custom event.
+  useEffect(() => {
+    const onLoadFile = (e: Event) => {
+      const file = (e as CustomEvent<File>).detail;
+      if (file instanceof File) void handleFile(file);
+    };
+    window.addEventListener("ontoloviz:load-file", onLoadFile);
+    return () => window.removeEventListener("ontoloviz:load-file", onLoadFile);
+    // handleFile closes over state setters that are stable from useState —
+    // re-registering on every render would be a wasteful no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleEdit = async (
     rootId: string,
     nodeId: string,
@@ -148,7 +195,6 @@ export function App() {
         subtrees={subtrees.map((s) => ({ id: s.rootId, count: s.nodes.size }))}
         activeRoot={activeRoot}
         onPickSubtree={setActiveRoot}
-        onUpload={triggerUpload}
         onRequestReset={requestReset}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         settingsOpen={settingsOpen}
@@ -170,7 +216,10 @@ export function App() {
             }
           />
         ) : (
-          <EmptyState onUpload={triggerUpload} />
+          <LandingPage
+            onUpload={triggerUpload}
+            onPickObo={() => setOboPickerOpen(true)}
+          />
         )}
 
         {settingsOpen ? (
@@ -193,6 +242,13 @@ export function App() {
           stage={loading.stage}
           {...(loading.detail !== undefined ? { detail: loading.detail } : {})}
           {...(loading.progress !== undefined ? { progress: loading.progress } : {})}
+        />
+      ) : null}
+
+      {oboPickerOpen ? (
+        <OboFoundryPicker
+          onClose={() => setOboPickerOpen(false)}
+          onFetch={(url, label) => void handleOboFetch(url, label)}
         />
       ) : null}
 
@@ -285,7 +341,6 @@ interface HeaderProps {
   readonly subtrees: readonly { id: string; count: number }[];
   readonly activeRoot: string | null;
   readonly onPickSubtree: (id: string) => void;
-  readonly onUpload: () => void;
   readonly onRequestReset: () => void;
   readonly onToggleSettings: () => void;
   readonly settingsOpen: boolean;
@@ -298,7 +353,6 @@ function Header({
   subtrees,
   activeRoot,
   onPickSubtree,
-  onUpload,
   onRequestReset,
   onToggleSettings,
   settingsOpen,
@@ -308,11 +362,8 @@ function Header({
   // clicking opens a confirmation dialog. Otherwise it's a static brand mark.
   const brand = (
     <>
-      <span
-        aria-hidden
-        className="inline-block h-5 w-5 rounded-full bg-gradient-to-br from-accent to-accent-soft shadow-[0_0_20px_-2px_rgba(231,111,81,0.6)]"
-      />
-      <span className="text-[15px] font-semibold tracking-tight">OntoloViz</span>
+      <span aria-hidden className="inline-block h-2 w-2 rounded-sm bg-ink" />
+      <span className="text-[14px] font-semibold tracking-tight">OntoloViz</span>
     </>
   );
 
@@ -370,15 +421,7 @@ function Header({
                 Settings
               </button>
             </>
-          ) : (
-            <button
-              type="button"
-              onClick={onUpload}
-              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent-soft"
-            >
-              Choose TSV
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>
@@ -443,70 +486,5 @@ function LoadedView({
         {table}
       </div>
     </div>
-  );
-}
-
-function EmptyState({ onUpload }: { readonly onUpload: () => void }) {
-  return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-panel px-3 py-1 text-[11px] uppercase tracking-widest text-muted">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-        ontology sunburst
-      </div>
-      <h1 className="bg-gradient-to-b from-ink to-muted bg-clip-text text-4xl font-semibold leading-tight tracking-tight text-transparent sm:text-5xl">
-        Explore your ontology
-        <br />
-        as a living sunburst.
-      </h1>
-      <p className="mt-4 max-w-xl text-sm text-muted">
-        Upload a phenotype, drug, or MeSH TSV. Counts and colors propagate live across
-        the tree. Tweak the scale, edit values inline, export anywhere.
-      </p>
-
-      <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={onUpload}
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-on-accent shadow-[0_8px_24px_-8px_rgba(231,111,81,0.6)] hover:bg-accent-soft"
-        >
-          Choose TSV file
-        </button>
-        <span className="text-xs text-subtle">
-          .tsv / .txt / .xlsx · parsed locally
-        </span>
-      </div>
-
-      <ul className="mt-12 grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-3">
-        <FeatureCard
-          title="Live propagation"
-          body="Count + color rules cascade through every depth. No reload required."
-        />
-        <FeatureCard
-          title="Inline editing"
-          body="Adjust a node's count, label, or color from the data table — viz updates instantly."
-        />
-        <FeatureCard
-          title="Sharp exports"
-          body="2× PNG, vector SVG, or a standalone interactive HTML you can email."
-        />
-      </ul>
-    </div>
-  );
-}
-
-function FeatureCard({
-  title,
-  body,
-}: {
-  readonly title: string;
-  readonly body: string;
-}) {
-  return (
-    <li className="rounded-xl border border-border bg-panel p-4">
-      <div className="text-xs font-semibold uppercase tracking-widest text-accent-soft">
-        {title}
-      </div>
-      <p className="mt-1 text-sm text-muted">{body}</p>
-    </li>
   );
 }

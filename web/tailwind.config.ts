@@ -12,13 +12,7 @@ export default {
         line: "oklch(90% 0 0)",
       },
       fontFamily: {
-        sans: [
-          "InterVariable",
-          "Inter",
-          "ui-sans-serif",
-          "system-ui",
-          "sans-serif",
-        ],
+        sans: ["InterVariable", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
     },

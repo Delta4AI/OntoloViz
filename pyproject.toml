@@ -26,13 +26,6 @@ dependencies = [
     "requests>=2.31.0",
 ]
 
-[project.optional-dependencies]
-web = [
-    "dash>=3.0.3",
-    "dash-bootstrap-components>=2.0.1",
-    "pandas>=2.2.3",
-]
-
 [project.urls]
 "Repository" = "https://github.com/Delta4AI/OntoloViz"
 "Bug Tracker" = "https://github.com/Delta4AI/OntoloViz/issues"
@@ -40,7 +33,6 @@ web = [
 
 [project.scripts]
 ontoloviz = "ontoloviz.app:run_app"
-ontoloviz-web = "ontoloviz.web:run_webapp"
 
 [build-system]
 requires = ["setuptools>=80.8"]

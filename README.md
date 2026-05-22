@@ -37,18 +37,18 @@ Quickstart
 ontoloviz       # Launch classic UI
 ```
 
-> **V2 web app (in development)**
->
-> A new browser-based app lives in `web/` (Vite + React + TS + D3 + Canvas) and
-> `server/` (FastAPI). Run both concurrently from the repo root:
->
-> ```bash
-> make install   # one-time: installs frontend and backend deps
-> make dev       # runs Vite on :5173 and FastAPI on :8000
-> ```
->
-> See [web/README.md](web/README.md) and [server/README.md](server/README.md)
-> for details. The previous experimental Dash port has been removed.
+**Web app**
+
+A browser-based version lives in `web/` (Vite + React + TS + D3 + Canvas)
+with a FastAPI backend in `server/`. Run both concurrently from the repo
+root:
+
+```bash
+make install   # one-time: installs frontend and backend deps
+make dev       # runs Vite on :5173 and FastAPI on :8000
+```
+
+See [web/README.md](web/README.md) and [server/README.md](server/README.md) for details.
 
 
 

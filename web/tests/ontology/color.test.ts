@@ -53,22 +53,13 @@ describe("generateColorRange", () => {
   });
 
   it("returns endpoints exactly for n=2", () => {
-    expect(generateColorRange("#FFFFFF", "#000000", 2)).toEqual([
-      "#FFFFFF",
-      "#000000",
-    ]);
+    expect(generateColorRange("#FFFFFF", "#000000", 2)).toEqual(["#FFFFFF", "#000000"]);
   });
 
   it("interpolates linearly in RGB", () => {
     const out = generateColorRange("#000000", "#646464", 5);
     // Step = 100/4 = 25 per channel.
-    expect(out).toEqual([
-      "#000000",
-      "#191919",
-      "#323232",
-      "#4B4B4B",
-      "#646464",
-    ]);
+    expect(out).toEqual(["#000000", "#191919", "#323232", "#4B4B4B", "#646464"]);
   });
 
   it("returns empty array for n<=0", () => {
@@ -242,10 +233,7 @@ describe("propagateColors", () => {
     });
     const merged: Ontology = {
       ...ont,
-      subtrees: new Map([
-        ...ont.subtrees,
-        ["X", { rootId: "X", nodes: extraNodes }],
-      ]),
+      subtrees: new Map([...ont.subtrees, ["X", { rootId: "X", nodes: extraNodes }]]),
       nodeCount: ont.nodeCount + 1,
     };
     const out = propagateColors(merged, { ...baseSettings, mode: "global" });

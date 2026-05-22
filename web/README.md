@@ -1,12 +1,13 @@
-# OntoloViz Web (V2)
+# OntoloViz Web
 
-Browser-based ontology visualization. The successor to the deleted Dash port.
+Browser-based ontology visualization. Upload a phenotype or drug ranked list,
+configure propagation, explore the sunburst, and export the result.
 
 ## Stack
 
 - Vite + React 18 + TypeScript (strict)
 - D3 (`d3-hierarchy`, `d3-scale`, `d3-shape`) for layout math
-- Canvas 2D for rendering (WebGL only if profiling demands it)
+- Canvas 2D for rendering
 - Tailwind for styling
 - Zustand for state
 - papaparse + SheetJS for file parsing
@@ -43,10 +44,20 @@ web/
 │   ├── App.tsx
 │   ├── main.tsx
 │   ├── index.css
-│   ├── components/    # UI components
-│   └── lib/           # Pure logic: parsing, propagation, color, layout
-└── tests/             # Vitest specs; parity fixtures land here later
+│   ├── components/    # UI: sunburst, settings, grid, export
+│   └── lib/           # Pure logic: parsing, propagation, color, layout, render, export, store
+└── tests/             # Vitest specs and parity fixtures
 ```
+
+## Features
+
+- TSV/XLSX parsing for MeSH, ATC, and custom separator- or parent-based ontologies.
+- Count propagation (off / level / all) and color propagation
+  (off / specific / global / phenotype), each with a level threshold.
+- Single-tree sunburst renderer with click-to-zoom and a breadcrumb trail.
+- Live settings panel driving the propagation pipelines.
+- Virtualized summary grid with linked hover and search across all subtrees.
+- High-DPI PNG, SVG, and self-contained interactive HTML exports.
 
 ## Parity vs the Python reference
 
@@ -62,20 +73,6 @@ The harness uses **bottom-up traversal** (level-descending) for both count and
 phenotype-color propagation. The legacy `core.py` paths iterate in dict-
 insertion order — for counts that means propagation only travels one level
 per pass, and for phenotype colors it silently degenerates to "color
-everything" whenever ancestors appear before descendants in the TSV. The V2
-port intentionally fixes both. See the docstrings in
-`tests/parity/generate_fixtures.py`, `propagate.ts`, and `color.ts` for the
-full rationale.
-
-## Roadmap
-
-The scaffold is intentionally bare. Subsequent phases:
-
-1. ✅ TSV parsing + data model
-2. ✅ Count propagation in TS (parity-tested against `core.py`)
-3. ✅ Color propagation + scale builder (parity-tested)
-4. Single-tree renderer (D3 partition + Canvas) with zoom + breadcrumbs
-5. Settings panel
-6. Virtualized summary grid with linked hover/search
-7. Exports: high-DPI PNG, SVG, self-contained interactive HTML
-8. Backend OBO loader + future model API integration
+everything" whenever ancestors appear before descendants in the TSV. The web
+port fixes both. See the docstrings in `tests/parity/generate_fixtures.py`,
+`propagate.ts`, and `color.ts` for the full rationale.

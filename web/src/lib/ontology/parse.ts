@@ -115,15 +115,20 @@ function parseAtc(rows: readonly string[][], countLabel: string): Ontology {
 
     const level = Number(levelStr);
     if (!Number.isFinite(level) || level < 1 || level > 5) {
-      warnings.push(`Row ${idx + 2}: invalid ATC level "${levelStr}" for code "${code}".`);
+      warnings.push(
+        `Row ${idx + 2}: invalid ATC level "${levelStr}" for code "${code}".`,
+      );
       continue;
     }
     const rootId = code[0]!;
     const parent = atcParent(code, level);
 
     const subtree = ensureSubtree(subtrees, rootId);
-    if (subtree.nodes.has(code)) {
-      warnings.push(`Row ${idx + 2}: duplicate ATC code "${code}" — keeping the first occurrence.`);
+    const existing = subtree.nodes.get(code);
+    if (existing && !existing.synthetic) {
+      warnings.push(
+        `Row ${idx + 2}: duplicate ATC code "${code}" — keeping the first occurrence.`,
+      );
       continue;
     }
     subtree.nodes.set(code, {
@@ -144,7 +149,11 @@ function parseAtc(rows: readonly string[][], countLabel: string): Ontology {
   return freezeOntology(subtrees, "atc", countLabel, warnings);
 }
 
-function backfillAtcAncestors(subtree: MutableSubtree, code: string, level: number): void {
+function backfillAtcAncestors(
+  subtree: MutableSubtree,
+  code: string,
+  level: number,
+): void {
   let cursor = code;
   let cursorLevel = level;
   while (cursorLevel > 1) {
@@ -182,7 +191,8 @@ function parseParentBased(rows: readonly string[][], countLabel: string): Ontolo
   const allNodes = new Map<string, Node>();
 
   for (const [idx, row] of rows.entries()) {
-    const [rawIds, parent = "", label = "", description = "", count = "", color = ""] = row;
+    const [rawIds, parent = "", label = "", description = "", count = "", color = ""] =
+      row;
     if (!rawIds || rawIds.trim() === "") continue;
 
     const ids = rawIds.split(ID_SEPARATOR);
@@ -190,7 +200,9 @@ function parseParentBased(rows: readonly string[][], countLabel: string): Ontolo
       const trimmed = id.trim();
       if (!trimmed) continue;
       if (allNodes.has(trimmed)) {
-        warnings.push(`Row ${idx + 2}: duplicate id "${trimmed}" — keeping the first occurrence.`);
+        warnings.push(
+          `Row ${idx + 2}: duplicate id "${trimmed}" — keeping the first occurrence.`,
+        );
         continue;
       }
       allNodes.set(trimmed, {
@@ -311,8 +323,11 @@ function parseSeparatorBased(
       const parent = level > 0 ? id.slice(0, id.lastIndexOf(sep)) : "";
 
       const subtree = ensureSubtree(subtrees, rootId);
-      if (subtree.nodes.has(id)) {
-        warnings.push(`Row ${idx + 2}: duplicate id "${id}" — keeping the first occurrence.`);
+      const existing = subtree.nodes.get(id);
+      if (existing && !existing.synthetic) {
+        warnings.push(
+          `Row ${idx + 2}: duplicate id "${id}" — keeping the first occurrence.`,
+        );
         continue;
       }
       const node: Node = {
@@ -327,6 +342,8 @@ function parseSeparatorBased(
         meshId,
         synthetic: false,
       };
+      // If a synthetic placeholder exists (created earlier when a descendant
+      // was inserted), this real row supersedes it.
       subtree.nodes.set(id, node);
       backfillAncestors(subtree, id, sep);
     }
@@ -365,7 +382,10 @@ function backfillAncestors(subtree: MutableSubtree, id: string, sep: string): vo
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-function ensureSubtree(map: Map<string, MutableSubtree>, rootId: string): MutableSubtree {
+function ensureSubtree(
+  map: Map<string, MutableSubtree>,
+  rootId: string,
+): MutableSubtree {
   let s = map.get(rootId);
   if (!s) {
     s = { rootId, nodes: new Map() };

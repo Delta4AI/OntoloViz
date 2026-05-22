@@ -8,8 +8,7 @@ import {
 } from "../../src/lib/ontology/parse";
 
 const TEMPLATES = join(__dirname, "..", "..", "..", "templates");
-const readTemplate = (name: string) =>
-  readFileSync(join(TEMPLATES, name), "utf-8");
+const readTemplate = (name: string) => readFileSync(join(TEMPLATES, name), "utf-8");
 
 describe("detectFormat", () => {
   it("flags parent-based when a Parent column exists", () => {
@@ -19,13 +18,17 @@ describe("detectFormat", () => {
     expect(detectFormat(["ATC code", "Level", "Label", "Count"])).toBe("atc");
   });
   it("flags separator-based for MeSH-shaped headers", () => {
-    expect(detectFormat(["MeSH ID", "Tree ID", "Name", "Count"])).toBe("separator-based");
+    expect(detectFormat(["MeSH ID", "Tree ID", "Name", "Count"])).toBe(
+      "separator-based",
+    );
   });
 });
 
 describe("extractCountLabel", () => {
   it("pulls the bracketed label from a Counts header", () => {
-    expect(extractCountLabel(["ID", "Counts [Template Drug]", "Color"])).toBe("Template Drug");
+    expect(extractCountLabel(["ID", "Counts [Template Drug]", "Color"])).toBe(
+      "Template Drug",
+    );
   });
   it("falls back to Counts when nothing matches", () => {
     expect(extractCountLabel(["ID", "Foo"])).toBe("Counts");

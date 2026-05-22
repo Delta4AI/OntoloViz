@@ -1,12 +1,31 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { ExportBar } from "./components/export/ExportBar";
 import { HealthIndicator } from "./components/HealthIndicator";
+import { LoadingOverlay } from "./components/LoadingOverlay";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { SummaryGrid } from "./components/grid/SummaryGrid";
 import { Sunburst } from "./components/sunburst/Sunburst";
 import { parseTsv } from "./lib/ontology/parse";
 import { derivePropagated, useAppStore } from "./lib/store";
+
+interface LoadingState {
+  readonly stage: string;
+  readonly detail?: string;
+  readonly progress?: number;
+}
+
+/** Yield to the browser so pending state updates can paint before we block on CPU. */
+const yieldToPaint = (): Promise<void> =>
+  new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+
+const formatBytes = (n: number): string => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 export function App() {
   const raw = useAppStore((s) => s.raw);
@@ -15,6 +34,7 @@ export function App() {
   const activeRoot = useAppStore((s) => s.activeRoot);
   const setOntology = useAppStore((s) => s.setOntology);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
+  const [loading, setLoading] = useState<LoadingState | null>(null);
 
   const propagated = useMemo(
     () => derivePropagated(raw, count, color),
@@ -34,11 +54,37 @@ export function App() {
 
   const handleFile = async (file: File) => {
     try {
+      setLoading({
+        stage: "Reading file…",
+        detail: `${file.name} · ${formatBytes(file.size)}`,
+        progress: 0.1,
+      });
+      await yieldToPaint();
       const text = await file.text();
-      setOntology(parseTsv(text));
+
+      setLoading({
+        stage: "Parsing TSV…",
+        detail: `${formatBytes(text.length)} of text`,
+        progress: 0.45,
+      });
+      await yieldToPaint();
+      const ontology = parseTsv(text);
+
+      setLoading({
+        stage: "Propagating counts & colors…",
+        detail: `${ontology.nodeCount.toLocaleString()} nodes · ${ontology.subtrees.size} subtree(s)`,
+        progress: 0.8,
+      });
+      await yieldToPaint();
+      setOntology(ontology);
+
+      setLoading({ stage: "Rendering sunburst…", progress: 1 });
+      await yieldToPaint();
+      setLoading(null);
     } catch (e) {
       console.error(e);
       setOntology(null);
+      setLoading(null);
     }
   };
 
@@ -113,6 +159,14 @@ export function App() {
       <footer className="border-t border-line px-8 py-4 text-xs text-muted">
         OntoloViz · ontology sunburst with live propagation and exports.
       </footer>
+
+      {loading ? (
+        <LoadingOverlay
+          stage={loading.stage}
+          {...(loading.detail !== undefined ? { detail: loading.detail } : {})}
+          {...(loading.progress !== undefined ? { progress: loading.progress } : {})}
+        />
+      ) : null}
     </div>
   );
 }

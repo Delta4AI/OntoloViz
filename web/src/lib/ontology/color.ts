@@ -233,6 +233,14 @@ interface BuiltScale {
  * callers shrink the scale for very large maxima — a count of N looks up
  * `colors[floor(N / factor)]`.
  */
+// Upper bound on the number of interpolated colors we will ever allocate.
+// Without this cap, a single absurd count (e.g. a typo of 10000000000000)
+// would ask `generateColorRange` to produce billions of entries and freeze
+// the tab. The threshold is set comfortably above propagated maxima seen on
+// the real ATC/MeSH datasets so Python parity is preserved for legitimate
+// inputs, while pathological values are bounded to a memory-safe range.
+const MAX_SCALE_COLORS = 1_000_000;
+
 export function buildColorScale(
   maxVal: number,
   stops: readonly ColorStop[],
@@ -246,6 +254,11 @@ export function buildColorScale(
   } else if (max >= 250000) {
     factor = 25;
     max = Math.trunc(max / 25);
+  }
+  if (max > MAX_SCALE_COLORS) {
+    const extra = Math.ceil(max / MAX_SCALE_COLORS);
+    factor *= extra;
+    max = Math.trunc(max / extra);
   }
 
   const colors: string[] = [defaultColor];

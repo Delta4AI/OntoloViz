@@ -34,6 +34,7 @@ export function App() {
   const activeRoot = useAppStore((s) => s.activeRoot);
   const setOntology = useAppStore((s) => s.setOntology);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
+  const updateNode = useAppStore((s) => s.updateNode);
   const reset = useAppStore((s) => s.reset);
 
   const [loading, setLoading] = useState<LoadingState | null>(null);
@@ -95,6 +96,23 @@ export function App() {
     }
   };
 
+  const handleEdit = async (
+    rootId: string,
+    nodeId: string,
+    patch: Partial<
+      Pick<import("./lib/ontology/types").Node, "count" | "color" | "label">
+    >,
+  ) => {
+    // Show the blocking overlay around the edit so large trees don't appear
+    // frozen while count/color propagation recomputes. Two RAF yields wrap
+    // the synchronous re-derive triggered by updateNode → render → useMemo.
+    setLoading({ stage: "Applying edit…", detail: `${rootId} · ${nodeId}` });
+    await yieldToPaint();
+    updateNode(rootId, nodeId, patch);
+    await yieldToPaint();
+    setLoading(null);
+  };
+
   const triggerUpload = () => fileInputRef.current?.click();
 
   const handleReset = () => {
@@ -143,6 +161,7 @@ export function App() {
                 ontology={propagated}
                 open={tableOpen}
                 onToggle={() => setTableOpen((v) => !v)}
+                onEdit={handleEdit}
               />
             }
           />

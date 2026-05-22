@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { filterRows, flattenRows, useAppStore, type GridRow } from "@/lib/store";
-import type { Ontology } from "@/lib/ontology/types";
+import type { Node, Ontology } from "@/lib/ontology/types";
+
+type NodePatch = Partial<Pick<Node, "count" | "color" | "label">>;
 
 interface SummaryGridProps {
   readonly ontology: Ontology | null;
   readonly open: boolean;
   readonly onToggle: () => void;
+  /**
+   * Edit handler — the parent wraps the underlying store mutation so it can
+   * show the global loading overlay while propagation runs. When omitted,
+   * the store mutation is invoked directly (used by tests / Storybook).
+   */
+  readonly onEdit?: (rootId: string, nodeId: string, patch: NodePatch) => void;
   /** Pixel height of the scrollable area when open. Defaults to 420. */
   readonly height?: number;
 }
@@ -27,20 +35,35 @@ export function SummaryGrid({
   ontology,
   open,
   onToggle,
+  onEdit,
   height = 420,
 }: SummaryGridProps) {
   const searchQuery = useAppStore((s) => s.searchQuery);
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
   const hoveredId = useAppStore((s) => s.hoveredId);
   const setHoveredId = useAppStore((s) => s.setHoveredId);
+  const activeRoot = useAppStore((s) => s.activeRoot);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
   const updateNode = useAppStore((s) => s.updateNode);
 
+  // Default to showing only the active subtree's rows; toggling on "All
+  // subtrees" expands the view back to the full ontology.
+  const [showAll, setShowAll] = useState(false);
+
   const allRows = useMemo(() => flattenRows(ontology), [ontology]);
+  const scoped = useMemo(() => {
+    if (showAll || !activeRoot) return allRows;
+    return allRows.filter((r) => r.rootId === activeRoot);
+  }, [allRows, showAll, activeRoot]);
   const filtered = useMemo(
-    () => filterRows(allRows, searchQuery),
-    [allRows, searchQuery],
+    () => filterRows(scoped, searchQuery),
+    [scoped, searchQuery],
   );
+
+  const handlePatch = (rootId: string, nodeId: string, patch: NodePatch) => {
+    if (onEdit) onEdit(rootId, nodeId, patch);
+    else updateNode(rootId, nodeId, patch);
+  };
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -72,7 +95,9 @@ export function SummaryGrid({
           <Chevron open={open} />
           <span className="text-sm font-medium text-ink">Data table</span>
           <span className="font-mono text-[11px] text-muted">
-            {allRows.length.toLocaleString()} nodes
+            {showAll || !activeRoot
+              ? `${allRows.length.toLocaleString()} nodes`
+              : `${scoped.length.toLocaleString()} of ${allRows.length.toLocaleString()} nodes · ${activeRoot}`}
           </span>
         </span>
         <span className="text-[11px] uppercase tracking-widest text-subtle">
@@ -93,8 +118,17 @@ export function SummaryGrid({
                 aria-label="Filter nodes"
               />
             </div>
+            <label className="inline-flex cursor-pointer select-none items-center gap-2 whitespace-nowrap text-[11px] text-muted">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.currentTarget.checked)}
+                className="h-3.5 w-3.5 cursor-pointer accent-accent"
+              />
+              <span className="uppercase tracking-widest text-subtle">all subtrees</span>
+            </label>
             <span className="whitespace-nowrap font-mono text-[11px] text-muted">
-              {filtered.length.toLocaleString()} / {allRows.length.toLocaleString()}
+              {filtered.length.toLocaleString()} / {scoped.length.toLocaleString()}
             </span>
           </div>
 
@@ -127,7 +161,7 @@ export function SummaryGrid({
                       onLeave={() => setHoveredId(null)}
                       onJumpToSubtree={() => setActiveRoot(row.rootId)}
                       onPatch={(patch) =>
-                        updateNode(row.rootId, row.node.id, patch)
+                        handlePatch(row.rootId, row.node.id, patch)
                       }
                     />
                   );

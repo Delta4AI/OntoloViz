@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ExportMenu } from "./components/export/ExportMenu";
 import { HealthIndicator } from "./components/HealthIndicator";
@@ -41,6 +41,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tableOpen, setTableOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const propagated = useMemo(
@@ -120,7 +121,10 @@ export function App() {
     setFileName(null);
     setSettingsOpen(false);
     setTableOpen(false);
+    setConfirmReset(false);
   };
+
+  const requestReset = () => setConfirmReset(true);
 
   const hasData = raw !== null && subtrees.length > 0;
 
@@ -145,7 +149,7 @@ export function App() {
         activeRoot={activeRoot}
         onPickSubtree={setActiveRoot}
         onUpload={triggerUpload}
-        onReset={handleReset}
+        onRequestReset={requestReset}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         settingsOpen={settingsOpen}
         exportSubtree={activeSubtree}
@@ -191,6 +195,86 @@ export function App() {
           {...(loading.progress !== undefined ? { progress: loading.progress } : {})}
         />
       ) : null}
+
+      {confirmReset ? (
+        <ConfirmDialog
+          title="Clear loaded ontology?"
+          body={
+            fileName
+              ? `“${fileName}” and any inline edits will be discarded. This cannot be undone.`
+              : "The current ontology and any inline edits will be discarded. This cannot be undone."
+          }
+          confirmLabel="Reset"
+          onConfirm={handleReset}
+          onCancel={() => setConfirmReset(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+interface ConfirmDialogProps {
+  readonly title: string;
+  readonly body: string;
+  readonly confirmLabel: string;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+}
+
+function ConfirmDialog({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  // Escape always cancels; backdrop click cancels via the outer onClick while
+  // clicks inside the panel stop propagation so the panel stays open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+      onClick={onCancel}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-[min(92vw,420px)] rounded-xl border border-border bg-panel px-6 py-5 shadow-pop"
+      >
+        <h2
+          id="confirm-title"
+          className="text-sm font-semibold tracking-tight text-ink"
+        >
+          {title}
+        </h2>
+        <p className="mt-2 text-xs text-muted">{body}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-ink hover:bg-border"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            autoFocus
+            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent-soft"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -202,7 +286,7 @@ interface HeaderProps {
   readonly activeRoot: string | null;
   readonly onPickSubtree: (id: string) => void;
   readonly onUpload: () => void;
-  readonly onReset: () => void;
+  readonly onRequestReset: () => void;
   readonly onToggleSettings: () => void;
   readonly settingsOpen: boolean;
   readonly exportSubtree: import("./lib/ontology/types").Subtree | null;
@@ -215,21 +299,41 @@ function Header({
   activeRoot,
   onPickSubtree,
   onUpload,
-  onReset,
+  onRequestReset,
   onToggleSettings,
   settingsOpen,
   exportSubtree,
 }: HeaderProps) {
+  // When an ontology is loaded the logo doubles as the reset affordance —
+  // clicking opens a confirmation dialog. Otherwise it's a static brand mark.
+  const brand = (
+    <>
+      <span
+        aria-hidden
+        className="inline-block h-5 w-5 rounded-full bg-gradient-to-br from-accent to-accent-soft shadow-[0_0_20px_-2px_rgba(231,111,81,0.6)]"
+      />
+      <span className="text-[15px] font-semibold tracking-tight">OntoloViz</span>
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur">
       <div className="flex h-14 items-center gap-4 px-6">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="inline-block h-5 w-5 rounded-full bg-gradient-to-br from-accent to-accent-soft shadow-[0_0_20px_-2px_rgba(231,111,81,0.6)]"
-          />
-          <span className="text-[15px] font-semibold tracking-tight">OntoloViz</span>
-        </div>
+        {hasData ? (
+          <button
+            type="button"
+            onClick={onRequestReset}
+            title="Clear loaded ontology and return to start"
+            className="group flex items-center gap-2 rounded-md px-1 py-1 -mx-1 transition-colors hover:bg-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {brand}
+            <span className="hidden text-[10px] uppercase tracking-widest text-subtle group-hover:text-muted md:inline">
+              · reset
+            </span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">{brand}</div>
+        )}
 
         {hasData ? (
           <>
@@ -264,21 +368,6 @@ function Header({
                 }
               >
                 Settings
-              </button>
-              <button
-                type="button"
-                onClick={onReset}
-                className="rounded-md border border-border bg-transparent px-3 py-1.5 text-xs text-muted hover:bg-elevated hover:text-ink"
-                title="Clear loaded ontology"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={onUpload}
-                className="rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-ink hover:bg-border"
-              >
-                Load new…
               </button>
             </>
           ) : (

@@ -12,3 +12,12 @@
     font-feature-settings: "cv11", "ss01";
   }
 }
+
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(410%);
+  }
+}

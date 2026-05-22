@@ -11,8 +11,8 @@ interface RadioRowProps<T extends string> {
 }
 
 /**
- * Segmented radio control — visually a row of pill-shaped buttons that share
- * one selection. Used for count/color mode pickers.
+ * Segmented radio control — a row of pill-shaped buttons that share one
+ * selection. Used for count/color mode pickers.
  */
 export function RadioRow<T extends string>({
   name,
@@ -21,7 +21,11 @@ export function RadioRow<T extends string>({
   onChange,
 }: RadioRowProps<T>) {
   return (
-    <div role="radiogroup" aria-label={name} className="flex flex-wrap gap-1">
+    <div
+      role="radiogroup"
+      aria-label={name}
+      className="flex flex-wrap gap-1 rounded-md border border-border bg-canvas p-1"
+    >
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
@@ -33,8 +37,8 @@ export function RadioRow<T extends string>({
             onClick={() => onChange(opt.value)}
             className={
               selected
-                ? "rounded bg-white text-black px-2 py-1 text-[11px] font-medium"
-                : "rounded bg-white/5 text-white/70 px-2 py-1 text-[11px] hover:bg-white/10"
+                ? "flex-1 rounded bg-accent px-2 py-1 text-[11px] font-medium text-on-accent"
+                : "flex-1 rounded px-2 py-1 text-[11px] text-muted hover:bg-elevated hover:text-ink"
             }
           >
             {opt.label}

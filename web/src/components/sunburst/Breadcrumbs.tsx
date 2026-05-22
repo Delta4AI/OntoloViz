@@ -29,14 +29,14 @@ export function Breadcrumbs({ subtree, focusId, onSelect }: BreadcrumbsProps) {
               onClick={() => onSelect(node.id)}
               className={
                 isLast
-                  ? "rounded bg-white/10 px-2 py-0.5 font-mono text-[11px] text-white"
-                  : "rounded px-2 py-0.5 font-mono text-[11px] text-muted hover:bg-white/5 hover:text-white"
+                  ? "rounded bg-accent/15 px-2 py-0.5 font-mono text-[11px] text-accent-soft"
+                  : "rounded px-2 py-0.5 font-mono text-[11px] text-muted hover:bg-elevated hover:text-ink"
               }
               aria-current={isLast ? "true" : undefined}
             >
               {node.label || node.id}
             </button>
-            {isLast ? null : <span className="text-muted">/</span>}
+            {isLast ? null : <span className="text-subtle">/</span>}
           </span>
         );
       })}

@@ -2,6 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens — rgb triples consumed via Tailwind's
+ * `rgb(var(--c-x) / <alpha-value>)` pattern. Switch themes by setting
+ * `data-theme="light"` or `"dark"` on <html>.
+ */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: 11 11 16;
+  --c-bg: 14 14 20;
+  --c-panel: 21 21 29;
+  --c-elevated: 28 28 38;
+  --c-border: 38 38 48;
+  --c-hairline: 31 31 41;
+  --c-ink: 242 242 244;
+  --c-muted: 138 138 153;
+  --c-subtle: 110 110 122;
+  --c-accent: 231 111 81;
+  --c-accent-soft: 242 164 136;
+  --c-on-accent: 11 11 16;
+  --c-ok: 52 211 153;
+  --c-warn: 251 191 36;
+  --c-err: 248 113 113;
+  --c-shadow: 0 0 0;
+  --c-shadow-inset: 255 255 255;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-canvas: 255 255 255;
+  --c-bg: 249 249 247;
+  --c-panel: 255 255 255;
+  --c-elevated: 244 244 246;
+  --c-border: 226 226 230;
+  --c-hairline: 235 235 238;
+  --c-ink: 15 15 20;
+  --c-muted: 90 90 102;
+  --c-subtle: 140 140 152;
+  --c-accent: 196 78 56;
+  --c-accent-soft: 231 111 81;
+  --c-on-accent: 255 255 255;
+  --c-ok: 5 150 105;
+  --c-warn: 217 119 6;
+  --c-err: 220 38 38;
+  --c-shadow: 30 30 40;
+  --c-shadow-inset: 255 255 255;
+}
+
 @layer base {
   html,
   body,
@@ -10,6 +58,83 @@
   }
   body {
     font-feature-settings: "cv11", "ss01";
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgb(var(--c-accent) / 0.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgb(var(--c-accent-soft) / 0.04), transparent 60%),
+      rgb(var(--c-bg));
+    color: rgb(var(--c-ink));
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--c-border));
+    border-radius: 8px;
+    border: 2px solid rgb(var(--c-bg));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--c-muted) / 0.5);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: rgb(var(--c-border));
+    border-radius: 999px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: rgb(var(--c-ink));
+    border: 2px solid rgb(var(--c-bg));
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: rgb(var(--c-ink));
+    border: 2px solid rgb(var(--c-bg));
+    cursor: pointer;
+  }
+
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  input[type="color"]::-webkit-color-swatch {
+    border: 1px solid rgb(var(--c-border));
+    border-radius: 4px;
+  }
+
+  /* Native select chrome — match the surrounding theme */
+  select {
+    background-color: rgb(var(--c-elevated));
+    color: rgb(var(--c-ink));
+  }
+  select option {
+    background-color: rgb(var(--c-elevated));
+    color: rgb(var(--c-ink));
   }
 }
 
@@ -19,5 +144,32 @@
   }
   100% {
     transform: translateX(410%);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .drawer-in {
+    animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fade-in {
+    animation: fade-in 180ms ease-out;
   }
 }

@@ -8,8 +8,7 @@ interface LoadingOverlayProps {
 /**
  * Full-viewport blocking overlay shown while the app is busy with work the
  * user should wait for (file read + parse + propagation). Renders a stage
- * label, an optional detail line, and a progress bar (determinate when
- * `progress` is provided, otherwise an indeterminate sliding bar).
+ * label, an optional detail line, and a progress bar.
  */
 export function LoadingOverlay({ stage, detail, progress }: LoadingOverlayProps) {
   const clamped =
@@ -25,12 +24,12 @@ export function LoadingOverlay({ stage, detail, progress }: LoadingOverlayProps)
       aria-modal="true"
       aria-busy="true"
       aria-label={stage}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
     >
-      <div className="w-[min(92vw,420px)] rounded-xl border border-line bg-surface px-6 py-5 shadow-2xl">
+      <div className="w-[min(92vw,420px)] rounded-xl border border-border bg-panel px-6 py-5 shadow-pop">
         <div className="flex items-center gap-3">
           <span className="relative inline-flex h-2.5 w-2.5">
-            <span className="absolute inset-0 animate-ping rounded-full bg-accent/60" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-accent/50" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent" />
           </span>
           <h2 className="text-sm font-semibold tracking-tight text-ink">{stage}</h2>
@@ -39,11 +38,13 @@ export function LoadingOverlay({ stage, detail, progress }: LoadingOverlayProps)
           <p className="ml-[22px] mt-1 font-mono text-[11px] text-muted">{detail}</p>
         ) : null}
         <div
-          className="mt-4 h-1.5 overflow-hidden rounded-full bg-line"
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-border"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
-          {...(pct !== null ? { "aria-valuenow": pct } : { "aria-valuetext": "in progress" })}
+          {...(pct !== null
+            ? { "aria-valuenow": pct }
+            : { "aria-valuetext": "in progress" })}
         >
           {indeterminate ? (
             <div className="h-full w-1/3 animate-[loading-slide_1.2s_ease-in-out_infinite] rounded-full bg-accent" />

@@ -135,7 +135,7 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
       />
       <div
         ref={canvasWrapperRef}
-        className="relative overflow-hidden rounded-xl border border-line bg-[#0B0B10]"
+        className="relative overflow-hidden rounded-xl border border-border bg-canvas"
         style={{ height }}
       >
         <canvas

@@ -396,7 +396,7 @@ function ensureSubtree(
 
 function splitRows(text: string): string[][] {
   // Strip BOM, normalize line endings, drop trailing empty line.
-  const cleaned = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  const cleaned = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   const lines = cleaned.split("\n");
   while (lines.length && lines[lines.length - 1] === "") lines.pop();
   return lines.map((line) => line.split("\t"));

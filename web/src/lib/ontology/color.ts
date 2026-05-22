@@ -86,14 +86,15 @@ export function propagateColors(
         }
       }
     }
-    globalScale = buildColorScale(globalMax, settings.colorScale, settings.defaultColor);
+    globalScale = buildColorScale(
+      globalMax,
+      settings.colorScale,
+      settings.defaultColor,
+    );
   }
 
   for (const [rootId, subtree] of ontology.subtrees) {
-    newSubtrees.set(
-      rootId,
-      propagateSubtreeColors(subtree, settings, globalScale),
-    );
+    newSubtrees.set(rootId, propagateSubtreeColors(subtree, settings, globalScale));
   }
 
   return { ...ontology, subtrees: newSubtrees };
@@ -135,9 +136,7 @@ function propagateSubtreeColors(
 
   // "specific" or "global": level-gated, one scale per (sub)tree.
   const scale =
-    settings.mode === "global"
-      ? globalScale
-      : buildScaleForSubtree(subtree, settings);
+    settings.mode === "global" ? globalScale : buildScaleForSubtree(subtree, settings);
 
   if (!scale) return { rootId: subtree.rootId, nodes };
 
@@ -176,9 +175,7 @@ function applyPhenotypeColors(
   // visits ancestors before descendants, the ancestor-whitelist guard fires
   // too late and every node ends up colored. A level-descending walk colors
   // only the outermost nodes — which is what "phenotype" semantically means.
-  const sortedNodes = [...subtree.nodes.values()].sort(
-    (a, b) => b.level - a.level,
-  );
+  const sortedNodes = [...subtree.nodes.values()].sort((a, b) => b.level - a.level);
 
   const ancestorWhitelist = new Set<string>();
   let maxVal = 0;

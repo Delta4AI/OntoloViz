@@ -1,0 +1,181 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  derivePropagated,
+  filterRows,
+  flattenRows,
+  useAppStore,
+  type GridRow,
+} from "@/lib/store";
+import { parseTsv } from "@/lib/ontology/parse";
+import type { Node } from "@/lib/ontology/types";
+
+// Minimal ATC fixture: one 5-level chain so propagation has somewhere to go.
+const TSV = [
+  "ATC code\tLevel\tLabel\tComment\tCounts\tColor",
+  "A01AA01\t5\tcompound\t\t4\t",
+].join("\n");
+
+describe("useAppStore", () => {
+  beforeEach(() => {
+    useAppStore.getState().reset();
+  });
+
+  it("starts with null ontology and default settings", () => {
+    const state = useAppStore.getState();
+    expect(state.raw).toBeNull();
+    expect(state.activeRoot).toBeNull();
+    expect(state.count.countMode).toBe("all");
+    expect(state.color.mode).toBe("specific");
+  });
+
+  it("setOntology picks the first root as activeRoot", () => {
+    const ont = parseTsv(TSV);
+    useAppStore.getState().setOntology(ont);
+    const state = useAppStore.getState();
+    expect(state.raw).toBe(ont);
+    expect(state.activeRoot).toBe([...ont.subtrees.keys()][0]);
+  });
+
+  it("setCountSettings merges (preserves untouched keys)", () => {
+    useAppStore.getState().setCountSettings({ countMode: "level", level: 2 });
+    const c = useAppStore.getState().count;
+    expect(c.countMode).toBe("level");
+    expect(c.level).toBe(2);
+    expect(c.enabled).toBe(true); // untouched default
+  });
+
+  it("setColorSettings merges (preserves untouched keys)", () => {
+    useAppStore.getState().setColorSettings({ mode: "phenotype" });
+    const c = useAppStore.getState().color;
+    expect(c.mode).toBe("phenotype");
+    expect(c.enabled).toBe(true);
+    expect(c.defaultColor).toBe("#FFFFFF");
+  });
+
+  it("reset clears ontology and restores defaults", () => {
+    const ont = parseTsv(TSV);
+    useAppStore.getState().setOntology(ont);
+    useAppStore.getState().setColorSettings({ mode: "off" });
+    useAppStore.getState().setHoveredId("foo");
+    useAppStore.getState().setSearchQuery("query");
+    useAppStore.getState().reset();
+    const state = useAppStore.getState();
+    expect(state.raw).toBeNull();
+    expect(state.color.mode).toBe("specific");
+    expect(state.hoveredId).toBeNull();
+    expect(state.searchQuery).toBe("");
+  });
+
+  it("setHoveredId / setSearchQuery update independently", () => {
+    useAppStore.getState().setHoveredId("X.Y");
+    useAppStore.getState().setSearchQuery("abc");
+    const state = useAppStore.getState();
+    expect(state.hoveredId).toBe("X.Y");
+    expect(state.searchQuery).toBe("abc");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Grid row selectors                                                          */
+/* -------------------------------------------------------------------------- */
+
+function mkRow(rootId: string, id: string, label: string): GridRow {
+  const node: Node = {
+    id,
+    parent: "",
+    label,
+    description: "",
+    comment: "",
+    count: 0,
+    color: "#FFFFFF",
+    level: 0,
+    meshId: "",
+    synthetic: false,
+  };
+  return { rootId, node };
+}
+
+describe("flattenRows", () => {
+  it("returns [] for null ontology", () => {
+    expect(flattenRows(null)).toEqual([]);
+  });
+
+  it("returns one row per node, sorted by rootId then id", () => {
+    const ont = parseTsv(TSV);
+    const rows = flattenRows(ont);
+    expect(rows.length).toBeGreaterThan(0);
+    for (let i = 1; i < rows.length; i++) {
+      const prev = rows[i - 1]!;
+      const curr = rows[i]!;
+      const prevKey = `${prev.rootId}::${prev.node.id}`;
+      const currKey = `${curr.rootId}::${curr.node.id}`;
+      expect(prevKey <= currKey).toBe(true);
+    }
+  });
+});
+
+describe("filterRows", () => {
+  const rows = [
+    mkRow("A", "A01", "Alimentary"),
+    mkRow("A", "A02", "Antacids"),
+    mkRow("B", "B01", "Blood"),
+  ];
+
+  it("returns input unchanged for empty query", () => {
+    expect(filterRows(rows, "")).toBe(rows);
+    expect(filterRows(rows, "   ")).toBe(rows);
+  });
+
+  it("matches id substring case-insensitively", () => {
+    const out = filterRows(rows, "a0");
+    expect(out.map((r) => r.node.id)).toEqual(["A01", "A02"]);
+  });
+
+  it("matches label substring case-insensitively", () => {
+    const out = filterRows(rows, "BLOOD");
+    expect(out).toHaveLength(1);
+    expect(out[0]!.node.id).toBe("B01");
+  });
+
+  it("returns [] when nothing matches", () => {
+    expect(filterRows(rows, "zzz")).toEqual([]);
+  });
+});
+
+describe("derivePropagated", () => {
+  it("returns null when raw is null", () => {
+    const state = useAppStore.getState();
+    expect(derivePropagated(null, state.count, state.color)).toBeNull();
+  });
+
+  it("produces an ontology with the same subtree roots as the input", () => {
+    const ont = parseTsv(TSV);
+    const state = useAppStore.getState();
+    const out = derivePropagated(ont, state.count, state.color);
+    expect(out).not.toBeNull();
+    expect([...out!.subtrees.keys()]).toEqual([...ont.subtrees.keys()]);
+  });
+
+  it("changes the propagated count when countMode flips", () => {
+    const ont = parseTsv(TSV);
+    const [rootId] = [...ont.subtrees.keys()];
+    expect(rootId).toBeTruthy();
+
+    const off = derivePropagated(
+      ont,
+      { enabled: true, countMode: "off", level: 0 },
+      useAppStore.getState().color,
+    )!;
+    const all = derivePropagated(
+      ont,
+      { enabled: true, countMode: "all", level: 0 },
+      useAppStore.getState().color,
+    )!;
+    const offRoot = off.subtrees.get(rootId!)!.nodes.get(rootId!)!.count;
+    const allRoot = all.subtrees.get(rootId!)!.nodes.get(rootId!)!.count;
+    // Single leaf with count 4 — "off" leaves the root untouched (count 0
+    // from the synthesized parent), "all" rolls the leaf's 4 up.
+    expect(allRoot).toBeGreaterThan(offRoot);
+  });
+});

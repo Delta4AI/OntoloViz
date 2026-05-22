@@ -12,14 +12,5 @@ def test_health_returns_ok():
     assert isinstance(body["version"], str)
 
 
-def test_models_list_empty():
-    client = TestClient(app)
-    res = client.get("/api/models/")
-    assert res.status_code == 200
-    assert res.json() == {"providers": []}
-
-
-def test_obo_fetch_missing_url_400():
-    client = TestClient(app)
-    res = client.get("/api/obo/fetch", params={"url": ""})
-    assert res.status_code == 400
+# `/api/models/` and `/api/obo/fetch` are covered in test_models.py and
+# test_obo_endpoints.py respectively.

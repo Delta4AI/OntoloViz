@@ -14,8 +14,7 @@ const PARENT_TSV = [
 ].join("\n");
 
 const original = parseTsv(PARENT_TSV);
-const get = (o: Ontology, id: string) =>
-  o.subtrees.get("A")!.nodes.get(id)!.count;
+const get = (o: Ontology, id: string) => o.subtrees.get("A")!.nodes.get(id)!.count;
 
 describe("propagateCounts", () => {
   it("is a no-op when disabled", () => {

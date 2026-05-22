@@ -1,13 +1,18 @@
-# OntoloViz Server (V2 backend)
+# OntoloViz Server
 
-FastAPI backend for the V2 web app. Responsibilities:
+FastAPI backend for the OntoloViz web app.
 
-- **`/api/health`** — frontend startup probe.
-- **`/api/obo/*`** — CORS-safe OBO ontology fetch + parse (stub).
-- **`/api/models/*`** — namespace reserved for future external model adapters.
+## Endpoints
 
-Propagation does **not** run here. It runs in the browser (TypeScript) so that
-exported interactive HTML works offline.
+- `GET  /api/health` — startup probe used by the frontend.
+- `POST /api/obo/parse` — parse an OBO document and return the ontology.
+- `GET  /api/obo/fetch?url=…` — CORS-safe proxy that fetches an OBO file from
+  a remote URL and returns the parsed result.
+- `GET  /api/models/` — list registered external model adapters.
+- `POST /api/models/predict` — request a ranked list from a registered adapter.
+
+Propagation runs in the browser (TypeScript) so that exported interactive
+HTML works offline. The server only handles ingestion and external adapters.
 
 ## Quickstart
 

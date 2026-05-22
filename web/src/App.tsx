@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 
-import { ExportBar } from "./components/export/ExportBar";
+import { ExportMenu } from "./components/export/ExportMenu";
 import { HealthIndicator } from "./components/HealthIndicator";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { SummaryGrid } from "./components/grid/SummaryGrid";
 import { Sunburst } from "./components/sunburst/Sunburst";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { parseTsv } from "./lib/ontology/parse";
 import { derivePropagated, useAppStore } from "./lib/store";
 
@@ -15,7 +16,6 @@ interface LoadingState {
   readonly progress?: number;
 }
 
-/** Yield to the browser so pending state updates can paint before we block on CPU. */
 const yieldToPaint = (): Promise<void> =>
   new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -34,7 +34,13 @@ export function App() {
   const activeRoot = useAppStore((s) => s.activeRoot);
   const setOntology = useAppStore((s) => s.setOntology);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
+  const reset = useAppStore((s) => s.reset);
+
   const [loading, setLoading] = useState<LoadingState | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tableOpen, setTableOpen] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const propagated = useMemo(
     () => derivePropagated(raw, count, color),
@@ -54,6 +60,7 @@ export function App() {
 
   const handleFile = async (file: File) => {
     try {
+      setFileName(file.name);
       setLoading({
         stage: "Reading file…",
         detail: `${file.name} · ${formatBytes(file.size)}`,
@@ -88,77 +95,75 @@ export function App() {
     }
   };
 
+  const triggerUpload = () => fileInputRef.current?.click();
+
+  const handleReset = () => {
+    reset();
+    setFileName(null);
+    setSettingsOpen(false);
+    setTableOpen(false);
+  };
+
+  const hasData = raw !== null && subtrees.length > 0;
+
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-line px-8 py-5">
-        <div className="flex items-baseline justify-between">
-          <h1 className="font-sans text-2xl font-semibold tracking-tight">OntoloViz</h1>
-          <span className="text-xs uppercase tracking-widest text-muted">
-            ontology sunburst
-          </span>
-        </div>
-      </header>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".tsv,.txt,.xlsx"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
+          e.currentTarget.value = "";
+        }}
+      />
 
-      <main className="flex-1 px-8 py-10">
-        <section className="mx-auto flex max-w-6xl flex-col gap-6">
-          <div className="flex items-center justify-between gap-4">
-            <p className="max-w-2xl text-sm text-muted">
-              Upload a phenotype or drug TSV, tweak propagation, and explore the
-              sunburst. Settings update the render live.
-            </p>
-            <HealthIndicator />
-          </div>
+      <Header
+        hasData={hasData}
+        fileName={fileName}
+        subtrees={subtrees.map((s) => ({ id: s.rootId, count: s.nodes.size }))}
+        activeRoot={activeRoot}
+        onPickSubtree={setActiveRoot}
+        onUpload={triggerUpload}
+        onReset={handleReset}
+        onToggleSettings={() => setSettingsOpen((v) => !v)}
+        settingsOpen={settingsOpen}
+        exportSubtree={activeSubtree}
+      />
 
-          <label className="inline-flex w-fit cursor-pointer items-center gap-3 rounded-md border border-line px-4 py-2 text-sm transition hover:bg-white/5">
-            <span>Choose TSV</span>
-            <input
-              type="file"
-              accept=".tsv,.txt,.xlsx"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFile(file);
-              }}
+      <main className="relative flex-1">
+        {hasData && activeSubtree ? (
+          <LoadedView
+            activeSubtreeKey={activeSubtree.rootId}
+            sunburst={<Sunburst subtree={activeSubtree} />}
+            table={
+              <SummaryGrid
+                ontology={propagated}
+                open={tableOpen}
+                onToggle={() => setTableOpen((v) => !v)}
+              />
+            }
+          />
+        ) : (
+          <EmptyState onUpload={triggerUpload} />
+        )}
+
+        {settingsOpen ? (
+          <>
+            <button
+              type="button"
+              aria-label="Close settings"
+              onClick={() => setSettingsOpen(false)}
+              className="fade-in absolute inset-0 z-10 bg-black/40 backdrop-blur-[2px]"
             />
-          </label>
-
-          {raw && subtrees.length > 0 ? (
-            <div className="flex gap-6">
-              <div className="flex flex-1 flex-col gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="text-muted">Subtree:</span>
-                  {subtrees.map((s) => (
-                    <button
-                      key={s.rootId}
-                      type="button"
-                      onClick={() => setActiveRoot(s.rootId)}
-                      className={
-                        s.rootId === activeRoot
-                          ? "rounded bg-white/10 px-2 py-0.5 font-mono text-[11px] text-white"
-                          : "rounded px-2 py-0.5 font-mono text-[11px] text-muted hover:bg-white/5 hover:text-white"
-                      }
-                    >
-                      {s.rootId}
-                    </button>
-                  ))}
-                </div>
-                {activeSubtree ? (
-                  <>
-                    <Sunburst subtree={activeSubtree} />
-                    <ExportBar subtree={activeSubtree} />
-                  </>
-                ) : null}
-                <SummaryGrid ontology={propagated} />
-              </div>
-              <SettingsPanel />
+            <div className="drawer-in absolute right-0 top-0 z-20 h-full w-[340px] border-l border-border bg-panel shadow-pop">
+              <SettingsPanel onClose={() => setSettingsOpen(false)} />
             </div>
-          ) : null}
-        </section>
+          </>
+        ) : null}
       </main>
-
-      <footer className="border-t border-line px-8 py-4 text-xs text-muted">
-        OntoloViz · ontology sunburst with live propagation and exports.
-      </footer>
 
       {loading ? (
         <LoadingOverlay
@@ -168,5 +173,232 @@ export function App() {
         />
       ) : null}
     </div>
+  );
+}
+
+interface HeaderProps {
+  readonly hasData: boolean;
+  readonly fileName: string | null;
+  readonly subtrees: readonly { id: string; count: number }[];
+  readonly activeRoot: string | null;
+  readonly onPickSubtree: (id: string) => void;
+  readonly onUpload: () => void;
+  readonly onReset: () => void;
+  readonly onToggleSettings: () => void;
+  readonly settingsOpen: boolean;
+  readonly exportSubtree: import("./lib/ontology/types").Subtree | null;
+}
+
+function Header({
+  hasData,
+  fileName,
+  subtrees,
+  activeRoot,
+  onPickSubtree,
+  onUpload,
+  onReset,
+  onToggleSettings,
+  settingsOpen,
+  exportSubtree,
+}: HeaderProps) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur">
+      <div className="flex h-14 items-center gap-4 px-6">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-block h-5 w-5 rounded-full bg-gradient-to-br from-accent to-accent-soft shadow-[0_0_20px_-2px_rgba(231,111,81,0.6)]"
+          />
+          <span className="text-[15px] font-semibold tracking-tight">OntoloViz</span>
+        </div>
+
+        {hasData ? (
+          <>
+            <span className="h-5 w-px bg-border" aria-hidden />
+            <SubtreePicker
+              subtrees={subtrees}
+              activeRoot={activeRoot}
+              onPick={onPickSubtree}
+            />
+            {fileName ? (
+              <span className="hidden truncate font-mono text-[11px] text-muted md:inline">
+                {fileName}
+              </span>
+            ) : null}
+          </>
+        ) : null}
+
+        <div className="ml-auto flex items-center gap-2">
+          <HealthIndicator />
+          <ThemeToggle />
+          {hasData ? (
+            <>
+              <ExportMenu subtree={exportSubtree} />
+              <button
+                type="button"
+                onClick={onToggleSettings}
+                aria-pressed={settingsOpen}
+                className={
+                  settingsOpen
+                    ? "rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-on-accent"
+                    : "rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-ink hover:bg-border"
+                }
+              >
+                Settings
+              </button>
+              <button
+                type="button"
+                onClick={onReset}
+                className="rounded-md border border-border bg-transparent px-3 py-1.5 text-xs text-muted hover:bg-elevated hover:text-ink"
+                title="Clear loaded ontology"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={onUpload}
+                className="rounded-md border border-border bg-elevated px-3 py-1.5 text-xs text-ink hover:bg-border"
+              >
+                Load new…
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onUpload}
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent-soft"
+            >
+              Choose TSV
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function SubtreePicker({
+  subtrees,
+  activeRoot,
+  onPick,
+}: {
+  readonly subtrees: readonly { id: string; count: number }[];
+  readonly activeRoot: string | null;
+  readonly onPick: (id: string) => void;
+}) {
+  if (subtrees.length === 0) return null;
+  if (subtrees.length === 1) {
+    const only = subtrees[0]!;
+    return (
+      <span className="rounded bg-elevated px-2 py-1 font-mono text-[11px] text-ink">
+        {only.id}
+        <span className="ml-2 text-muted">{only.count.toLocaleString()} nodes</span>
+      </span>
+    );
+  }
+  return (
+    <label className="inline-flex items-center gap-2 text-xs text-muted">
+      <span className="uppercase tracking-widest text-subtle">subtree</span>
+      <select
+        value={activeRoot ?? ""}
+        onChange={(e) => onPick(e.currentTarget.value)}
+        className="rounded-md border border-border bg-elevated px-2 py-1 font-mono text-[11px] text-ink focus:border-accent focus:outline-none"
+      >
+        {subtrees.map((s) => (
+          <option key={s.id} value={s.id} className="bg-elevated">
+            {s.id} ({s.count.toLocaleString()})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function LoadedView({
+  activeSubtreeKey,
+  sunburst,
+  table,
+}: {
+  readonly activeSubtreeKey: string;
+  readonly sunburst: ReactNode;
+  readonly table: ReactNode;
+}) {
+  return (
+    <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-6 px-6 py-6">
+      <div
+        key={activeSubtreeKey}
+        className="fade-in rounded-2xl border border-border bg-panel p-4 shadow-panel"
+      >
+        {sunburst}
+      </div>
+      <div className="rounded-2xl border border-border bg-panel shadow-panel">
+        {table}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ onUpload }: { readonly onUpload: () => void }) {
+  return (
+    <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-panel px-3 py-1 text-[11px] uppercase tracking-widest text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+        ontology sunburst
+      </div>
+      <h1 className="bg-gradient-to-b from-ink to-muted bg-clip-text text-4xl font-semibold leading-tight tracking-tight text-transparent sm:text-5xl">
+        Explore your ontology
+        <br />
+        as a living sunburst.
+      </h1>
+      <p className="mt-4 max-w-xl text-sm text-muted">
+        Upload a phenotype, drug, or MeSH TSV. Counts and colors propagate live across
+        the tree. Tweak the scale, edit values inline, export anywhere.
+      </p>
+
+      <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={onUpload}
+          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-on-accent shadow-[0_8px_24px_-8px_rgba(231,111,81,0.6)] hover:bg-accent-soft"
+        >
+          Choose TSV file
+        </button>
+        <span className="text-xs text-subtle">
+          .tsv / .txt / .xlsx · parsed locally
+        </span>
+      </div>
+
+      <ul className="mt-12 grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-3">
+        <FeatureCard
+          title="Live propagation"
+          body="Count + color rules cascade through every depth. No reload required."
+        />
+        <FeatureCard
+          title="Inline editing"
+          body="Adjust a node's count, label, or color from the data table — viz updates instantly."
+        />
+        <FeatureCard
+          title="Sharp exports"
+          body="2× PNG, vector SVG, or a standalone interactive HTML you can email."
+        />
+      </ul>
+    </div>
+  );
+}
+
+function FeatureCard({
+  title,
+  body,
+}: {
+  readonly title: string;
+  readonly body: string;
+}) {
+  return (
+    <li className="rounded-xl border border-border bg-panel p-4">
+      <div className="text-xs font-semibold uppercase tracking-widest text-accent-soft">
+        {title}
+      </div>
+      <p className="mt-1 text-sm text-muted">{body}</p>
+    </li>
   );
 }

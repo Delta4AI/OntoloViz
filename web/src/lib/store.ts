@@ -62,6 +62,16 @@ interface AppState {
   setColorSettings(partial: Partial<ColorPropagationSettings>): void;
   setHoveredId(id: string | null): void;
   setSearchQuery(query: string): void;
+  /**
+   * Patch a single node on the raw ontology — for inline editing of count,
+   * color, or label from the data table. Triggers re-propagation through
+   * the standard derive pipeline because `raw` identity changes.
+   */
+  updateNode(
+    rootId: string,
+    nodeId: string,
+    patch: Partial<Pick<Node, "count" | "color" | "label">>,
+  ): void;
   reset(): void;
 }
 
@@ -91,6 +101,23 @@ export const useAppStore = create<AppState>((set) => ({
   setHoveredId: (id) => set(() => ({ hoveredId: id })),
 
   setSearchQuery: (searchQuery) => set(() => ({ searchQuery })),
+
+  updateNode: (rootId, nodeId, patch) =>
+    set((state) => {
+      const raw = state.raw;
+      if (!raw) return {};
+      const subtree = raw.subtrees.get(rootId);
+      if (!subtree) return {};
+      const node = subtree.nodes.get(nodeId);
+      if (!node) return {};
+      const nextNode: Node = { ...node, ...patch };
+      const nextNodes = new Map(subtree.nodes);
+      nextNodes.set(nodeId, nextNode);
+      const nextSubtree = { ...subtree, nodes: nextNodes };
+      const nextSubtrees = new Map(raw.subtrees);
+      nextSubtrees.set(rootId, nextSubtree);
+      return { raw: { ...raw, subtrees: nextSubtrees } };
+    }),
 
   reset: () =>
     set(() => ({

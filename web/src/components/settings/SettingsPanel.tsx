@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { useAppStore } from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
 import type { CountPropagationMode } from "@/lib/ontology/propagate";
@@ -100,7 +102,7 @@ function Section({
   children,
 }: {
   readonly title: string;
-  readonly children: React.ReactNode;
+  readonly children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
 import { hitTest, renderSunburst } from "@/lib/ontology/render";
@@ -94,7 +94,7 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
     });
   }, [layout, size, hoverId, externalHoverId]);
 
-  const handleMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMove = (event: MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -110,7 +110,7 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
     setExternalHoverId(null);
   };
 
-  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleClick = (event: MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();

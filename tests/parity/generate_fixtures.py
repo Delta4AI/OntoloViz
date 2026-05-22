@@ -31,9 +31,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from ontoloviz.core import ATCSunburst, MeSHSunburst  # noqa: E402
+from ontoloviz.core_utils import generate_color_range  # noqa: E402
 
 TEMPLATES_DIR = REPO_ROOT / "templates"
 FIXTURES_DIR = REPO_ROOT / "web" / "tests" / "fixtures" / "parity"
+COLOR_FIXTURES_DIR = REPO_ROOT / "web" / "tests" / "fixtures" / "parity-color"
+
+DEFAULT_COLOR_SCALE: list[list[float | str]] = [
+    [0, "#FFFFFF"],
+    [0.2, "#403C53"],
+    [1, "#C33D35"],
+]
+DEFAULT_COLOR = "#FFFFFF"
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +125,140 @@ def load_mesh(path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Color propagation — mirrors web/src/lib/ontology/color.ts. Specific/global
+# match core.py:531 byte-for-byte; phenotype uses the bottom-up fix described
+# in propagate.ts (the legacy iteration-order quirk silently colors every node
+# when ancestors precede descendants in the TSV — same family of bug as the
+# count-propagation divergence).
+# ---------------------------------------------------------------------------
+
+
+def build_color_scale(
+    max_val: float, stops: list, default_color: str
+) -> tuple[int, list[str]]:
+    factor = 1
+    max_v = int(max_val)
+    if 100000 <= max_v < 250000:
+        factor = 10
+        max_v = max_v // 10
+    elif max_v >= 250000:
+        factor = 25
+        max_v = max_v // 25
+
+    colors: list[str] = [default_color]
+    for i in range(len(stops) - 1):
+        lower_pos, lower_color = stops[i]
+        upper_pos, upper_color = stops[i + 1]
+        low_cutoff = int(max_v * lower_pos)
+        high_cutoff = int(max_v * upper_pos)
+        n = high_cutoff - low_cutoff
+        if n > 0:
+            colors.extend(generate_color_range(lower_color, upper_color, n))
+    return factor, colors
+
+
+def lookup_color(factor: int, colors: list[str], count: float) -> str:
+    if not colors:
+        return DEFAULT_COLOR
+    idx = int(count / factor)
+    if idx < 0:
+        return colors[0]
+    if idx >= len(colors):
+        return colors[-1]
+    return colors[idx]
+
+
+def dot_ancestors(node_id: str, sep: str) -> list[str]:
+    if not sep or sep not in node_id:
+        return []
+    out: list[str] = []
+    cursor = node_id
+    while sep in cursor:
+        cursor = cursor.rsplit(sep, 1)[0]
+        if cursor:
+            out.append(cursor)
+    return out
+
+
+def propagate_colors(
+    tree: dict,
+    mode: str,
+    level: int,
+    stops: list,
+    default_color: str,
+    sep: str = ".",
+) -> dict:
+    """Apply color propagation, returning {root_id: {node_id: color_hex}}."""
+    result: dict[str, dict[str, str]] = {root: {} for root in tree}
+    if mode == "off" or not stops:
+        for root, sub in tree.items():
+            for node_id, node in sub.items():
+                result[root][node_id] = node.get("color") or default_color
+        return result
+
+    if mode == "global":
+        global_max = 0
+        for sub in tree.values():
+            for node in sub.values():
+                if node["level"] >= level and node["imported_counts"] > global_max:
+                    global_max = node["imported_counts"]
+        factor, colors = build_color_scale(global_max, stops, default_color)
+        for root, sub in tree.items():
+            for node_id, node in sub.items():
+                if node["level"] >= level:
+                    result[root][node_id] = lookup_color(
+                        factor, colors, node["imported_counts"]
+                    )
+                else:
+                    result[root][node_id] = default_color
+        return result
+
+    if mode == "specific":
+        for root, sub in tree.items():
+            max_val = 0
+            for node in sub.values():
+                if node["level"] >= level and node["imported_counts"] > max_val:
+                    max_val = node["imported_counts"]
+            factor, colors = build_color_scale(max_val, stops, default_color)
+            for node_id, node in sub.items():
+                if node["level"] >= level:
+                    result[root][node_id] = lookup_color(
+                        factor, colors, node["imported_counts"]
+                    )
+                else:
+                    result[root][node_id] = default_color
+        return result
+
+    if mode == "phenotype":
+        for root, sub in tree.items():
+            sorted_nodes = sorted(
+                sub.values(), key=lambda n: n["level"], reverse=True
+            )
+            whitelist: set[str] = set()
+            max_val = 0
+            for node in sorted_nodes:
+                if node["id"] not in whitelist:
+                    if node["imported_counts"] > max_val:
+                        max_val = node["imported_counts"]
+                    for anc in dot_ancestors(node["id"], sep):
+                        whitelist.add(anc)
+            factor, colors = build_color_scale(max_val, stops, default_color)
+            seen: set[str] = set()
+            for node in sorted_nodes:
+                if node["id"] not in seen:
+                    for anc in dot_ancestors(node["id"], sep):
+                        seen.add(anc)
+                    result[root][node["id"]] = lookup_color(
+                        factor, colors, node["imported_counts"]
+                    )
+                else:
+                    result[root][node["id"]] = default_color
+        return result
+
+    raise ValueError(f"unknown color mode: {mode}")
+
+
+# ---------------------------------------------------------------------------
 # Fixture matrix
 # ---------------------------------------------------------------------------
 
@@ -127,6 +270,18 @@ class Case:
     kind: str  # "atc" or "mesh"
     mode: str  # "off" | "level" | "all"
     level: int
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class ColorCase:
+    name: str
+    template: Path
+    kind: str  # "atc" or "mesh"
+    count_mode: str  # propagated count input ("off" | "all")
+    count_level: int
+    color_mode: str  # "off" | "specific" | "global" | "phenotype"
+    color_level: int  # 1-based for the Python side, translated for the TS side
     enabled: bool
 
 
@@ -146,6 +301,62 @@ CASES: tuple[Case, ...] = (
     Case("mesh__level_3", MESH_DATA, "mesh", "level", 3, True),
     Case("mesh__level_5", MESH_DATA, "mesh", "level", 5, True),
     Case("mesh__disabled", MESH_DATA, "mesh", "all", 0, False),
+)
+
+
+COLOR_CASES: tuple[ColorCase, ...] = (
+    # MeSH: counts propagated via "all" so colors see the realistic distribution.
+    ColorCase("mesh__color_off", MESH_DATA, "mesh", "all", 0, "off", 0, True),
+    ColorCase(
+        "mesh__color_specific", MESH_DATA, "mesh", "all", 0, "specific", 0, True
+    ),
+    ColorCase(
+        "mesh__color_global", MESH_DATA, "mesh", "all", 0, "global", 0, True
+    ),
+    ColorCase(
+        "mesh__color_phenotype",
+        MESH_DATA,
+        "mesh",
+        "all",
+        0,
+        "phenotype",
+        0,
+        True,
+    ),
+    ColorCase(
+        "mesh__color_specific_level_3",
+        MESH_DATA,
+        "mesh",
+        "all",
+        0,
+        "specific",
+        3,
+        True,
+    ),
+    ColorCase(
+        "mesh__color_disabled", MESH_DATA, "mesh", "all", 0, "specific", 0, False
+    ),
+    # ATC.
+    ColorCase("atc__color_off", ATC_DATA, "atc", "all", 0, "off", 1, True),
+    ColorCase(
+        "atc__color_specific", ATC_DATA, "atc", "all", 0, "specific", 1, True
+    ),
+    ColorCase(
+        "atc__color_global", ATC_DATA, "atc", "all", 0, "global", 1, True
+    ),
+    ColorCase(
+        "atc__color_specific_level_3",
+        ATC_DATA,
+        "atc",
+        "all",
+        0,
+        "specific",
+        3,
+        True,
+    ),
+    ColorCase(
+        "atc__color_disabled", ATC_DATA, "atc", "all", 0, "specific", 1, False
+    ),
 )
 
 
@@ -207,11 +418,67 @@ def emit(case: Case) -> None:
     print(f"wrote {out_path.relative_to(REPO_ROOT)}")
 
 
+def serialize_color(case: ColorCase, tree: dict, ts_level: int) -> dict:
+    """Render colors-per-node to the compact JSON shape the TS tests consume."""
+    color_tree = propagate_colors(
+        tree if case.enabled else _strip_propagated(tree),
+        case.color_mode if case.enabled else "off",
+        ts_level,  # the tree is already in 0-based level space at this point
+        DEFAULT_COLOR_SCALE,
+        DEFAULT_COLOR,
+    )
+    subtrees: dict[str, dict[str, str]] = {}
+    for root, sub in color_tree.items():
+        subtrees[root] = dict(sub)
+    return {
+        "case": case.name,
+        "kind": case.kind,
+        "settings": {
+            "enabled": case.enabled,
+            "colorMode": case.color_mode,
+            "level": ts_level,
+        },
+        "subtrees": subtrees,
+    }
+
+
+def _strip_propagated(tree: dict) -> dict:
+    """Return a copy with imported_counts reset to the raw counts. Used when
+    the case has enabled=False so the harness mirrors a no-op propagation."""
+    out: dict = {}
+    for root, sub in tree.items():
+        out[root] = {}
+        for nid, node in sub.items():
+            out[root][nid] = {**node, "imported_counts": node.get("counts", 0)}
+    return out
+
+
+def emit_color(case: ColorCase) -> None:
+    if case.kind == "atc":
+        py_tree = load_atc(case.template)
+        propagate_atc_counts(py_tree, case.count_mode, case.count_level)
+        ts_tree = to_atc_zero_based(py_tree)
+        ts_level = max(case.color_level - 1, 0)
+    else:
+        py_tree = load_mesh(case.template)
+        propagate_mesh_counts(py_tree, case.count_mode, case.count_level)
+        ts_tree = py_tree
+        ts_level = case.color_level
+
+    payload = serialize_color(case, ts_tree, ts_level)
+    out_path = COLOR_FIXTURES_DIR / f"{case.name}.json"
+    out_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    print(f"wrote {out_path.relative_to(REPO_ROOT)}")
+
+
 def main(argv: Iterable[str]) -> int:
     _ = list(argv)
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    COLOR_FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     for case in CASES:
         emit(case)
+    for ccase in COLOR_CASES:
+        emit_color(ccase)
     return 0
 
 

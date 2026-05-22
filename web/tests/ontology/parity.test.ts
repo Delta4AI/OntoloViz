@@ -70,9 +70,7 @@ describe("parity vs core.py — count propagation", () => {
       }
 
       // Roots present in both: same.
-      expect(Object.keys(actual).sort()).toEqual(
-        Object.keys(fixture.subtrees).sort(),
-      );
+      expect(Object.keys(actual).sort()).toEqual(Object.keys(fixture.subtrees).sort());
 
       for (const [rootId, expectedSubtree] of Object.entries(fixture.subtrees)) {
         const actualSubtree = actual[rootId]!;

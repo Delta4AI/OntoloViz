@@ -181,12 +181,14 @@
 @keyframes recompute-ring-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgb(var(--c-accent) / 0.5);
+    box-shadow:
+      0 0 0 2px rgb(var(--c-accent) / 0.75),
+      0 0 12px 0 rgb(var(--c-accent) / 0.25);
   }
   50% {
     box-shadow:
-      0 0 0 2px rgb(var(--c-accent) / 0.9),
-      0 0 18px 0 rgb(var(--c-accent) / 0.4);
+      0 0 0 3px rgb(var(--c-accent)),
+      0 0 28px 2px rgb(var(--c-accent) / 0.55);
   }
 }
 

@@ -65,28 +65,24 @@ export function OboFoundryPicker({ onClose, onFetch }: OboFoundryPickerProps) {
         </header>
 
         <div className="max-h-[68vh] overflow-y-auto px-5 py-4">
-          <p className="text-xs text-muted">
-            Pick a curated ontology or paste a direct <code>.obo</code> URL. Files are
-            proxied through the local backend and parsed server-side.
-          </p>
-
-          <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <ul className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2">
             {OBO_PRESETS.map((preset, idx) => (
-              <li key={preset.id}>
+              <li key={preset.id} className="flex">
                 <button
                   ref={idx === 0 ? firstButtonRef : undefined}
                   type="button"
                   onClick={() => submitPreset(preset)}
                   disabled={selected !== null}
-                  className="group flex w-full flex-col items-start gap-1 rounded-md border border-border bg-elevated px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-panel disabled:opacity-50"
+                  title={preset.description}
+                  className="group flex h-full w-full flex-col items-start gap-1 rounded-md border border-border bg-elevated px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-panel disabled:opacity-50"
                 >
                   <span className="text-[13px] font-medium text-ink">
                     {preset.name}
                   </span>
-                  <span className="text-[11px] leading-snug text-muted">
+                  <span className="line-clamp-2 text-[11px] leading-snug text-muted">
                     {preset.description}
                   </span>
-                  <span className="font-mono text-[10px] text-subtle">
+                  <span className="mt-auto truncate font-mono text-[10px] text-subtle w-full">
                     {preset.url}
                   </span>
                 </button>

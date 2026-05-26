@@ -17,7 +17,7 @@ dev-web:
 # the frontend in development; the SPA mount in main.py stays dormant when
 # src/ontoloviz_server/web_dist/ is empty.
 dev-server:
-	uv run ontoloviz-server
+	uv run ontoloviz-server --dev
 
 # --- Install ---------------------------------------------------------------
 

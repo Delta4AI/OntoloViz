@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ExportMenu } from "./components/export/ExportMenu";
 import { HealthIndicator } from "./components/HealthIndicator";
@@ -54,10 +61,17 @@ export function App() {
   const [oboPickerOpen, setOboPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Defer the heavy propagation so settings edits keep the UI responsive:
+  // React renders immediately with the stale `propagated` and schedules the
+  // recompute as low-priority. `isRecomputing` drives a top-of-main progress
+  // bar so users get feedback that work is in flight.
+  const deferredCount = useDeferredValue(count);
+  const deferredColor = useDeferredValue(color);
   const propagated = useMemo(
-    () => derivePropagated(raw, count, color),
-    [raw, count, color],
+    () => derivePropagated(raw, deferredCount, deferredColor),
+    [raw, deferredCount, deferredColor],
   );
+  const isRecomputing = count !== deferredCount || color !== deferredColor;
 
   const subtrees = useMemo(
     () =>
@@ -227,7 +241,15 @@ export function App() {
         canShowOverview={subtrees.length > 1}
       />
 
-      <main className="relative flex-1">
+      <main className="relative flex-1" aria-busy={isRecomputing}>
+        {isRecomputing ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden"
+          >
+            <div className="h-full w-1/3 animate-[loading-slide_1.2s_ease-in-out_infinite] rounded-full bg-accent" />
+          </div>
+        ) : null}
         {hasData && propagated ? (
           <LoadedView
             viewKey={

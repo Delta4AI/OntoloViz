@@ -236,6 +236,7 @@ export function App() {
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         settingsOpen={settingsOpen}
         exportSubtree={activeSubtree}
+        exportOntology={propagated}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         canShowOverview={subtrees.length > 1}
@@ -400,6 +401,7 @@ interface HeaderProps {
   readonly onToggleSettings: () => void;
   readonly settingsOpen: boolean;
   readonly exportSubtree: import("./lib/ontology/types").Subtree | null;
+  readonly exportOntology: import("./lib/ontology/types").Ontology | null;
   readonly viewMode: ViewMode;
   readonly onViewModeChange: (mode: ViewMode) => void;
   /** Overview toggle is hidden for single-subtree ontologies (one tile == sunburst). */
@@ -416,6 +418,7 @@ function Header({
   onToggleSettings,
   settingsOpen,
   exportSubtree,
+  exportOntology,
   viewMode,
   onViewModeChange,
   canShowOverview,
@@ -472,7 +475,7 @@ function Header({
           <ThemeToggle />
           {hasData ? (
             <>
-              <ExportMenu subtree={exportSubtree} />
+              <ExportMenu subtree={exportSubtree} ontology={exportOntology} />
               <button
                 type="button"
                 onClick={onToggleSettings}
@@ -590,7 +593,7 @@ function LoadedView({
     <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-6 px-6 py-6">
       <div
         key={viewKey}
-        className={`fade-in rounded-2xl border border-border bg-panel p-4 shadow-panel ${
+        className={`fade-in relative z-20 rounded-2xl border border-border bg-panel p-4 shadow-panel ${
           isRecomputing ? "recomputing-ring" : ""
         }`}
       >

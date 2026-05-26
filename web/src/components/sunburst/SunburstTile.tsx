@@ -28,11 +28,7 @@ interface SunburstTileProps {
  * to full interactivity; the public prop surface (`subtree`, `onActivate`)
  * is intentionally compatible.
  */
-export function SunburstTile({
-  subtree,
-  onActivate,
-  height = 220,
-}: SunburstTileProps) {
+export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTileProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 

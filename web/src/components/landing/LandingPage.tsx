@@ -13,15 +13,6 @@ interface ExampleEntry {
   readonly ontology: Ontology;
 }
 
-// Single-color SVG — colored at runtime via CSS mask + theme-aware background-color
-// so the pattern adapts to both light and dark canvases.
-const NETWORK_PATTERN_SVG =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cg stroke='%23000' stroke-width='1' fill='none'%3E%3Cline x1='83' y1='47' x2='230' y2='110'/%3E%3Cline x1='230' y1='110' x2='195' y2='270'/%3E%3Cline x1='590' y1='130' x2='540' y2='290'/%3E%3Cline x1='83' y1='47' x2='50' y2='210'/%3E%3Cline x1='50' y1='210' x2='195' y2='270'/%3E%3Cline x1='370' y1='200' x2='540' y2='290'/%3E%3Cline x1='760' y1='75' x2='710' y2='240'/%3E%3Cline x1='760' y1='75' x2='860' y2='190'/%3E%3Cline x1='50' y1='210' x2='120' y2='400'/%3E%3Cline x1='370' y1='200' x2='440' y2='390'/%3E%3Cline x1='710' y1='240' x2='780' y2='410'/%3E%3Cline x1='120' y1='400' x2='280' y2='430'/%3E%3Cline x1='440' y1='390' x2='470' y2='470'/%3E%3Cline x1='780' y1='410' x2='640' y2='500'/%3E%3Cline x1='830' y1='370' x2='780' y2='410'/%3E%3Cline x1='280' y1='430' x2='210' y2='610'/%3E%3Cline x1='640' y1='500' x2='590' y2='660'/%3E%3Cline x1='70' y1='570' x2='210' y2='610'/%3E%3Cline x1='380' y1='630' x2='590' y2='660'/%3E%3Cline x1='850' y1='580' x2='740' y2='620'/%3E%3Cline x1='210' y1='610' x2='310' y2='790'/%3E%3Cline x1='740' y1='620' x2='670' y2='810'/%3E%3Cline x1='310' y1='790' x2='500' y2='770'/%3E%3Cline x1='670' y1='810' x2='820' y2='770'/%3E%3C/g%3E%3Cg fill='%23000'%3E%3Ccircle cx='83' cy='47' r='4'/%3E%3Ccircle cx='230' cy='110' r='3'/%3E%3Ccircle cx='410' cy='58' r='4'/%3E%3Ccircle cx='590' cy='130' r='4'/%3E%3Ccircle cx='760' cy='75' r='4'/%3E%3Ccircle cx='50' cy='210' r='3'/%3E%3Ccircle cx='195' cy='270' r='4'/%3E%3Ccircle cx='370' cy='200' r='3'/%3E%3Ccircle cx='540' cy='290' r='4'/%3E%3Ccircle cx='710' cy='240' r='3'/%3E%3Ccircle cx='860' cy='190' r='3'/%3E%3Ccircle cx='120' cy='400' r='3'/%3E%3Ccircle cx='280' cy='430' r='4'/%3E%3Ccircle cx='440' cy='390' r='3'/%3E%3Ccircle cx='470' cy='470' r='3'/%3E%3Ccircle cx='640' cy='500' r='4'/%3E%3Ccircle cx='780' cy='410' r='3'/%3E%3Ccircle cx='830' cy='370' r='3'/%3E%3Ccircle cx='70' cy='570' r='4'/%3E%3Ccircle cx='210' cy='610' r='3'/%3E%3Ccircle cx='380' cy='630' r='3'/%3E%3Ccircle cx='590' cy='660' r='4'/%3E%3Ccircle cx='740' cy='620' r='3'/%3E%3Ccircle cx='850' cy='580' r='3'/%3E%3Ccircle cx='130' cy='760' r='3'/%3E%3Ccircle cx='310' cy='790' r='4'/%3E%3Ccircle cx='500' cy='770' r='3'/%3E%3Ccircle cx='670' cy='810' r='3'/%3E%3Ccircle cx='820' cy='770' r='4'/%3E%3C/g%3E%3C/svg%3E";
-
-// Accent-only dots — layered on top for a hint of brand color.
-const NETWORK_ACCENT_SVG =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cg fill='%23000'%3E%3Ccircle cx='83' cy='47' r='4'/%3E%3Ccircle cx='590' cy='130' r='4'/%3E%3Ccircle cx='195' cy='270' r='4'/%3E%3Ccircle cx='540' cy='290' r='4'/%3E%3Ccircle cx='860' cy='190' r='3'/%3E%3Ccircle cx='440' cy='390' r='3'/%3E%3Ccircle cx='640' cy='500' r='4'/%3E%3Ccircle cx='210' cy='610' r='3'/%3E%3Ccircle cx='590' cy='660' r='4'/%3E%3Ccircle cx='310' cy='790' r='4'/%3E%3C/g%3E%3C/svg%3E";
-
 const TEMPLATE_ATC_URL = "/templates/atc_template.tsv";
 const TEMPLATE_MESH_URL = "/templates/mesh_template.tsv";
 
@@ -48,36 +39,54 @@ const EXAMPLES: ReadonlyArray<ExampleEntry> = [
 
 const MESH_HUE = "rgb(120 160 210)";
 
+// Single centered sunburst — 6 concentric rings with 6/12/18/24/30 radial
+// subdivisions, mirroring how a real sunburst plot fans out from a root.
+// Strokes 0.8 so lines stay quiet at scale. Colored at runtime via CSS mask.
+const SUNBURST_PATTERN_SVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cg stroke='%23000' stroke-width='0.8' fill='none'%3E%3Ccircle cx='450' cy='450' r='70'/%3E%3Ccircle cx='450' cy='450' r='140'/%3E%3Ccircle cx='450' cy='450' r='210'/%3E%3Ccircle cx='450' cy='450' r='280'/%3E%3Ccircle cx='450' cy='450' r='350'/%3E%3Ccircle cx='450' cy='450' r='420'/%3E%3Cline x1='520' y1='450' x2='590' y2='450'/%3E%3Cline x1='485' y1='511' x2='520' y2='571'/%3E%3Cline x1='415' y1='511' x2='380' y2='571'/%3E%3Cline x1='380' y1='450' x2='310' y2='450'/%3E%3Cline x1='415' y1='389' x2='380' y2='329'/%3E%3Cline x1='485' y1='389' x2='520' y2='329'/%3E%3Cline x1='590' y1='450' x2='660' y2='450'/%3E%3Cline x1='571' y1='520' x2='632' y2='555'/%3E%3Cline x1='520' y1='571' x2='555' y2='632'/%3E%3Cline x1='450' y1='590' x2='450' y2='660'/%3E%3Cline x1='380' y1='571' x2='345' y2='632'/%3E%3Cline x1='329' y1='520' x2='268' y2='555'/%3E%3Cline x1='310' y1='450' x2='240' y2='450'/%3E%3Cline x1='329' y1='380' x2='268' y2='345'/%3E%3Cline x1='380' y1='329' x2='345' y2='268'/%3E%3Cline x1='450' y1='310' x2='450' y2='240'/%3E%3Cline x1='520' y1='329' x2='555' y2='268'/%3E%3Cline x1='571' y1='380' x2='632' y2='345'/%3E%3Cline x1='660' y1='450' x2='730' y2='450'/%3E%3Cline x1='647' y1='522' x2='713' y2='546'/%3E%3Cline x1='611' y1='585' x2='664' y2='630'/%3E%3Cline x1='555' y1='632' x2='590' y2='692'/%3E%3Cline x1='487' y1='657' x2='499' y2='726'/%3E%3Cline x1='413' y1='657' x2='401' y2='726'/%3E%3Cline x1='345' y1='632' x2='310' y2='692'/%3E%3Cline x1='289' y1='585' x2='236' y2='630'/%3E%3Cline x1='253' y1='522' x2='187' y2='546'/%3E%3Cline x1='240' y1='450' x2='170' y2='450'/%3E%3Cline x1='253' y1='378' x2='187' y2='354'/%3E%3Cline x1='289' y1='315' x2='236' y2='270'/%3E%3Cline x1='345' y1='268' x2='310' y2='208'/%3E%3Cline x1='413' y1='243' x2='401' y2='174'/%3E%3Cline x1='487' y1='243' x2='499' y2='174'/%3E%3Cline x1='555' y1='268' x2='590' y2='208'/%3E%3Cline x1='611' y1='315' x2='664' y2='270'/%3E%3Cline x1='647' y1='378' x2='713' y2='354'/%3E%3Cline x1='730' y1='450' x2='800' y2='450'/%3E%3Cline x1='720' y1='522' x2='788' y2='541'/%3E%3Cline x1='692' y1='590' x2='753' y2='625'/%3E%3Cline x1='648' y1='648' x2='697' y2='697'/%3E%3Cline x1='590' y1='692' x2='625' y2='753'/%3E%3Cline x1='522' y1='720' x2='541' y2='788'/%3E%3Cline x1='450' y1='730' x2='450' y2='800'/%3E%3Cline x1='378' y1='720' x2='359' y2='788'/%3E%3Cline x1='310' y1='692' x2='275' y2='753'/%3E%3Cline x1='252' y1='648' x2='203' y2='697'/%3E%3Cline x1='208' y1='590' x2='147' y2='625'/%3E%3Cline x1='180' y1='522' x2='112' y2='541'/%3E%3Cline x1='170' y1='450' x2='100' y2='450'/%3E%3Cline x1='180' y1='378' x2='112' y2='359'/%3E%3Cline x1='208' y1='310' x2='147' y2='275'/%3E%3Cline x1='252' y1='252' x2='203' y2='203'/%3E%3Cline x1='310' y1='208' x2='275' y2='147'/%3E%3Cline x1='378' y1='180' x2='359' y2='112'/%3E%3Cline x1='450' y1='170' x2='450' y2='100'/%3E%3Cline x1='522' y1='180' x2='541' y2='112'/%3E%3Cline x1='590' y1='208' x2='625' y2='147'/%3E%3Cline x1='648' y1='252' x2='697' y2='203'/%3E%3Cline x1='692' y1='310' x2='753' y2='275'/%3E%3Cline x1='720' y1='378' x2='788' y2='359'/%3E%3Cline x1='800' y1='450' x2='870' y2='450'/%3E%3Cline x1='792' y1='523' x2='861' y2='537'/%3E%3Cline x1='770' y1='592' x2='834' y2='621'/%3E%3Cline x1='733' y1='656' x2='790' y2='697'/%3E%3Cline x1='684' y1='710' x2='731' y2='762'/%3E%3Cline x1='625' y1='753' x2='660' y2='814'/%3E%3Cline x1='558' y1='783' x2='580' y2='849'/%3E%3Cline x1='487' y1='798' x2='494' y2='868'/%3E%3Cline x1='413' y1='798' x2='406' y2='868'/%3E%3Cline x1='342' y1='783' x2='320' y2='849'/%3E%3Cline x1='275' y1='753' x2='240' y2='814'/%3E%3Cline x1='216' y1='710' x2='169' y2='762'/%3E%3Cline x1='167' y1='656' x2='110' y2='697'/%3E%3Cline x1='130' y1='592' x2='66' y2='621'/%3E%3Cline x1='108' y1='523' x2='39' y2='537'/%3E%3Cline x1='100' y1='450' x2='30' y2='450'/%3E%3Cline x1='108' y1='377' x2='39' y2='363'/%3E%3Cline x1='130' y1='308' x2='66' y2='279'/%3E%3Cline x1='167' y1='244' x2='110' y2='203'/%3E%3Cline x1='216' y1='190' x2='169' y2='138'/%3E%3Cline x1='275' y1='147' x2='240' y2='86'/%3E%3Cline x1='342' y1='117' x2='320' y2='51'/%3E%3Cline x1='413' y1='102' x2='406' y2='32'/%3E%3Cline x1='487' y1='102' x2='494' y2='32'/%3E%3Cline x1='558' y1='117' x2='580' y2='51'/%3E%3Cline x1='625' y1='147' x2='660' y2='86'/%3E%3Cline x1='684' y1='190' x2='731' y2='138'/%3E%3Cline x1='733' y1='244' x2='790' y2='203'/%3E%3Cline x1='770' y1='308' x2='834' y2='279'/%3E%3Cline x1='792' y1='377' x2='861' y2='363'/%3E%3C/g%3E%3Ccircle cx='450' cy='450' r='3' fill='%23000'/%3E%3C/svg%3E";
+
+// Accent dots — sparse brand-color highlights scattered across the rings.
+const SUNBURST_ACCENT_SVG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cg fill='%23000'%3E%3Ccircle cx='450' cy='520' r='3'/%3E%3Ccircle cx='389' cy='415' r='3'/%3E%3Ccircle cx='520' cy='571' r='3'/%3E%3Ccircle cx='380' cy='329' r='3'/%3E%3Ccircle cx='632' cy='555' r='3'/%3E%3Ccircle cx='268' cy='555' r='3'/%3E%3Ccircle cx='450' cy='240' r='3'/%3E%3Ccircle cx='713' cy='546' r='3'/%3E%3Ccircle cx='401' cy='726' r='3'/%3E%3Ccircle cx='187' cy='354' r='3'/%3E%3Ccircle cx='664' cy='270' r='3'/%3E%3Ccircle cx='697' cy='697' r='3'/%3E%3Ccircle cx='541' cy='788' r='3'/%3E%3Ccircle cx='112' cy='541' r='3'/%3E%3Ccircle cx='203' cy='203' r='3'/%3E%3Ccircle cx='541' cy='112' r='3'/%3E%3Ccircle cx='834' cy='621' r='3'/%3E%3Ccircle cx='320' cy='849' r='3'/%3E%3Ccircle cx='39' cy='363' r='3'/%3E%3Ccircle cx='406' cy='32' r='3'/%3E%3Ccircle cx='790' cy='203' r='3'/%3E%3C/g%3E%3C/svg%3E";
+
+const SUNBURST_SIZE = "min(900px, 90vmin)";
+
 export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) {
   return (
     <div className="absolute inset-0 overflow-y-auto">
       <div className="relative flex min-h-full items-center justify-center px-4 py-12">
+        {/* Single oversized sunburst — rings + radial dividers in ink. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundColor: "rgb(var(--c-ink))",
-            opacity: 0.09,
-            WebkitMaskImage: `url("${NETWORK_PATTERN_SVG}")`,
-            maskImage: `url("${NETWORK_PATTERN_SVG}")`,
-            WebkitMaskRepeat: "repeat",
-            maskRepeat: "repeat",
-            WebkitMaskSize: "560px 560px",
-            maskSize: "560px 560px",
+            opacity: 0.05,
+            WebkitMaskImage: `url("${SUNBURST_PATTERN_SVG}")`,
+            maskImage: `url("${SUNBURST_PATTERN_SVG}")`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: `${SUNBURST_SIZE} ${SUNBURST_SIZE}`,
+            maskSize: `${SUNBURST_SIZE} ${SUNBURST_SIZE}`,
           }}
         />
+        {/* Accent highlights on the rings. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundColor: "rgb(var(--c-accent))",
-            opacity: 0.35,
-            WebkitMaskImage: `url("${NETWORK_ACCENT_SVG}")`,
-            maskImage: `url("${NETWORK_ACCENT_SVG}")`,
-            WebkitMaskRepeat: "repeat",
-            maskRepeat: "repeat",
-            WebkitMaskSize: "560px 560px",
-            maskSize: "560px 560px",
+            opacity: 0.18,
+            WebkitMaskImage: `url("${SUNBURST_ACCENT_SVG}")`,
+            maskImage: `url("${SUNBURST_ACCENT_SVG}")`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: `${SUNBURST_SIZE} ${SUNBURST_SIZE}`,
+            maskSize: `${SUNBURST_SIZE} ${SUNBURST_SIZE}`,
           }}
         />
         <div

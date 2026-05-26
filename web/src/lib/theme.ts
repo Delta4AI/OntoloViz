@@ -63,9 +63,7 @@ export function useEnsureThemeAttribute(): void {
  */
 export function readThemeColor(token: string, fallback: string): string {
   if (typeof document === "undefined") return fallback;
-  const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue(token)
-    .trim();
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
   if (!raw) return fallback;
   return raw.includes(" ") ? `rgb(${raw})` : raw;
 }

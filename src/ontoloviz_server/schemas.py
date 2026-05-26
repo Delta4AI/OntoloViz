@@ -53,3 +53,11 @@ class ParseObooRequest(BaseModel):
 
     text: str
     """Raw OBO file contents."""
+
+    root_id: str | None = Field(default=None, alias="rootId")
+    """Optional subtree-root override. Direct children become subtree roots."""
+
+    min_node_size: int | None = Field(default=None, alias="minNodeSize")
+    """Drop subtrees with fewer nodes than this threshold."""
+
+    model_config = {"populate_by_name": True}

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ExportMenu } from "./components/export/ExportMenu";
 import { HealthIndicator } from "./components/HealthIndicator";
 import { LandingPage } from "./components/landing/LandingPage";
-import { OboFoundryPicker } from "./components/landing/OboFoundryPicker";
+import {
+  OboFoundryPicker,
+  type OboFetchRequest,
+} from "./components/landing/OboFoundryPicker";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { OverviewGrid } from "./components/overview/OverviewGrid";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
@@ -104,13 +107,18 @@ export function App() {
     }
   };
 
-  const handleOboFetch = async (url: string, label: string) => {
+  const handleOboFetch = async (req: OboFetchRequest) => {
     setOboPickerOpen(false);
-    setFileName(label);
-    setLoading({ stage: "Fetching OBO file…", detail: url, progress: 0.2 });
+    setFileName(req.label);
+    setLoading({ stage: "Fetching OBO file…", detail: req.url, progress: 0.2 });
     await yieldToPaint();
     try {
-      const ontology = await fetchObo(url);
+      const ontology = await fetchObo(req.url, {
+        ...(req.rootId ? { rootId: req.rootId } : {}),
+        ...(typeof req.minNodeSize === "number"
+          ? { minNodeSize: req.minNodeSize }
+          : {}),
+      });
       setLoading({
         stage: "Propagating counts & colors…",
         detail: `${ontology.nodeCount.toLocaleString()} nodes · ${ontology.subtrees.size} subtree(s)`,
@@ -271,7 +279,7 @@ export function App() {
       {oboPickerOpen ? (
         <OboFoundryPicker
           onClose={() => setOboPickerOpen(false)}
-          onFetch={(url, label) => void handleOboFetch(url, label)}
+          onFetch={(req) => void handleOboFetch(req)}
         />
       ) : null}
 

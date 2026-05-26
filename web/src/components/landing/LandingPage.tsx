@@ -14,7 +14,27 @@ const NETWORK_PATTERN_SVG =
  * Foundry fetch, bundled examples — plus a template download. No marketing
  * copy beyond the one-line subtitle.
  */
-const COVID_EXAMPLE_URL = "/templates/atc_example_covid_drugs_experimental.tsv";
+const EXAMPLES: ReadonlyArray<{
+  readonly title: string;
+  readonly description: string;
+  readonly url: string;
+}> = [
+  {
+    title: "COVID Drugs (Experimental)",
+    description: "ATC tree, DrugBank experimental COVID-19 drugs.",
+    url: "/templates/atc_example_covid_drugs_experimental.tsv",
+  },
+  {
+    title: "COVID Trials Summary",
+    description: "ATC tree, drugs tested in clinical trials.",
+    url: "/templates/atc_example_covid_drugs_trial_summary.tsv",
+  },
+  {
+    title: "PubMed MeSH Mapping",
+    description: "MeSH tree, disease terms extracted from PubMed.",
+    url: "/templates/mesh_example_pubmed_mapped.tsv",
+  },
+];
 
 export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) {
   return (
@@ -127,11 +147,6 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
             onClick={onPickObo}
           />
           <SecondaryCard
-            title="COVID-19 Example"
-            description="Bundled ATC tree with experimental drug counts."
-            onClick={() => void loadExample(COVID_EXAMPLE_URL, onUpload)}
-          />
-          <SecondaryCard
             title="ATC Template"
             description="Pre-filled TSV with the ATC drug hierarchy."
             href="/templates/atc_template.tsv"
@@ -141,6 +156,14 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
             description="Pre-filled TSV with the MeSH subject hierarchy."
             href="/templates/mesh_template.tsv"
           />
+          {EXAMPLES.map((ex) => (
+            <SecondaryCard
+              key={ex.url}
+              title={ex.title}
+              description={ex.description}
+              onClick={() => void loadExample(ex.url, onUpload)}
+            />
+          ))}
         </div>
 
         <footer className="flex flex-col items-center gap-2 border-t border-hairline pt-5 text-[11px] text-subtle">

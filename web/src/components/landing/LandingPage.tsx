@@ -92,58 +92,7 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
         <div className="relative z-10 w-full max-w-2xl text-center">
           <div className="mb-10">
             <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-panel">
-              <svg
-                viewBox="0 0 24 24"
-                width="22"
-                height="22"
-                aria-hidden
-                className="text-ink"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="7.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  opacity="0.55"
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="11"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="0.75"
-                  opacity="0.3"
-                />
-                <line
-                  x1="12"
-                  y1="1"
-                  x2="12"
-                  y2="23"
-                  stroke="currentColor"
-                  strokeWidth="0.5"
-                  opacity="0.3"
-                />
-                <line
-                  x1="1"
-                  y1="12"
-                  x2="23"
-                  y2="12"
-                  stroke="currentColor"
-                  strokeWidth="0.5"
-                  opacity="0.3"
-                />
-              </svg>
+              <img src="/logo.svg" width="32" height="32" alt="" aria-hidden />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[28px]">
               OntoloViz

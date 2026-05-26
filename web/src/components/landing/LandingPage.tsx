@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface LandingPageProps {
   readonly onUpload: () => void;
@@ -14,11 +14,11 @@ const NETWORK_PATTERN_SVG =
  * Foundry fetch, bundled examples — plus a template download. No marketing
  * copy beyond the one-line subtitle.
  */
-export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) {
-  const [exampleMenuOpen, setExampleMenuOpen] = useState(false);
+const COVID_EXAMPLE_URL = "/templates/atc_example_covid_drugs_experimental.tsv";
 
+export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) {
   return (
-    <div className="relative flex min-h-full items-center justify-center overflow-y-auto px-4 py-12">
+    <div className="relative flex h-full min-h-full items-center justify-center overflow-y-auto px-4 py-12">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.08]"
@@ -120,40 +120,26 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
           </button>
         </div>
 
-        <div className="mb-10 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mb-10 grid grid-cols-2 gap-2 sm:grid-cols-2">
           <SecondaryCard
             title="OBO Foundry"
             description="Fetch HPO, GO, MONDO or any .obo URL."
             onClick={onPickObo}
           />
           <SecondaryCard
-            title="Download Template"
-            description="Pre-filled TSV showing the expected schema."
-            href="/templates/atc_template.tsv"
-            secondary={
-              <a
-                className="text-[10px] text-muted underline-offset-2 hover:text-ink hover:underline"
-                href="/templates/mesh_template.tsv"
-                download
-              >
-                MeSH variant
-              </a>
-            }
+            title="COVID-19 Example"
+            description="Bundled ATC tree with experimental drug counts."
+            onClick={() => void loadExample(COVID_EXAMPLE_URL, onUpload)}
           />
           <SecondaryCard
-            title="Try an Example"
-            description="Bundled COVID-19 drug counts in ATC."
-            onClick={() => setExampleMenuOpen((v) => !v)}
-            open={exampleMenuOpen}
-            menu={
-              <ExampleMenu
-                onClose={() => setExampleMenuOpen(false)}
-                onPick={(url) => {
-                  setExampleMenuOpen(false);
-                  void loadExample(url, onUpload);
-                }}
-              />
-            }
+            title="ATC Template"
+            description="Pre-filled TSV with the ATC drug hierarchy."
+            href="/templates/atc_template.tsv"
+          />
+          <SecondaryCard
+            title="MeSH Template"
+            description="Pre-filled TSV with the MeSH subject hierarchy."
+            href="/templates/mesh_template.tsv"
           />
         </div>
 
@@ -183,7 +169,6 @@ interface SecondaryCardProps {
   readonly href?: string;
   readonly open?: boolean;
   readonly menu?: ReactNode;
-  readonly secondary?: ReactNode;
 }
 
 function SecondaryCard({
@@ -193,7 +178,6 @@ function SecondaryCard({
   href,
   open,
   menu,
-  secondary,
 }: SecondaryCardProps) {
   const className =
     "flex h-full flex-col items-start gap-1 rounded-md border border-border bg-panel px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -206,17 +190,10 @@ function SecondaryCard({
   );
 
   if (href) {
-    // Nested anchors are invalid DOM, so the secondary link sits as a sibling
-    // overlaid in the corner instead of inside the main card.
     return (
-      <div className="relative">
-        <a className={className} href={href} download>
-          {body}
-        </a>
-        {secondary ? (
-          <div className="absolute bottom-1.5 right-2 z-10">{secondary}</div>
-        ) : null}
-      </div>
+      <a className={className} href={href} download>
+        {body}
+      </a>
     );
   }
 
@@ -229,64 +206,13 @@ function SecondaryCard({
         className={className + " w-full"}
       >
         {body}
-        {secondary ? <span className="mt-auto pt-1">{secondary}</span> : null}
       </button>
       {open ? menu : null}
     </div>
   );
 }
 
-const EXAMPLES: readonly { url: string; label: string }[] = [
-  {
-    url: "/templates/atc_example_covid_drugs_experimental.tsv",
-    label: "ATC · COVID-19 experimental drugs",
-  },
-  {
-    url: "/templates/atc_template.tsv",
-    label: "ATC · empty template (full tree)",
-  },
-];
-
-function ExampleMenu({
-  onClose,
-  onPick,
-}: {
-  readonly onClose: () => void;
-  readonly onPick: (url: string) => void;
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="Close menu"
-        onClick={onClose}
-        className="fixed inset-0 z-30 cursor-default"
-      />
-      <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-md border border-border bg-panel p-1 text-left shadow-pop">
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex.url}
-            type="button"
-            onClick={() => onPick(ex.url)}
-            className="block w-full rounded px-2.5 py-1.5 text-[11px] text-ink hover:bg-elevated"
-          >
-            {ex.label}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-}
-
-/**
- * Fetch a bundled example TSV and feed it back through the App's normal
- * upload path. We synthesize a `File` so the rest of the pipeline (loading
- * overlay + parser + propagation) is identical to a user-picked file.
- */
 async function loadExample(url: string, _onUpload: () => void): Promise<void> {
-  // The example-load path is delegated to the parent via the upload hook.
-  // We can't reach into App's handleFile from here — so we dispatch a custom
-  // event the App listens for. Decouples LandingPage from store internals.
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

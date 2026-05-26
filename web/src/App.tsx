@@ -5,13 +5,14 @@ import { HealthIndicator } from "./components/HealthIndicator";
 import { LandingPage } from "./components/landing/LandingPage";
 import { OboFoundryPicker } from "./components/landing/OboFoundryPicker";
 import { LoadingOverlay } from "./components/LoadingOverlay";
+import { OverviewGrid } from "./components/overview/OverviewGrid";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { SummaryGrid } from "./components/grid/SummaryGrid";
 import { Sunburst } from "./components/sunburst/Sunburst";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { fetchObo } from "./lib/ontology/obo";
 import { parseTsv } from "./lib/ontology/parse";
-import { derivePropagated, useAppStore } from "./lib/store";
+import { derivePropagated, useAppStore, type ViewMode } from "./lib/store";
 
 interface LoadingState {
   readonly stage: string;
@@ -35,8 +36,10 @@ export function App() {
   const count = useAppStore((s) => s.count);
   const color = useAppStore((s) => s.color);
   const activeRoot = useAppStore((s) => s.activeRoot);
+  const viewMode = useAppStore((s) => s.viewMode);
   const setOntology = useAppStore((s) => s.setOntology);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
+  const setViewMode = useAppStore((s) => s.setViewMode);
   const updateNode = useAppStore((s) => s.updateNode);
   const reset = useAppStore((s) => s.reset);
 
@@ -194,18 +197,38 @@ export function App() {
         fileName={fileName}
         subtrees={subtrees.map((s) => ({ id: s.rootId, count: s.nodes.size }))}
         activeRoot={activeRoot}
-        onPickSubtree={setActiveRoot}
+        onPickSubtree={(id) => {
+          setActiveRoot(id);
+          setViewMode("detail");
+        }}
         onRequestReset={requestReset}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         settingsOpen={settingsOpen}
         exportSubtree={activeSubtree}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        canShowOverview={subtrees.length > 1}
       />
 
       <main className="relative flex-1">
-        {hasData && activeSubtree ? (
+        {hasData && propagated ? (
           <LoadedView
-            activeSubtreeKey={activeSubtree.rootId}
-            sunburst={<Sunburst subtree={activeSubtree} />}
+            viewKey={
+              viewMode === "overview" ? "__overview__" : (activeSubtree?.rootId ?? "")
+            }
+            sunburst={
+              viewMode === "overview" || !activeSubtree ? (
+                <OverviewGrid
+                  ontology={propagated}
+                  onPick={(id) => {
+                    setActiveRoot(id);
+                    setViewMode("detail");
+                  }}
+                />
+              ) : (
+                <Sunburst subtree={activeSubtree} />
+              )
+            }
             table={
               <SummaryGrid
                 ontology={propagated}
@@ -345,6 +368,10 @@ interface HeaderProps {
   readonly onToggleSettings: () => void;
   readonly settingsOpen: boolean;
   readonly exportSubtree: import("./lib/ontology/types").Subtree | null;
+  readonly viewMode: ViewMode;
+  readonly onViewModeChange: (mode: ViewMode) => void;
+  /** Overview toggle is hidden for single-subtree ontologies (one tile == sunburst). */
+  readonly canShowOverview: boolean;
 }
 
 function Header({
@@ -357,6 +384,9 @@ function Header({
   onToggleSettings,
   settingsOpen,
   exportSubtree,
+  viewMode,
+  onViewModeChange,
+  canShowOverview,
 }: HeaderProps) {
   // When an ontology is loaded the logo doubles as the reset affordance —
   // clicking opens a confirmation dialog. Otherwise it's a static brand mark.
@@ -389,6 +419,9 @@ function Header({
         {hasData ? (
           <>
             <span className="h-5 w-px bg-border" aria-hidden />
+            {canShowOverview ? (
+              <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+            ) : null}
             <SubtreePicker
               subtrees={subtrees}
               activeRoot={activeRoot}
@@ -425,6 +458,45 @@ function Header({
         </div>
       </div>
     </header>
+  );
+}
+
+interface ViewModeToggleProps {
+  readonly value: ViewMode;
+  readonly onChange: (mode: ViewMode) => void;
+}
+
+function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
+  const baseClass =
+    "px-2.5 py-1 text-[11px] font-medium uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  const activeClass = "bg-accent text-on-accent";
+  const idleClass = "text-muted hover:text-ink";
+
+  return (
+    <div
+      role="tablist"
+      aria-label="View mode"
+      className="inline-flex overflow-hidden rounded-md border border-border bg-elevated"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={value === "overview"}
+        onClick={() => onChange("overview")}
+        className={`${baseClass} ${value === "overview" ? activeClass : idleClass}`}
+      >
+        Overview
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={value === "detail"}
+        onClick={() => onChange("detail")}
+        className={`${baseClass} ${value === "detail" ? activeClass : idleClass}`}
+      >
+        Detail
+      </button>
+    </div>
   );
 }
 
@@ -466,18 +538,18 @@ function SubtreePicker({
 }
 
 function LoadedView({
-  activeSubtreeKey,
+  viewKey,
   sunburst,
   table,
 }: {
-  readonly activeSubtreeKey: string;
+  readonly viewKey: string;
   readonly sunburst: ReactNode;
   readonly table: ReactNode;
 }) {
   return (
     <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-6 px-6 py-6">
       <div
-        key={activeSubtreeKey}
+        key={viewKey}
         className="fade-in rounded-2xl border border-border bg-panel p-4 shadow-panel"
       >
         {sunburst}

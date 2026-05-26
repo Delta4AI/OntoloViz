@@ -98,6 +98,28 @@ describe("layoutSunburst", () => {
     expect(x.x1 - x.x0).toBeCloseTo(y.x1 - y.x0, 10);
   });
 
+  it("caps result depth when maxDepth is provided", () => {
+    const layout = layoutSunburst(makeSubtree(), { maxDepth: 1 });
+    // Depth 0 (A) + depth 1 (A.B, A.C) only — A.B.1 / A.B.2 are dropped.
+    expect(layout.map((n) => n.id).sort()).toEqual(["A", "A.B", "A.C"]);
+    for (const n of layout) {
+      expect(n.depth).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("returns only the focus node when maxDepth is 0", () => {
+    const layout = layoutSunburst(makeSubtree(), { maxDepth: 0 });
+    expect(layout).toHaveLength(1);
+    expect(layout[0]!.id).toBe("A");
+  });
+
+  it("composes maxDepth with focusId", () => {
+    const layout = layoutSunburst(makeSubtree(), { focusId: "A.B", maxDepth: 0 });
+    expect(layout).toHaveLength(1);
+    expect(layout[0]!.id).toBe("A.B");
+    expect(layout[0]!.depth).toBe(0);
+  });
+
   it("does not mutate the input subtree", () => {
     const subtree = makeSubtree();
     const before = JSON.stringify([...subtree.nodes.entries()]);

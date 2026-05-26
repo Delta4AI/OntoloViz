@@ -37,11 +37,23 @@ export const DEFAULT_COLOR_SETTINGS: ColorPropagationSettings = {
   defaultColor: "#FFFFFF",
 };
 
+/**
+ * Visualization view mode.
+ *
+ * - `overview`: small-multiples grid of every subtree at once. Default for
+ *   multi-subtree ontologies. Tile click drills into `detail`.
+ * - `detail`: single full-interactivity sunburst of the active subtree.
+ *   Auto-selected when the ontology has exactly one subtree.
+ */
+export type ViewMode = "overview" | "detail";
+
 interface AppState {
   /** The raw parsed ontology, before any propagation. */
   readonly raw: Ontology | null;
   /** Currently displayed subtree root id. */
   readonly activeRoot: string | null;
+  /** Whether the viz area shows the overview grid or the detail sunburst. */
+  readonly viewMode: ViewMode;
   /** Count-propagation settings. */
   readonly count: PropagationSettings;
   /** Color-propagation settings. */
@@ -58,6 +70,7 @@ interface AppState {
   /** Replace the raw ontology (new upload). Resets activeRoot to the first subtree. */
   setOntology(ontology: Ontology | null): void;
   setActiveRoot(rootId: string | null): void;
+  setViewMode(mode: ViewMode): void;
   setCountSettings(partial: Partial<PropagationSettings>): void;
   setColorSettings(partial: Partial<ColorPropagationSettings>): void;
   setHoveredId(id: string | null): void;
@@ -78,6 +91,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   raw: null,
   activeRoot: null,
+  viewMode: "overview",
   count: DEFAULT_COUNT_SETTINGS,
   color: DEFAULT_COLOR_SETTINGS,
   hoveredId: null,
@@ -85,12 +99,19 @@ export const useAppStore = create<AppState>((set) => ({
 
   setOntology: (ontology) =>
     set(() => {
-      if (!ontology) return { raw: null, activeRoot: null, hoveredId: null };
+      if (!ontology) {
+        return { raw: null, activeRoot: null, hoveredId: null, viewMode: "overview" };
+      }
       const firstRoot = ontology.subtrees.keys().next().value ?? null;
-      return { raw: ontology, activeRoot: firstRoot, hoveredId: null };
+      // Single-subtree ontologies skip overview — the grid would render one
+      // tile which adds zero information vs. the full sunburst.
+      const viewMode: ViewMode = ontology.subtrees.size > 1 ? "overview" : "detail";
+      return { raw: ontology, activeRoot: firstRoot, hoveredId: null, viewMode };
     }),
 
   setActiveRoot: (rootId) => set(() => ({ activeRoot: rootId })),
+
+  setViewMode: (mode) => set(() => ({ viewMode: mode })),
 
   setCountSettings: (partial) =>
     set((state) => ({ count: { ...state.count, ...partial } })),
@@ -123,6 +144,7 @@ export const useAppStore = create<AppState>((set) => ({
     set(() => ({
       raw: null,
       activeRoot: null,
+      viewMode: "overview",
       count: DEFAULT_COUNT_SETTINGS,
       color: DEFAULT_COLOR_SETTINGS,
       hoveredId: null,

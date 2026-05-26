@@ -26,7 +26,7 @@ import {
   type ExportLabelFlags,
   type ExportPreset,
   type ExportPresetId,
-  type LabelPosition,
+  type LabelPositions,
   type OverviewLabelStyles,
 } from "./export/theme";
 
@@ -44,7 +44,6 @@ export type ExportFontChoice = "sans" | "serif";
 export interface ExportConfig {
   readonly presetId: ExportPresetId;
   readonly scope: ExportScope;
-  readonly format: ExportFormat;
 
   readonly aspect: ExportAspect;
   readonly width: number;
@@ -53,7 +52,8 @@ export interface ExportConfig {
   /** Overview tile rectangle borders (does not affect slice strokes). */
   readonly tileBorder: boolean;
   readonly labels: ExportLabelFlags;
-  readonly labelPosition: LabelPosition;
+  /** Per-element position (above/below/overlay) for overview labels. */
+  readonly labelPositions: LabelPositions;
   /** Per-element styling (font size, weight, alignment) for overview labels. */
   readonly labelStyles: OverviewLabelStyles;
   readonly padding: number;
@@ -73,6 +73,11 @@ export interface ExportConfig {
    * default background takes effect.
    */
   readonly backgroundOverride: string;
+  /**
+   * Root ids of subtrees to omit from the overview export. Empty means all
+   * subtrees are included. Subtree-scope exports ignore this field.
+   */
+  readonly excludedRootIds: readonly string[];
 }
 
 const SANS = "ui-sans-serif, system-ui, sans-serif";
@@ -93,13 +98,12 @@ function configFromPreset(presetId: ExportPresetId): ExportConfig {
   return {
     presetId,
     scope: "subtree",
-    format: "png",
     aspect: "1:1",
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
     tileBorder: preset.tileBorder,
     labels: preset.labels,
-    labelPosition: preset.labelPosition,
+    labelPositions: preset.labelPositions,
     labelStyles: DEFAULT_OVERVIEW_LABEL_STYLES,
     padding: preset.padding,
     fontChoice: fontChoiceFor(preset),
@@ -110,6 +114,7 @@ function configFromPreset(presetId: ExportPresetId): ExportConfig {
     captionFontSize: 12,
     pngScale: 2,
     backgroundOverride: "",
+    excludedRootIds: [],
   };
 }
 
@@ -140,7 +145,6 @@ export const useExportConfig = create<ExportConfigStore>()(
             config: {
               ...next,
               scope: state.config.scope,
-              format: state.config.format,
               aspect: state.config.aspect,
               width: state.config.width,
               height: state.config.height,
@@ -157,8 +161,8 @@ export const useExportConfig = create<ExportConfigStore>()(
     }),
     {
       name: "ontoloviz-export-config",
-      // Bumped after adding per-element overview label styles.
-      version: 3,
+      // Bumped after dropping `format` (download buttons now choose format).
+      version: 6,
     },
   ),
 );

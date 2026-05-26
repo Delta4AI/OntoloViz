@@ -16,7 +16,7 @@
  * (no separate "burn" toggle).
  */
 
-import { useMemo, type ReactNode } from "react";
+import { useDeferredValue, useMemo, type ReactNode } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
 import type { Ontology, Subtree } from "@/lib/ontology/types";
@@ -42,6 +42,7 @@ import {
   type ExportTheme,
   type LabelAlign,
   type LabelPosition,
+  type LabelPositions,
   type OverviewLabelStyle,
   type OverviewLabelStyles,
 } from "@/lib/export/theme";
@@ -58,11 +59,6 @@ interface ExportPanelProps {
   readonly scope: ExportScope;
   readonly onClose: () => void;
 }
-
-const FORMATS: readonly { value: ExportFormat; label: string; hint: string }[] = [
-  { value: "png", label: "PNG", hint: "raster" },
-  { value: "svg", label: "SVG", hint: "vector" },
-];
 
 const FONT_OPTIONS: readonly { value: ExportFontChoice; label: string }[] = [
   { value: "sans", label: "Sans" },
@@ -120,24 +116,80 @@ export function ExportPanel({
   // subtree-only controls. The persisted config.scope is ignored.
   const effectiveScope: ExportScope = scope;
 
+  // Apply the user's subtree-exclusion list to produce the ontology the
+  // exporter actually sees. Subtree-scope exports don't use this — they
+  // always render the one active subtree.
+  const filteredOntology = useMemo<Ontology | null>(() => {
+    if (!ontology) return null;
+    if (effectiveScope !== "overview") return ontology;
+    if (config.excludedRootIds.length === 0) return ontology;
+    const excluded = new Set(config.excludedRootIds);
+    const next = new Map<string, Subtree>();
+    let nodeCount = 0;
+    for (const [rootId, sub] of ontology.subtrees) {
+      if (excluded.has(rootId)) continue;
+      next.set(rootId, sub);
+      nodeCount += sub.nodes.size;
+    }
+    return { ...ontology, subtrees: next, nodeCount };
+  }, [ontology, effectiveScope, config.excludedRootIds]);
+
+  // Defer the preview inputs so re-rendering the (often expensive) SVG runs
+  // at low priority — the control rail stays responsive while the figure
+  // catches up. Mirrors the propagation-deferral pattern in App.tsx.
+  // Downloads keep using the live `config` / `themeForExport` /
+  // `filteredOntology` so the artifact reflects exactly what the user
+  // just clicked.
+  const deferredConfig = useDeferredValue(config);
+  const deferredAppTheme = useDeferredValue(appTheme);
+  const deferredFilteredOntology = useDeferredValue(filteredOntology);
+  const previewTheme: ExportTheme = useMemo(() => {
+    const p = getPreset(deferredConfig.presetId);
+    const pt = p.id === "web" ? webThemeFor(deferredAppTheme) : p.theme;
+    return {
+      ...pt,
+      background: deferredConfig.backgroundOverride || pt.background,
+      fontFamily: resolveExportFontFamily(deferredConfig),
+    };
+  }, [deferredConfig, deferredAppTheme]);
+  const isPreviewBusy =
+    config !== deferredConfig ||
+    appTheme !== deferredAppTheme ||
+    filteredOntology !== deferredFilteredOntology;
+
   const previewSvg = useMemo(
     () =>
       buildPreviewSvg({
         scope: effectiveScope,
-        config,
-        theme: themeForExport,
+        config: deferredConfig,
+        theme: previewTheme,
         subtree,
-        ontology,
+        ontology: deferredFilteredOntology,
         focusId,
+        busy: isPreviewBusy,
       }),
-    [effectiveScope, config, themeForExport, subtree, ontology, focusId],
+    [
+      effectiveScope,
+      deferredConfig,
+      previewTheme,
+      subtree,
+      deferredFilteredOntology,
+      focusId,
+      isPreviewBusy,
+    ],
   );
 
-  const handleDownload = async () => {
-    const filename = buildFilename(config, effectiveScope, subtree);
+  const handleDownload = async (format: ExportFormat) => {
+    const filename = buildFilename(config, effectiveScope, subtree, format);
     if (effectiveScope === "overview") {
-      if (!ontology) return;
-      await downloadOverview({ ontology, config, theme: themeForExport, filename });
+      if (!filteredOntology) return;
+      await downloadOverview({
+        ontology: filteredOntology,
+        config,
+        theme: themeForExport,
+        filename,
+        format,
+      });
     } else {
       if (!subtree) return;
       await downloadSubtree({
@@ -146,17 +198,22 @@ export function ExportPanel({
         theme: themeForExport,
         filename,
         focusId,
+        format,
       });
     }
   };
 
+  const overviewHasTiles =
+    filteredOntology !== null && filteredOntology.subtrees.size > 0;
   const downloadDisabled =
     (effectiveScope === "subtree" && !subtree) ||
-    (effectiveScope === "overview" && !ontology);
+    (effectiveScope === "overview" && !overviewHasTiles);
 
   return (
     <div className="grid h-full grid-cols-[1fr_380px] overflow-hidden">
-      <PreviewStage theme={themeForExport}>{previewSvg}</PreviewStage>
+      <PreviewStage theme={previewTheme} busy={isPreviewBusy}>
+        {previewSvg}
+      </PreviewStage>
 
       <aside className="flex h-full min-h-0 flex-col border-l border-border bg-panel text-sm">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -201,20 +258,6 @@ export function ExportPanel({
 
           <Divider />
 
-          <Section title="Format">
-            <Chips
-              options={FORMATS.map((f) => ({
-                value: f.value,
-                label: f.label,
-                hint: f.hint,
-              }))}
-              value={config.format}
-              onChange={(format) => update({ format })}
-            />
-          </Section>
-
-          <Divider />
-
           {effectiveScope === "subtree" ? (
             <Section title="Dimensions">
               <Chips
@@ -251,19 +294,29 @@ export function ExportPanel({
               </div>
             </Section>
           ) : (
-            <Section title="Layout">
-              <NumberField
-                label="Columns"
-                value={config.columns}
-                min={1}
-                max={12}
-                onChange={(columns) => update({ columns })}
+            <>
+              <Section title="Layout">
+                <NumberField
+                  label="Columns"
+                  value={config.columns}
+                  min={1}
+                  max={12}
+                  onChange={(columns) => update({ columns })}
+                />
+                <p className="text-[10px] leading-snug text-muted">
+                  Overview canvas size is derived from columns × tile count. To change
+                  the figure shape, adjust columns.
+                </p>
+              </Section>
+
+              <Divider />
+
+              <SubtreesSection
+                ontology={ontology}
+                excluded={config.excludedRootIds}
+                onChange={(excludedRootIds) => update({ excludedRootIds })}
               />
-              <p className="text-[10px] leading-snug text-muted">
-                Overview canvas size is derived from columns × tile count. To change the
-                figure shape, adjust columns.
-              </p>
-            </Section>
+            </>
           )}
 
           <Divider />
@@ -302,51 +355,15 @@ export function ExportPanel({
 
           <Divider />
 
-          <Section title="Labels">
-            <CheckRow
-              label="Show id"
-              checked={config.labels.id}
-              onChange={(v) => update({ labels: { ...config.labels, id: v } })}
-            />
-            <CheckRow
-              label="Show count"
-              checked={config.labels.count}
-              onChange={(v) => update({ labels: { ...config.labels, count: v } })}
-            />
-            <CheckRow
-              label="Show full name"
-              checked={config.labels.name}
-              onChange={(v) => update({ labels: { ...config.labels, name: v } })}
-            />
-            {effectiveScope === "overview" ? (
-              <RadioRow
-                label="Position (overview)"
-                options={LABEL_POSITIONS}
-                value={config.labelPosition}
-                onChange={(labelPosition) => update({ labelPosition })}
-              />
-            ) : null}
-          </Section>
-
-          {effectiveScope === "overview" ? (
-            <>
-              <Divider />
-              <Section title="Label styles">
-                {LABEL_KEYS.map(({ key, label }) => (
-                  <LabelStyleGroup
-                    key={key}
-                    label={label}
-                    style={config.labelStyles[key]}
-                    onChange={(next) =>
-                      update({
-                        labelStyles: { ...config.labelStyles, [key]: next },
-                      })
-                    }
-                  />
-                ))}
-              </Section>
-            </>
-          ) : null}
+          <LabelsSection
+            scope={effectiveScope}
+            labels={config.labels}
+            labelStyles={config.labelStyles}
+            labelPositions={config.labelPositions}
+            onLabelsChange={(labels) => update({ labels })}
+            onStylesChange={(labelStyles) => update({ labelStyles })}
+            onPositionsChange={(labelPositions) => update({ labelPositions })}
+          />
 
           <Divider />
 
@@ -382,30 +399,38 @@ export function ExportPanel({
             />
           </Section>
 
-          {config.format === "png" ? (
-            <Section title="PNG quality">
-              <RadioRow
-                label="Scale"
-                options={[
-                  { value: "2", label: "2×" },
-                  { value: "4", label: "4×" },
-                  { value: "8", label: "8×" },
-                ]}
-                value={String(config.pngScale)}
-                onChange={(v) => update({ pngScale: Number(v) })}
-              />
-            </Section>
-          ) : null}
+          <Section title="PNG quality">
+            <RadioRow
+              label="Scale"
+              options={[
+                { value: "2", label: "2×" },
+                { value: "4", label: "4×" },
+                { value: "8", label: "8×" },
+              ]}
+              value={String(config.pngScale)}
+              onChange={(v) => update({ pngScale: Number(v) })}
+            />
+          </Section>
         </div>
 
-        <footer className="border-t border-border bg-panel px-5 py-3">
+        <footer className="grid grid-cols-2 gap-2 border-t border-border bg-panel px-5 py-3">
           <button
             type="button"
-            onClick={() => void handleDownload()}
-            className="w-full rounded-md bg-accent px-3 py-2 text-xs font-medium text-on-accent hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => void handleDownload("svg")}
+            className="rounded-md border border-accent bg-transparent px-3 py-2 text-xs font-medium text-accent hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={downloadDisabled}
+            title="Vector — scales losslessly, editable in design tools"
           >
-            Download · {config.format.toUpperCase()}
+            Download SVG
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDownload("png")}
+            className="rounded-md bg-accent px-3 py-2 text-xs font-medium text-on-accent hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={downloadDisabled}
+            title={`Raster at ${config.pngScale}× scale`}
+          >
+            Download PNG · {config.pngScale}×
           </button>
         </footer>
       </aside>
@@ -424,10 +449,11 @@ interface BuildPreviewSvgArgs {
   readonly subtree: Subtree | null;
   readonly ontology: Ontology | null;
   readonly focusId: string | undefined;
+  readonly busy: boolean;
 }
 
 function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
-  const { scope, config, theme, subtree, ontology } = args;
+  const { scope, config, theme, subtree, ontology, busy } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
   if (scope === "overview") {
@@ -439,7 +465,7 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
       theme,
       tileBorder: config.tileBorder,
       labels: config.labels,
-      labelPosition: config.labelPosition,
+      labelPositions: config.labelPositions,
       labelStyles: config.labelStyles,
       outerPadding: config.padding,
       showHeader: burnHeader,
@@ -448,7 +474,7 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
       ...(config.title ? { title: config.title } : {}),
       ...(config.caption ? { caption: config.caption } : {}),
     });
-    return <FittedSvg svg={svg} />;
+    return <FittedSvg svg={svg} busy={busy} />;
   }
 
   if (!subtree) return <EmptyPreview>No active subtree</EmptyPreview>;
@@ -470,7 +496,7 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
     ...(config.title ? { title: config.title } : {}),
     ...(config.caption ? { caption: config.caption } : {}),
   });
-  return <FittedSvg svg={svg} />;
+  return <FittedSvg svg={svg} busy={busy} />;
 }
 
 /**
@@ -481,11 +507,14 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
  * SVG shrinks to fit while preserving aspect. The classic responsive-img
  * pattern; works reliably across browsers without juggling `aspect-ratio`.
  */
-function FittedSvg({ svg }: { readonly svg: string }) {
+function FittedSvg({ svg, busy }: { readonly svg: string; readonly busy: boolean }) {
   return (
     <div className="flex h-full w-full items-center justify-center overflow-hidden">
       <div
-        className="flex max-h-full max-w-full overflow-hidden rounded-lg shadow-pop [&>svg]:block [&>svg]:h-auto [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:w-auto"
+        className={
+          "flex max-h-full max-w-full overflow-hidden rounded-lg shadow-pop [&>svg]:block [&>svg]:h-auto [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:w-auto" +
+          (busy ? " recomputing-ring" : "")
+        }
         // Trusted internal source — user-supplied strings (title, caption,
         // node labels) are escaped by the renderer.
         dangerouslySetInnerHTML={{ __html: makeResponsiveSvg(svg) }}
@@ -524,9 +553,11 @@ function EmptyPreview({ children }: { readonly children: ReactNode }) {
 
 function PreviewStage({
   theme,
+  busy,
   children,
 }: {
   readonly theme: ExportTheme;
+  readonly busy: boolean;
   readonly children: ReactNode;
 }) {
   // Outer stage uses a neutral surface so the figure's own background reads
@@ -536,6 +567,7 @@ function PreviewStage({
     <div
       role="img"
       aria-label="Export preview"
+      aria-busy={busy}
       style={{ fontFamily: theme.fontFamily }}
       className="flex h-full min-h-0 items-center justify-center bg-elevated p-6"
     >
@@ -554,15 +586,16 @@ interface SubtreeDownloadArgs {
   readonly theme: ExportTheme;
   readonly filename: string;
   readonly focusId: string | undefined;
+  readonly format: ExportFormat;
 }
 
 async function downloadSubtree(args: SubtreeDownloadArgs): Promise<void> {
-  const { subtree, config, theme, filename, focusId } = args;
+  const { subtree, config, theme, filename, focusId, format } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
   const layout = layoutSunburst(subtree, focusId !== undefined ? { focusId } : {});
 
-  if (config.format === "png") {
+  if (format === "png") {
     const blob = await exportLayoutToPngBlob(layout, {
       width: config.width,
       height: config.height,
@@ -600,10 +633,11 @@ interface OverviewDownloadArgs {
   readonly config: ExportConfig;
   readonly theme: ExportTheme;
   readonly filename: string;
+  readonly format: ExportFormat;
 }
 
 async function downloadOverview(args: OverviewDownloadArgs): Promise<void> {
-  const { ontology, config, theme, filename } = args;
+  const { ontology, config, theme, filename, format } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
   const baseOptions = {
@@ -612,7 +646,7 @@ async function downloadOverview(args: OverviewDownloadArgs): Promise<void> {
     theme,
     tileBorder: config.tileBorder,
     labels: config.labels,
-    labelPosition: config.labelPosition,
+    labelPositions: config.labelPositions,
     labelStyles: config.labelStyles,
     outerPadding: config.padding,
     showHeader: burnHeader,
@@ -622,7 +656,7 @@ async function downloadOverview(args: OverviewDownloadArgs): Promise<void> {
     ...(config.caption ? { caption: config.caption } : {}),
   } as const;
 
-  if (config.format === "png") {
+  if (format === "png") {
     const blob = await overviewToPngBlob(ontology, {
       ...baseOptions,
       scale: config.pngScale,
@@ -640,10 +674,11 @@ function buildFilename(
   config: ExportConfig,
   scope: ExportScope,
   subtree: Subtree | null,
+  format: ExportFormat,
 ): string {
   const slug =
     scope === "overview" ? "overview" : (subtree?.rootId.toLowerCase() ?? "subtree");
-  const ext = config.format === "png" ? `${config.pngScale}x.png` : "svg";
+  const ext = format === "png" ? `${config.pngScale}x.png` : "svg";
   return `ontoloviz-${slug}-${Date.now()}.${ext}`;
 }
 
@@ -741,28 +776,6 @@ function RadioRow<T extends string>({
         ))}
       </div>
     </div>
-  );
-}
-
-function CheckRow({
-  label,
-  checked,
-  onChange,
-}: {
-  readonly label: string;
-  readonly checked: boolean;
-  readonly onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center justify-between gap-2 text-xs">
-      <span className="text-ink">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.currentTarget.checked)}
-        className="h-4 w-4 cursor-pointer accent-accent"
-      />
-    </label>
   );
 }
 
@@ -911,51 +924,418 @@ function ColorRow({
   );
 }
 
-function LabelStyleGroup({
+/**
+ * Single integrated Labels card. Each label row carries its own visibility
+ * checkbox; when enabled (and the export is overview-scope, where styling
+ * actually applies), an inline strip exposes a size stepper, a bold toggle,
+ * a left/center/right alignment toggle, and a per-label position picker
+ * (above / below / overlay) — so labels can sit in different bands
+ * independently of one another.
+ */
+interface LabelsSectionProps {
+  readonly scope: ExportScope;
+  readonly labels: {
+    readonly id: boolean;
+    readonly count: boolean;
+    readonly name: boolean;
+  };
+  readonly labelStyles: OverviewLabelStyles;
+  readonly labelPositions: LabelPositions;
+  readonly onLabelsChange: (next: {
+    readonly id: boolean;
+    readonly count: boolean;
+    readonly name: boolean;
+  }) => void;
+  readonly onStylesChange: (next: OverviewLabelStyles) => void;
+  readonly onPositionsChange: (next: LabelPositions) => void;
+}
+
+function LabelsSection({
+  scope,
+  labels,
+  labelStyles,
+  labelPositions,
+  onLabelsChange,
+  onStylesChange,
+  onPositionsChange,
+}: LabelsSectionProps) {
+  const showStyles = scope === "overview";
+  return (
+    <Section title="Labels">
+      <div className="overflow-hidden rounded-md border border-border bg-elevated/40">
+        {LABEL_KEYS.map(({ key, label }, index) => (
+          <LabelRow
+            key={key}
+            label={label}
+            checked={labels[key]}
+            onToggle={(v) => onLabelsChange({ ...labels, [key]: v })}
+            showStyle={showStyles}
+            style={labelStyles[key]}
+            onStyleChange={(next) => onStylesChange({ ...labelStyles, [key]: next })}
+            position={labelPositions[key]}
+            onPositionChange={(next) =>
+              onPositionsChange({ ...labelPositions, [key]: next })
+            }
+            divided={index > 0}
+          />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+interface LabelRowProps {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onToggle: (v: boolean) => void;
+  readonly showStyle: boolean;
+  readonly style: OverviewLabelStyle;
+  readonly onStyleChange: (next: OverviewLabelStyle) => void;
+  readonly position: LabelPosition;
+  readonly onPositionChange: (next: LabelPosition) => void;
+  readonly divided: boolean;
+}
+
+function LabelRow({
   label,
+  checked,
+  onToggle,
+  showStyle,
   style,
+  onStyleChange,
+  position,
+  onPositionChange,
+  divided,
+}: LabelRowProps) {
+  const expanded = checked && showStyle;
+  return (
+    <div className={divided ? "border-t border-border" : ""}>
+      <label className="flex cursor-pointer items-center gap-2.5 px-3 py-2">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.currentTarget.checked)}
+          className="h-4 w-4 cursor-pointer accent-accent"
+        />
+        <span className="flex-1 text-xs text-ink">{label}</span>
+        {expanded ? (
+          <span
+            aria-hidden
+            className="font-mono text-[10px] tabular-nums text-muted"
+            style={{
+              fontWeight: style.bold ? 700 : 400,
+              textAlign: style.align,
+            }}
+          >
+            {style.fontSize}px · {position}
+          </span>
+        ) : null}
+      </label>
+      {expanded ? (
+        <div className="flex flex-col gap-1.5 px-3 pb-2.5 pl-[2.375rem]">
+          <div className="flex items-center gap-1.5">
+            <SizeStepper
+              value={style.fontSize}
+              min={6}
+              max={72}
+              onChange={(fontSize) => onStyleChange({ ...style, fontSize })}
+            />
+            <BoldToggle
+              value={style.bold}
+              onChange={(bold) => onStyleChange({ ...style, bold })}
+            />
+            {position === "overlay" ? (
+              <span
+                className="rounded-md border border-dashed border-border bg-elevated/60 px-2 py-1 text-[10px] leading-none text-muted"
+                title="Overlay snaps each label to a corner (id ↖ · count ↗ · name ↓ center)"
+              >
+                auto-aligned
+              </span>
+            ) : (
+              <AlignToggle
+                value={style.align}
+                onChange={(align) => onStyleChange({ ...style, align })}
+              />
+            )}
+          </div>
+          <SegmentedControl
+            options={LABEL_POSITIONS}
+            value={position}
+            onChange={onPositionChange}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SizeStepper({
+  value,
+  min,
+  max,
   onChange,
 }: {
-  readonly label: string;
-  readonly style: OverviewLabelStyle;
-  readonly onChange: (next: OverviewLabelStyle) => void;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly onChange: (v: number) => void;
+}) {
+  const clamp = (v: number): number => Math.max(min, Math.min(max, v));
+  return (
+    <div
+      className="flex items-stretch overflow-hidden rounded-md border border-border bg-elevated"
+      role="group"
+      aria-label="Font size"
+    >
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value - 1))}
+        disabled={value <= min}
+        aria-label="Decrease font size"
+        className="px-1.5 text-[12px] leading-none text-muted hover:bg-border hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        −
+      </button>
+      <span className="flex w-8 items-center justify-center border-x border-border font-mono text-[10px] tabular-nums text-ink">
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value + 1))}
+        disabled={value >= max}
+        aria-label="Increase font size"
+        className="px-1.5 text-[12px] leading-none text-muted hover:bg-border hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function BoldToggle({
+  value,
+  onChange,
+}: {
+  readonly value: boolean;
+  readonly onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-elevated/40 p-2.5">
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">
-        {label}
-      </span>
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <NumberField
-          label="Size (px)"
-          value={style.fontSize}
-          min={6}
-          max={72}
-          onChange={(fontSize) => onChange({ ...style, fontSize })}
-        />
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-[11px] uppercase tracking-widest text-muted">Bold</span>
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      aria-pressed={value}
+      aria-label="Bold"
+      title="Bold"
+      className={
+        value
+          ? "rounded-md border border-accent bg-accent/15 px-2 py-1 font-serif text-[11px] font-bold leading-none text-ink"
+          : "rounded-md border border-border bg-elevated px-2 py-1 font-serif text-[11px] font-bold leading-none text-muted hover:bg-border hover:text-ink"
+      }
+    >
+      B
+    </button>
+  );
+}
+
+function AlignToggle({
+  value,
+  onChange,
+}: {
+  readonly value: LabelAlign;
+  readonly onChange: (v: LabelAlign) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Alignment"
+      className="flex items-stretch overflow-hidden rounded-md border border-border bg-elevated"
+    >
+      {LABEL_ALIGNS.map((opt, i) => {
+        const active = opt.value === value;
+        return (
           <button
+            key={opt.value}
             type="button"
-            onClick={() => onChange({ ...style, bold: !style.bold })}
-            aria-pressed={style.bold}
+            onClick={() => onChange(opt.value)}
+            aria-pressed={active}
+            aria-label={`Align ${opt.label.toLowerCase()}`}
+            title={`Align ${opt.label.toLowerCase()}`}
             className={
-              style.bold
-                ? "rounded-md border border-accent bg-accent/15 px-2.5 py-1 text-[11px] text-ink"
-                : "rounded-md border border-border bg-elevated px-2.5 py-1 text-[11px] text-muted hover:bg-border hover:text-ink"
+              (active
+                ? "bg-accent/15 text-ink"
+                : "text-muted hover:bg-border hover:text-ink") +
+              (i > 0 ? " border-l border-border" : "") +
+              " flex items-center justify-center px-1.5 py-1"
             }
           >
-            {style.bold ? "On" : "Off"}
+            <AlignIcon dir={opt.value} />
           </button>
-        </label>
-      </div>
-      <RadioRow
-        label="Align"
-        options={LABEL_ALIGNS}
-        value={style.align}
-        onChange={(align) => onChange({ ...style, align })}
-      />
+        );
+      })}
     </div>
+  );
+}
+
+function AlignIcon({ dir }: { readonly dir: LabelAlign }) {
+  const rows = [
+    { y: 2, len: 10 },
+    { y: 5, len: 6 },
+    { y: 8, len: 10 },
+    { y: 11, len: 6 },
+  ];
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 14"
+      fill="none"
+      aria-hidden
+      className="block"
+    >
+      {rows.map((r, i) => {
+        const x = dir === "left" ? 1 : dir === "right" ? 11 - r.len : (12 - r.len) / 2;
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={r.y - 0.5}
+            width={r.len}
+            height={1.25}
+            rx={0.5}
+            fill="currentColor"
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  readonly options: readonly { value: T; label: string }[];
+  readonly value: T;
+  readonly onChange: (v: T) => void;
+}) {
+  return (
+    <div
+      role="group"
+      className="flex items-stretch overflow-hidden rounded-md border border-border bg-elevated"
+    >
+      {options.map((opt, i) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={active}
+            className={
+              (active
+                ? "bg-accent/15 text-ink"
+                : "text-muted hover:bg-border hover:text-ink") +
+              (i > 0 ? " border-l border-border" : "") +
+              " px-2 py-1 text-[10px] font-medium leading-none"
+            }
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SubtreesSection({
+  ontology,
+  excluded,
+  onChange,
+}: {
+  readonly ontology: Ontology | null;
+  readonly excluded: readonly string[];
+  readonly onChange: (next: readonly string[]) => void;
+}) {
+  const subtrees = useMemo(() => {
+    if (!ontology) return [];
+    return [...ontology.subtrees.values()].sort((a, b) =>
+      a.rootId < b.rootId ? -1 : a.rootId > b.rootId ? 1 : 0,
+    );
+  }, [ontology]);
+
+  if (subtrees.length === 0) {
+    return (
+      <Section title="Subtrees">
+        <p className="text-[10px] leading-snug text-muted">No subtrees available.</p>
+      </Section>
+    );
+  }
+
+  const excludedSet = new Set(excluded);
+  const includedCount = subtrees.length - excludedSet.size;
+  const allRootIds = subtrees.map((s) => s.rootId);
+
+  const toggle = (rootId: string, include: boolean): void => {
+    const next = new Set(excludedSet);
+    if (include) next.delete(rootId);
+    else next.add(rootId);
+    onChange([...next]);
+  };
+
+  return (
+    <Section title="Subtrees">
+      <div className="flex items-center justify-between text-[10px] text-muted">
+        <span>
+          {includedCount} of {subtrees.length} included
+        </span>
+        <span className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="rounded-md border border-border bg-elevated px-1.5 py-0.5 text-[10px] text-muted hover:text-ink"
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(allRootIds)}
+            className="rounded-md border border-border bg-elevated px-1.5 py-0.5 text-[10px] text-muted hover:text-ink"
+          >
+            None
+          </button>
+        </span>
+      </div>
+      <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-elevated/40">
+        <ul className="divide-y divide-border">
+          {subtrees.map((sub) => {
+            const included = !excludedSet.has(sub.rootId);
+            const label = sub.nodes.get(sub.rootId)?.label?.trim() ?? "";
+            return (
+              <li key={sub.rootId}>
+                <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-[11px] hover:bg-border/40">
+                  <input
+                    type="checkbox"
+                    checked={included}
+                    onChange={(e) => toggle(sub.rootId, e.currentTarget.checked)}
+                    className="h-3.5 w-3.5 cursor-pointer accent-accent"
+                  />
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <span className="font-mono text-ink">{sub.rootId}</span>
+                    {label && label !== sub.rootId ? (
+                      <span className="truncate text-muted">{label}</span>
+                    ) : null}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted">
+                    {sub.nodes.size.toLocaleString()}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </Section>
   );
 }
 

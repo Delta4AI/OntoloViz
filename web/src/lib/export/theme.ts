@@ -61,6 +61,23 @@ export const DEFAULT_OVERVIEW_LABEL_STYLES: OverviewLabelStyles = Object.freeze(
   name: { fontSize: 11, bold: false, align: "left" as LabelAlign },
 });
 
+/**
+ * Per-label position in the overview. Each label can independently sit above
+ * the tile, below it, or float inside it (overlay). Overlay is short on
+ * vertical room — long names wrap awkwardly, so the name default is "below".
+ */
+export interface LabelPositions {
+  readonly id: LabelPosition;
+  readonly count: LabelPosition;
+  readonly name: LabelPosition;
+}
+
+export const DEFAULT_OVERVIEW_LABEL_POSITIONS: LabelPositions = Object.freeze({
+  id: "above",
+  count: "above",
+  name: "above",
+});
+
 export type ExportPresetId = "pub-light" | "presentation" | "web";
 
 export interface ExportPreset {
@@ -73,8 +90,8 @@ export interface ExportPreset {
   readonly labels: ExportLabelFlags;
   /** Outer padding inside each tile / around the single sunburst, in CSS px. */
   readonly padding: number;
-  /** Default overview label position for this preset. */
-  readonly labelPosition: LabelPosition;
+  /** Default overview label positions (per label) for this preset. */
+  readonly labelPositions: LabelPositions;
 }
 
 const SANS = "ui-sans-serif, system-ui, sans-serif";
@@ -146,7 +163,7 @@ export const EXPORT_PRESETS: readonly ExportPreset[] = Object.freeze([
     tileBorder: false,
     labels: { id: true, count: false, name: true },
     padding: 32,
-    labelPosition: "below",
+    labelPositions: { id: "below", count: "below", name: "below" },
   },
   {
     id: "presentation",
@@ -156,7 +173,7 @@ export const EXPORT_PRESETS: readonly ExportPreset[] = Object.freeze([
     tileBorder: true,
     labels: { id: true, count: true, name: false },
     padding: 40,
-    labelPosition: "above",
+    labelPositions: { id: "above", count: "above", name: "above" },
   },
   {
     id: "web",
@@ -166,7 +183,7 @@ export const EXPORT_PRESETS: readonly ExportPreset[] = Object.freeze([
     tileBorder: true,
     labels: { id: true, count: true, name: true },
     padding: 24,
-    labelPosition: "above",
+    labelPositions: { id: "overlay", count: "below", name: "below" },
   },
 ] as const);
 

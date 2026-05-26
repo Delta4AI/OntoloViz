@@ -28,12 +28,14 @@ import {
   type HtmlTheme,
 } from "./runtime";
 import {
+  DEFAULT_OVERVIEW_LABEL_POSITIONS,
   DEFAULT_OVERVIEW_LABEL_STYLES,
   EXPORT_THEME_DEFAULT,
   type ExportLabelFlags,
   type ExportTheme,
   type LabelAlign,
   type LabelPosition,
+  type LabelPositions,
   type OverviewLabelStyle,
   type OverviewLabelStyles,
 } from "./theme";
@@ -69,8 +71,8 @@ export interface OverviewExportOptions {
   readonly theme?: ExportTheme;
   /** Whether to draw a 1px stroke around each tile. */
   readonly tileBorder?: boolean;
-  /** Where to place the per-tile label. */
-  readonly labelPosition?: LabelPosition;
+  /** Per-label placement (above tile / below tile / overlay inside tile). */
+  readonly labelPositions?: LabelPositions;
   /** Which label fields to include per tile. */
   readonly labels?: ExportLabelFlags;
   /** Per-element styling (font size, weight, alignment) for tile labels. */
@@ -101,18 +103,56 @@ interface Tile {
   readonly sublabel: string;
 }
 
+/** Source order — labels stack id → count → name within each band. */
+const LABEL_ORDER: readonly (keyof OverviewLabelStyles)[] = ["id", "count", "name"];
+
+type LabelKey = keyof OverviewLabelStyles;
+
+/**
+ * A single label placement inside a tile. `yOffset` is measured from the
+ * tile's top-left corner (the slot that includes the above-band, sunburst,
+ * and below-band), so render code can simply compute `y + yOffset` without
+ * branching on position.
+ */
+interface LabelPlacement {
+  readonly key: LabelKey;
+  readonly position: LabelPosition;
+  readonly yOffset: number;
+  /**
+   * Effective horizontal anchor for this label. For above/below labels this
+   * mirrors the user's per-label align. For overlay labels it is fixed by
+   * role (id → left, count → right, name → center) so id + count share the
+   * top row instead of stacking and name sits at bottom-center.
+   */
+  readonly align: LabelAlign;
+}
+
+/**
+ * Overlay-mode slot per label key. Drives both vertical anchor (top vs
+ * bottom of the tile) and horizontal alignment when the user picks overlay.
+ */
+const OVERLAY_SLOTS: Record<
+  LabelKey,
+  {
+    readonly align: LabelAlign;
+    readonly anchor: "top" | "bottom";
+  }
+> = {
+  id: { align: "left", anchor: "top" },
+  count: { align: "right", anchor: "top" },
+  name: { align: "center", anchor: "bottom" },
+};
+
 interface Composition {
   readonly tiles: readonly Tile[];
   readonly cols: number;
   readonly rows: number;
   readonly tileSize: number;
   readonly tileTotalHeight: number;
-  readonly labelHeight: number;
-  /** Y offset within the label band where the first text row's baseline sits. */
-  readonly labelFirstBaseline: number;
-  /** Y offset within the label band where the second text row's baseline sits. */
-  readonly labelSecondBaseline: number;
-  readonly labelPosition: LabelPosition;
+  readonly aboveBandH: number;
+  readonly belowBandH: number;
+  /** Per-label placements, in render order. Drives both SVG and PNG paths. */
+  readonly placements: readonly LabelPlacement[];
   readonly outerPadding: number;
   readonly tileGap: number;
   readonly canvasWidth: number;
@@ -125,10 +165,102 @@ interface Composition {
   readonly labels: ExportLabelFlags;
 }
 
+/**
+ * Plan per-label placements and the heights of the above/below bands. Each
+ * enabled label contributes its own row in its chosen band, so users can mix
+ * (e.g. id overlay, count below, name below) without one position dictating
+ * the others. Overlay labels stack inside the sunburst area from the top.
+ */
+function computeLayout(
+  labels: ExportLabelFlags,
+  positions: LabelPositions,
+  styles: OverviewLabelStyles,
+  tileSize: number,
+): {
+  placements: LabelPlacement[];
+  aboveBandH: number;
+  belowBandH: number;
+} {
+  const rowH = (k: LabelKey): number => styles[k].fontSize + 8;
+  const aboveKeys: LabelKey[] = [];
+  const belowKeys: LabelKey[] = [];
+  const overlayKeys: LabelKey[] = [];
+  for (const k of LABEL_ORDER) {
+    if (!labels[k]) continue;
+    const pos = positions[k];
+    if (pos === "above") aboveKeys.push(k);
+    else if (pos === "below") belowKeys.push(k);
+    else overlayKeys.push(k);
+  }
+
+  const aboveBandH = aboveKeys.reduce((s, k) => s + rowH(k), 0);
+  const belowBandH = belowKeys.reduce((s, k) => s + rowH(k), 0);
+
+  const placements: LabelPlacement[] = [];
+
+  // Above band — stack from the top, each row spaced by its own font.
+  let cursor = 0;
+  for (const k of aboveKeys) {
+    placements.push({
+      key: k,
+      position: "above",
+      yOffset: cursor + Math.round(styles[k].fontSize * 0.85) + 4,
+      align: styles[k].align,
+    });
+    cursor += rowH(k);
+  }
+
+  // Below band — starts immediately under the sunburst.
+  cursor = aboveBandH + tileSize;
+  for (const k of belowKeys) {
+    placements.push({
+      key: k,
+      position: "below",
+      yOffset: cursor + Math.round(styles[k].fontSize * 0.85) + 4,
+      align: styles[k].align,
+    });
+    cursor += rowH(k);
+  }
+
+  // Overlay — slot-based by key so id + count share the top row (left and
+  // right corners) and name sits centered at the bottom. Top-row labels
+  // share a baseline derived from the tallest of the two so they line up.
+  const topOverlayKeys = overlayKeys.filter((k) => OVERLAY_SLOTS[k].anchor === "top");
+  const bottomOverlayKeys = overlayKeys.filter(
+    (k) => OVERLAY_SLOTS[k].anchor === "bottom",
+  );
+  if (topOverlayKeys.length > 0) {
+    const tallest = topOverlayKeys.reduce((m, k) => Math.max(m, styles[k].fontSize), 0);
+    const topY = aboveBandH + Math.round(tallest * 0.85) + 6;
+    for (const k of topOverlayKeys) {
+      placements.push({
+        key: k,
+        position: "overlay",
+        yOffset: topY,
+        align: OVERLAY_SLOTS[k].align,
+      });
+    }
+  }
+  for (const k of bottomOverlayKeys) {
+    // Baseline a hair above the tile bottom so descenders stay inside.
+    const yOffset =
+      aboveBandH + tileSize - Math.max(4, Math.round(styles[k].fontSize * 0.25));
+    placements.push({
+      key: k,
+      position: "overlay",
+      yOffset,
+      align: OVERLAY_SLOTS[k].align,
+    });
+  }
+
+  return { placements, aboveBandH, belowBandH };
+}
+
 /** Lay out subtrees into a grid and return the composition + total size. */
 function compose(ontology: Ontology, options: OverviewExportOptions): Composition {
   const tileSize = options.tileSize ?? 320;
-  const labelPosition: LabelPosition = options.labelPosition ?? "above";
+  const positions: LabelPositions =
+    options.labelPositions ?? DEFAULT_OVERVIEW_LABEL_POSITIONS;
   const labels = options.labels ?? DEFAULT_LABELS;
   const outerPadding = options.outerPadding ?? 24;
   const tileGap = options.tileGap ?? 16;
@@ -150,29 +282,14 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
     Math.min(tiles.length, Math.max(1, Math.ceil(Math.sqrt(tiles.length))));
   const rows = Math.max(1, Math.ceil(tiles.length / cols));
   const labelStyles = options.labelStyles ?? DEFAULT_OVERVIEW_LABEL_STYLES;
-  // Above/below stack id+count on the first row and name on the second row
-  // (when present). Heights scale with the actual font sizes so a 24px id
-  // doesn't get clipped. Overlay keeps zero extra height — labels float
-  // inside the sunburst area.
-  const wantFirstRow = labels.id || labels.count;
-  const wantNameLine = labels.name && labelPosition !== "overlay";
-  const firstRowFontH = Math.max(
-    labels.id ? labelStyles.id.fontSize : 0,
-    labels.count ? labelStyles.count.fontSize : 0,
+
+  const { placements, aboveBandH, belowBandH } = computeLayout(
+    labels,
+    positions,
+    labelStyles,
+    tileSize,
   );
-  const firstRowH = wantFirstRow ? firstRowFontH + 8 : 0;
-  const secondRowH = wantNameLine ? labelStyles.name.fontSize + 10 : 0;
-  const labelHeight = labelPosition === "overlay" ? 0 : firstRowH + secondRowH;
-  // Baselines are measured from the top of the label band. SVG `y` on
-  // `<text>` is the glyph baseline, so we offset by ~80% of the row's
-  // font height to put the top of the glyph near the band's top.
-  const labelFirstBaseline = wantFirstRow ? Math.round(firstRowFontH * 0.85) : 0;
-  const labelSecondBaseline = wantNameLine
-    ? labelFirstBaseline +
-      (wantFirstRow ? 6 : 0) +
-      Math.round(labelStyles.name.fontSize * 1.2)
-    : 0;
-  const tileTotalHeight = tileSize + labelHeight;
+  const tileTotalHeight = aboveBandH + tileSize + belowBandH;
 
   const trimmedTitle = options.title?.trim() ?? "";
   const trimmedCaption = options.caption?.trim() ?? "";
@@ -198,8 +315,9 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
     rows,
     tileSize,
     tileTotalHeight,
-    labelHeight,
-    labelPosition,
+    aboveBandH,
+    belowBandH,
+    placements,
     outerPadding,
     tileGap,
     canvasWidth,
@@ -210,8 +328,6 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
     captionFontSize,
     labelStyles,
     labels,
-    labelFirstBaseline,
-    labelSecondBaseline,
   };
 }
 
@@ -251,14 +367,11 @@ function tileOrigin(c: Composition, index: number): { x: number; y: number } {
   };
 }
 
-/** Y of the sunburst body relative to a tile's top, depending on label pos. */
-function sunburstYOffset(c: Composition): number {
-  return c.labelPosition === "above" ? c.labelHeight : 0;
-}
-
-/** Y where label text should render relative to a tile's top. */
-function labelBandY(c: Composition): number {
-  return c.labelPosition === "below" ? c.tileSize : 0;
+/** Source text for a label key, given a tile and the current tile size. */
+function labelTextFor(key: LabelKey, tile: Tile, tileSize: number): string {
+  if (key === "id") return tile.subtree.rootId;
+  if (key === "count") return tile.sublabel;
+  return tile.title ? truncate(tile.title, Math.max(8, Math.floor(tileSize / 8))) : "";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -274,7 +387,6 @@ export function overviewToSvg(
   const bg = options.background === undefined ? theme.background : options.background;
   const tileBorderStroke =
     (options.tileBorder ?? false) ? theme.stroke || "rgba(0, 0, 0, 0.12)" : "";
-  const labels = options.labels ?? DEFAULT_LABELS;
   const titleText = options.title?.trim() ?? "";
   const captionText = options.caption?.trim() ?? "";
 
@@ -314,7 +426,7 @@ export function overviewToSvg(
       : ` fill="${theme.sublabelColor}"`;
     const fontAttr = ` font-family="${escapeAttr(theme.fontFamily)}"`;
 
-    const sy = y + sunburstYOffset(c);
+    const sy = y + c.aboveBandH;
     const tileBgFill = options.interactive ? "" : ` fill="${theme.background}"`;
     const tileBgStroke = tileBorderStroke
       ? options.interactive
@@ -328,81 +440,38 @@ export function overviewToSvg(
       `<g transform="translate(${x}, ${sy})">${tileToSvgPaths(tile.layout, c.tileSize, theme)}</g>`,
     );
 
-    const styles = c.labelStyles;
     const emitText = (
       text: string,
       style: OverviewLabelStyle,
+      align: LabelAlign,
       tx: number,
       ty: number,
       isPrimary: boolean,
     ): void => {
-      const anchor = alignToAnchor(style.align);
+      const anchor = alignToAnchor(align);
       const fill = isPrimary ? headerFill : subFill;
       parts.push(
         `<text x="${tx}" y="${ty}"${fontAttr} font-size="${style.fontSize}" font-weight="${fontWeight(style)}" text-anchor="${anchor}"${fill}>${escapeXml(text)}</text>`,
       );
     };
 
-    if (c.labelPosition === "overlay") {
-      // Anchor labels inside the tile's top region. Vertical offset scales
-      // with the id font size so larger glyphs aren't clipped.
-      const idTop = sy + Math.round(styles.id.fontSize * 0.85) + 4;
-      const subTop = idTop + Math.round(styles.count.fontSize * 1.2);
-      if (labels.id) {
-        emitText(
-          tile.subtree.rootId,
-          styles.id,
-          alignToX(styles.id.align, x, c.tileSize),
-          idTop,
-          true,
-        );
-      }
-      if (tile.sublabel) {
-        emitText(
-          tile.sublabel,
-          styles.count,
-          alignToX(styles.count.align, x, c.tileSize),
-          subTop,
-          false,
-        );
-      }
-    } else {
-      const labelY = y + labelBandY(c);
-      const idY = labelY + c.labelFirstBaseline + 4;
-      const nameY = labelY + c.labelSecondBaseline + 4;
-      if (labels.id) {
-        emitText(
-          tile.subtree.rootId,
-          styles.id,
-          alignToX(styles.id.align, x, c.tileSize),
-          idY,
-          true,
-        );
-      }
-      if (tile.sublabel) {
-        emitText(
-          tile.sublabel,
-          styles.count,
-          alignToX(styles.count.align, x, c.tileSize),
-          idY,
-          false,
-        );
-      }
-      if (tile.title) {
-        emitText(
-          truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))),
-          styles.name,
-          alignToX(styles.name.align, x, c.tileSize),
-          nameY,
-          false,
-        );
-      }
+    for (const placement of c.placements) {
+      const text = labelTextFor(placement.key, tile, c.tileSize);
+      if (!text) continue;
+      const style = c.labelStyles[placement.key];
+      emitText(
+        text,
+        style,
+        placement.align,
+        alignToX(placement.align, x, c.tileSize),
+        y + placement.yOffset,
+        placement.key === "id",
+      );
     }
 
     if (options.interactive) {
-      const totalH = c.tileSize + c.labelHeight;
       parts.push(
-        `<rect class="ov-tile-hit" x="${x}" y="${y}" width="${c.tileSize}" height="${totalH}"/>`,
+        `<rect class="ov-tile-hit" x="${x}" y="${y}" width="${c.tileSize}" height="${c.tileTotalHeight}"/>`,
       );
     }
     parts.push("</g>");
@@ -527,7 +596,6 @@ export async function overviewToPngBlob(
   const theme = options.theme ?? EXPORT_THEME_DEFAULT;
   const c = compose(ontology, options);
   const scale = options.scale ?? 2;
-  const labels = options.labels ?? DEFAULT_LABELS;
   const wantBorder = options.tileBorder ?? false;
   const titleText = options.title?.trim() ?? "";
   const captionText = options.caption?.trim() ?? "";
@@ -557,7 +625,7 @@ export async function overviewToPngBlob(
 
   c.tiles.forEach((tile, i) => {
     const { x, y } = tileOrigin(c, i);
-    const sy = y + sunburstYOffset(c);
+    const sy = y + c.aboveBandH;
 
     ctx.fillStyle = theme.background;
     roundRect(ctx, x, sy, c.tileSize, c.tileSize, 8);
@@ -580,72 +648,32 @@ export async function overviewToPngBlob(
     });
     ctx.restore();
 
-    const styles = c.labelStyles;
     const drawText = (
       text: string,
       style: OverviewLabelStyle,
+      align: LabelAlign,
       tx: number,
       ty: number,
       color: string,
     ): void => {
       ctx.fillStyle = color;
       ctx.font = `${style.bold ? "600 " : ""}${style.fontSize}px ${theme.fontFamily}`;
-      ctx.textAlign = alignToCanvasTextAlign(style.align);
+      ctx.textAlign = alignToCanvasTextAlign(align);
       ctx.fillText(text, tx, ty);
     };
 
-    if (c.labelPosition === "overlay") {
-      const idTop = sy + Math.round(styles.id.fontSize * 0.85) + 4;
-      const subTop = idTop + Math.round(styles.count.fontSize * 1.2);
-      if (labels.id) {
-        drawText(
-          tile.subtree.rootId,
-          styles.id,
-          alignToX(styles.id.align, x, c.tileSize),
-          idTop,
-          theme.labelColor,
-        );
-      }
-      if (tile.sublabel) {
-        drawText(
-          tile.sublabel,
-          styles.count,
-          alignToX(styles.count.align, x, c.tileSize),
-          subTop,
-          theme.sublabelColor,
-        );
-      }
-    } else {
-      const labelY = y + labelBandY(c);
-      const idY = labelY + c.labelFirstBaseline + 4;
-      const nameY = labelY + c.labelSecondBaseline + 4;
-      if (labels.id) {
-        drawText(
-          tile.subtree.rootId,
-          styles.id,
-          alignToX(styles.id.align, x, c.tileSize),
-          idY,
-          theme.labelColor,
-        );
-      }
-      if (tile.sublabel) {
-        drawText(
-          tile.sublabel,
-          styles.count,
-          alignToX(styles.count.align, x, c.tileSize),
-          idY,
-          theme.sublabelColor,
-        );
-      }
-      if (tile.title) {
-        drawText(
-          truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))),
-          styles.name,
-          alignToX(styles.name.align, x, c.tileSize),
-          nameY,
-          theme.sublabelColor,
-        );
-      }
+    for (const placement of c.placements) {
+      const text = labelTextFor(placement.key, tile, c.tileSize);
+      if (!text) continue;
+      const style = c.labelStyles[placement.key];
+      drawText(
+        text,
+        style,
+        placement.align,
+        alignToX(placement.align, x, c.tileSize),
+        y + placement.yOffset,
+        placement.key === "id" ? theme.labelColor : theme.sublabelColor,
+      );
     }
   });
 

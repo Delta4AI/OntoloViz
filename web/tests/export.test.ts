@@ -313,21 +313,69 @@ describe("overviewToSvg", () => {
     expect(svg).not.toMatch(/<rect class="ov-tile-bg"[^>]*stroke="/);
   });
 
-  it("shifts labels below the tile when labelPosition='below'", async () => {
+  it("shifts the id label below the tile when its position is 'below'", async () => {
     const { overviewToSvg } = await import("@/lib/export/overview");
     const svgAbove = overviewToSvg(buildTwoSubtrees(), {
-      labelPosition: "above",
+      labelPositions: { id: "above", count: "above", name: "above" },
     });
     const svgBelow = overviewToSvg(buildTwoSubtrees(), {
-      labelPosition: "below",
+      labelPositions: { id: "below", count: "above", name: "above" },
     });
-    // Same content; only the relative y of the "A" label vs the inner tile
-    // transform should differ.
     const idAbove = svgAbove.match(/<text [^>]*y="(\d+)"[^>]*>A<\/text>/);
     const idBelow = svgBelow.match(/<text [^>]*y="(\d+)"[^>]*>A<\/text>/);
     expect(idAbove).not.toBeNull();
     expect(idBelow).not.toBeNull();
     expect(Number(idBelow![1])).toBeGreaterThan(Number(idAbove![1]));
+  });
+
+  it("snaps overlay labels to slots — id top-left, count top-right, name bottom-center", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const tileSize = 320;
+    const svg = overviewToSvg(buildTwoSubtrees(), {
+      tileSize,
+      labels: { id: true, count: true, name: true },
+      labelPositions: { id: "overlay", count: "overlay", name: "overlay" },
+    });
+    // Extract the three labels for the first tile (id="A", count="2 nodes",
+    // name="Alpha root").
+    const idMatch = svg.match(
+      /<text [^>]*y="(\d+)"[^>]*text-anchor="(\w+)"[^>]*>A<\/text>/,
+    );
+    const countMatch = svg.match(
+      /<text [^>]*y="(\d+)"[^>]*text-anchor="(\w+)"[^>]*>2 nodes<\/text>/,
+    );
+    const nameMatch = svg.match(
+      /<text [^>]*y="(\d+)"[^>]*text-anchor="(\w+)"[^>]*>Alpha root<\/text>/,
+    );
+    expect(idMatch).not.toBeNull();
+    expect(countMatch).not.toBeNull();
+    expect(nameMatch).not.toBeNull();
+    // id + count share the top row baseline; both above tile mid.
+    expect(idMatch![1]).toBe(countMatch![1]);
+    expect(Number(idMatch![1])).toBeLessThan(tileSize / 2);
+    // Slot-controlled anchors.
+    expect(idMatch![2]).toBe("start");
+    expect(countMatch![2]).toBe("end");
+    expect(nameMatch![2]).toBe("middle");
+    // Name sits below tile mid.
+    expect(Number(nameMatch![1])).toBeGreaterThan(tileSize / 2);
+  });
+
+  it("places each label independently — id overlay, name below", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svg = overviewToSvg(buildTwoSubtrees(), {
+      tileSize: 300,
+      labels: { id: true, count: false, name: true },
+      labelPositions: { id: "overlay", count: "below", name: "below" },
+    });
+    // Overlay id sits inside the tile (y < aboveBandH=0 + tileSize); name
+    // sits in the below band (y >= tileSize). Both labels should appear.
+    const idMatch = svg.match(/<text [^>]*y="(\d+)"[^>]*>A<\/text>/);
+    const nameMatch = svg.match(/<text [^>]*y="(\d+)"[^>]*>Alpha root<\/text>/);
+    expect(idMatch).not.toBeNull();
+    expect(nameMatch).not.toBeNull();
+    expect(Number(idMatch![1])).toBeLessThan(300);
+    expect(Number(nameMatch![1])).toBeGreaterThan(300);
   });
 
   it("burns visible title + caption bands when showHeader is true", async () => {

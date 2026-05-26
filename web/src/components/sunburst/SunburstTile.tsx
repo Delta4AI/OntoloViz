@@ -120,10 +120,7 @@ export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTile
           </span>
         </div>
         {displayLabel && (
-          <span
-            className="truncate text-xs text-subtle"
-            title={displayLabel}
-          >
+          <span className="truncate text-xs text-subtle" title={displayLabel}>
             {displayLabel}
           </span>
         )}

@@ -50,6 +50,12 @@ export interface LayoutOptions {
    * is used.
    */
   readonly focusId?: string;
+  /**
+   * Optional inclusive cap on layout depth, measured from the layout root
+   * (depth 0). Slices deeper than the cap are dropped from the result.
+   * Used by the overview grid to render simplified previews.
+   */
+  readonly maxDepth?: number;
 }
 
 /**
@@ -103,8 +109,10 @@ export function layoutSunburst(
 
   const layout = partition<TreeShell>().size([2 * Math.PI, 1])(root);
 
+  const maxDepth = options.maxDepth;
   const out: LayoutNode[] = [];
   layout.each((d: HierarchyRectangularNode<TreeShell>) => {
+    if (maxDepth !== undefined && d.depth > maxDepth) return;
     out.push({
       id: d.data.node.id,
       parent: d.parent?.data.node.id ?? "",

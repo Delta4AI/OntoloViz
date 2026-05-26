@@ -37,6 +37,39 @@ describe("useAppStore", () => {
     expect(state.activeRoot).toBe([...ont.subtrees.keys()][0]);
   });
 
+  it("setOntology forces viewMode='detail' for single-subtree ontologies", () => {
+    const ont = parseTsv(TSV);
+    expect(ont.subtrees.size).toBe(1);
+    useAppStore.getState().setOntology(ont);
+    expect(useAppStore.getState().viewMode).toBe("detail");
+  });
+
+  it("setOntology defaults viewMode='overview' for multi-subtree ontologies", () => {
+    const multi = parseTsv(
+      [
+        "ATC code\tLevel\tLabel\tComment\tCounts\tColor",
+        "A01AA01\t5\tcompound-a\t\t4\t",
+        "B01AA01\t5\tcompound-b\t\t2\t",
+      ].join("\n"),
+    );
+    expect(multi.subtrees.size).toBeGreaterThan(1);
+    useAppStore.getState().setOntology(multi);
+    expect(useAppStore.getState().viewMode).toBe("overview");
+  });
+
+  it("setViewMode updates the mode independently", () => {
+    useAppStore.getState().setViewMode("detail");
+    expect(useAppStore.getState().viewMode).toBe("detail");
+    useAppStore.getState().setViewMode("overview");
+    expect(useAppStore.getState().viewMode).toBe("overview");
+  });
+
+  it("setOntology(null) returns viewMode to overview", () => {
+    useAppStore.getState().setViewMode("detail");
+    useAppStore.getState().setOntology(null);
+    expect(useAppStore.getState().viewMode).toBe("overview");
+  });
+
   it("setCountSettings merges (preserves untouched keys)", () => {
     useAppStore.getState().setCountSettings({ countMode: "level", level: 2 });
     const c = useAppStore.getState().count;

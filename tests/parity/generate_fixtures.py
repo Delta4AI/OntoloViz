@@ -1,4 +1,4 @@
-"""Generate parity fixtures for the V2 web app's TypeScript propagation engine.
+"""Generate parity fixtures for the web app's TypeScript propagation engine.
 
 For each shipped template TSV and each settings combination, this script:
 
@@ -56,7 +56,7 @@ def propagate_mesh_counts(plot_tree: dict, mode: str, level: int) -> None:
     """Bottom-up (level-descending) propagation for MeSH trees.
 
     NOTE: core.py:1532-1552 iterates in dict-insertion order, which only
-    propagates one level per pass — a known limitation. The V2 TS port uses
+    propagates one level per pass — a known limitation. The TS port uses
     a deterministic bottom-up walk so that ancestor counts truly reflect
     every descendant. This harness mirrors the TS semantics so the parity
     contract validates the *intended* behavior, not the legacy iteration

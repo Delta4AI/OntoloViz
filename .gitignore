@@ -130,3 +130,6 @@ dmypy.json
 
 # custom
 .idea/
+
+# Web frontend build artifact bundled into the wheel
+src/ontoloviz_server/web_dist/

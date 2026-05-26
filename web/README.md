@@ -21,8 +21,9 @@ pnpm install
 pnpm dev          # http://localhost:5173 — proxies /api to FastAPI on :8000
 ```
 
-Start the backend separately (see `../server/README.md`) or use `make dev` at
-the repo root to run both concurrently.
+The FastAPI backend now lives in the unified Python package at
+`../src/ontoloviz_server/`. Start it with `uv run ontoloviz-server` (or use
+`make dev` at the repo root to run frontend + backend concurrently).
 
 ## Scripts
 

@@ -40,15 +40,22 @@ ontoloviz       # Launch classic UI
 **Web app**
 
 A browser-based version lives in `web/` (Vite + React + TS + D3 + Canvas)
-with a FastAPI backend in `server/`. Run both concurrently from the repo
-root:
+backed by a FastAPI server packaged alongside the GUI in `src/ontoloviz_server/`.
 
+Development (Vite + reloading FastAPI):
 ```bash
 make install   # one-time: installs frontend and backend deps
 make dev       # runs Vite on :5173 and FastAPI on :8000
 ```
 
-See [web/README.md](web/README.md) and [server/README.md](server/README.md) for details.
+End-user install (bundled SPA served by the FastAPI process):
+```bash
+pip install ontoloviz
+ontoloviz-server   # serves the web UI at http://127.0.0.1:8000
+ontoloviz          # launches the legacy desktop GUI
+```
+
+See [web/README.md](web/README.md) for frontend details.
 
 
 

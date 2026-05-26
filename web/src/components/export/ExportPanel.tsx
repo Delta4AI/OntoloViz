@@ -50,13 +50,14 @@ interface ExportPanelProps {
   readonly subtree: Subtree | null;
   readonly ontology: Ontology | null;
   readonly focusId?: string;
+  /**
+   * Locked scope derived from the active app view. The panel renders only the
+   * controls relevant to this scope — opening export from overview gives you
+   * overview-only options, and from detail you get subtree-only options.
+   */
+  readonly scope: ExportScope;
   readonly onClose: () => void;
 }
-
-const SCOPES: readonly { value: ExportScope; label: string }[] = [
-  { value: "subtree", label: "Subtree" },
-  { value: "overview", label: "Overview" },
-];
 
 const FORMATS: readonly { value: ExportFormat; label: string; hint: string }[] = [
   { value: "png", label: "PNG", hint: "raster" },
@@ -86,7 +87,13 @@ const LABEL_KEYS: readonly { key: keyof OverviewLabelStyles; label: string }[] =
   { key: "name", label: "Name" },
 ];
 
-export function ExportPanel({ subtree, ontology, focusId, onClose }: ExportPanelProps) {
+export function ExportPanel({
+  subtree,
+  ontology,
+  focusId,
+  scope,
+  onClose,
+}: ExportPanelProps) {
   const config = useExportConfig((s) => s.config);
   const update = useExportConfig((s) => s.update);
   const applyPreset = useExportConfig((s) => s.applyPreset);
@@ -108,16 +115,10 @@ export function ExportPanel({ subtree, ontology, focusId, onClose }: ExportPanel
     [presetTheme, config],
   );
 
-  // Force scope to a valid value given current data.
-  const effectiveScope: ExportScope =
-    config.scope === "overview" && !ontology
-      ? "subtree"
-      : config.scope === "subtree" && !subtree && ontology
-        ? "overview"
-        : config.scope;
-
-  const overviewAvailable = Boolean(ontology) && (ontology?.subtrees.size ?? 0) > 1;
-  const subtreeAvailable = Boolean(subtree);
+  // Scope is locked by the parent to the current view mode — opening export
+  // from the overview gives overview-only controls, and from a subtree gives
+  // subtree-only controls. The persisted config.scope is ignored.
+  const effectiveScope: ExportScope = scope;
 
   const previewSvg = useMemo(
     () =>
@@ -199,19 +200,6 @@ export function ExportPanel({ subtree, ontology, focusId, onClose }: ExportPanel
           </Section>
 
           <Divider />
-
-          <Section title="Scope">
-            <Chips
-              options={SCOPES.map((s) => ({
-                ...s,
-                disabled:
-                  (s.value === "subtree" && !subtreeAvailable) ||
-                  (s.value === "overview" && !overviewAvailable),
-              }))}
-              value={effectiveScope}
-              onChange={(scope) => update({ scope })}
-            />
-          </Section>
 
           <Section title="Format">
             <Chips

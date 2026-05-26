@@ -164,6 +164,32 @@ describe("ontologyToTsv", () => {
     expect(reparsed.subtrees.get("A")!.nodes.get("A01")!.count).toBe(3);
   });
 
+  it("collapses MeSH tree-ids that share a meshId into a single `|`-joined row", () => {
+    // Two tree positions for the same MeSH ID — the parser expands them into
+    // two Nodes; the exporter must collapse them back to one row.
+    const source = [
+      "MeSH ID\tTree ID\tName\tDescription\tComment\tCounts\tColor",
+      "D000001\tC23.888.592\tShared term\t\t\t9\t#ABCDEF",
+      "D000001\tC23.888.821\tShared term\t\t\t9\t#ABCDEF",
+    ].join("\n");
+    const ontology = parseTsv(source);
+
+    const out = ontologyToTsv(ontology);
+    const dataLines = out.trim().split("\n").slice(1);
+
+    const sharedRows = dataLines.filter((line) => line.startsWith("D000001\t"));
+    expect(sharedRows).toHaveLength(1);
+    const cols = sharedRows[0]!.split("\t");
+    expect(cols[1]).toBe("C23.888.592|C23.888.821");
+
+    // And the resulting file still round-trips to the same expanded shape.
+    const reparsed = parseTsv(out);
+    const root = reparsed.subtrees.get("C23")!;
+    expect(root.nodes.get("C23.888.592")!.count).toBe(9);
+    expect(root.nodes.get("C23.888.821")!.count).toBe(9);
+    expect(root.nodes.get("C23.888.592")!.meshId).toBe("D000001");
+  });
+
   it("skips synthetic placeholder nodes", () => {
     // Separator-based input where the intermediate parent is missing — the
     // parser backfills "A.B" as synthetic. Export must not write it back.

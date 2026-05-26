@@ -4,11 +4,17 @@
  * Mirrors the headers produced by the legacy Python desktop app
  * (`src/ontoloviz/core.py` → `export_mesh_tree` / `export_atc_tree`) so the
  * resulting file round-trips through `parse.ts` and the desktop tool. Per the
- * agreed scope this exports the *data* (id graph + counts + colors), not the
- * current view (focus zoom, root overrides, gradient editor state).
+ * agreed scope this exports the *data* (id graph + counts + colors) for the
+ * whole ontology, not the current view (focus zoom, root overrides, gradient
+ * editor state).
+ *
+ * Always exports every subtree — the legacy format is whole-ontology and
+ * partial files import as partial ontologies, which is rarely what users want.
  */
 
 import { DEFAULT_COLOR, type Node, type Ontology } from "../ontology/types";
+
+const ID_SEPARATOR = "|";
 
 export interface TsvExportOptions {
   /**
@@ -30,72 +36,140 @@ export function ontologyToTsv(
     case "parent-based":
       return serialize(
         ["ID", "Parent", "Label", "Description", countCol, "Color"],
-        collectRows(ontology, (n) => [
-          n.id,
-          n.parent,
-          n.label,
-          n.description,
-          template ? 0 : n.count,
-          template ? DEFAULT_COLOR : (n.color || DEFAULT_COLOR),
-        ]),
+        parentBasedRows(ontology, template),
       );
     case "atc":
       return serialize(
         ["ATC code", "Level", "Label", "Comment", countCol, "Color"],
-        collectRows(ontology, (n) => [
-          n.id,
-          n.level + 1,
-          n.label,
-          n.comment,
-          template ? 0 : n.count,
-          template ? DEFAULT_COLOR : (n.color || DEFAULT_COLOR),
-        ]),
+        atcRows(ontology, template),
       );
     case "separator-based":
       return serialize(
         ["MeSH ID", "Tree ID", "Name", "Description", "Comment", countCol, "Color"],
-        collectRows(ontology, (n) => [
-          n.meshId || n.id,
-          n.id,
-          n.label,
-          n.description,
-          n.comment,
-          template ? 0 : n.count,
-          template ? DEFAULT_COLOR : (n.color || DEFAULT_COLOR),
-        ]),
+        meshRows(ontology, template),
       );
   }
 }
 
-/** Build the `Counts [...]` column header from the ontology's countLabel. */
+function parentBasedRows(ontology: Ontology, template: boolean): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+  for (const subtree of ontology.subtrees.values()) {
+    const nodes = realNodes(subtree.nodes.values());
+    nodes.sort(byCountDescThenId);
+    for (const n of nodes) {
+      rows.push([
+        n.id,
+        n.parent,
+        n.label,
+        n.description,
+        template ? 0 : n.count,
+        template ? DEFAULT_COLOR : n.color || DEFAULT_COLOR,
+      ]);
+    }
+  }
+  return rows;
+}
+
+function atcRows(ontology: Ontology, template: boolean): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+  for (const subtree of ontology.subtrees.values()) {
+    const nodes = realNodes(subtree.nodes.values());
+    nodes.sort(byCountDescThenId);
+    for (const n of nodes) {
+      rows.push([
+        n.id,
+        n.level + 1,
+        n.label,
+        n.comment,
+        template ? 0 : n.count,
+        template ? DEFAULT_COLOR : n.color || DEFAULT_COLOR,
+      ]);
+    }
+  }
+  return rows;
+}
+
+/**
+ * MeSH-style rows. Nodes that share a `meshId` represent one term mapped into
+ * multiple tree positions (e.g. a disease that lives under both C23 and C28).
+ * The parser expanded each tree-id into its own Node — we collapse them back
+ * into one row with `|`-joined tree-ids so the file round-trips losslessly
+ * through the desktop app.
+ */
+function meshRows(ontology: Ontology, template: boolean): (string | number)[][] {
+  const groups = new Map<string, Node[]>();
+  const ungrouped: Node[] = [];
+
+  for (const subtree of ontology.subtrees.values()) {
+    for (const node of subtree.nodes.values()) {
+      if (node.synthetic) continue;
+      if (node.meshId) {
+        const bucket = groups.get(node.meshId);
+        if (bucket) bucket.push(node);
+        else groups.set(node.meshId, [node]);
+      } else {
+        ungrouped.push(node);
+      }
+    }
+  }
+
+  const rows: (string | number)[][] = [];
+
+  for (const [meshId, nodes] of groups) {
+    const sorted = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+    const head = sorted[0]!;
+    rows.push([
+      meshId,
+      sorted.map((n) => n.id).join(ID_SEPARATOR),
+      head.label,
+      head.description,
+      head.comment,
+      template ? 0 : head.count,
+      template ? DEFAULT_COLOR : head.color || DEFAULT_COLOR,
+    ]);
+  }
+
+  for (const n of ungrouped) {
+    rows.push([
+      n.id,
+      n.id,
+      n.label,
+      n.description,
+      n.comment,
+      template ? 0 : n.count,
+      template ? DEFAULT_COLOR : n.color || DEFAULT_COLOR,
+    ]);
+  }
+
+  // Sort by count desc, then tree-id ascending, for predictable output.
+  rows.sort((a, b) => {
+    const ca = a[5] as number;
+    const cb = b[5] as number;
+    if (cb !== ca) return cb - ca;
+    return String(a[1]).localeCompare(String(b[1]));
+  });
+
+  return rows;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
+
 function countColumnLabel(countLabel: string): string {
   const trimmed = (countLabel ?? "").trim();
   if (!trimmed || trimmed.toLowerCase() === "counts") return "Counts";
   return `Counts [${trimmed}]`;
 }
 
-/**
- * Walk every subtree and emit one row per real node. Synthetic placeholders
- * are skipped — the importer rebuilds them deterministically.
- */
-function collectRows<T extends readonly (string | number)[]>(
-  ontology: Ontology,
-  rowFor: (node: Node) => T,
-): T[] {
-  const rows: T[] = [];
-  for (const subtree of ontology.subtrees.values()) {
-    const nodes: Node[] = [];
-    for (const node of subtree.nodes.values()) {
-      if (node.synthetic) continue;
-      nodes.push(node);
-    }
-    // Sort by count desc to match the legacy export ordering; falls back to id
-    // for stable output when counts tie (the legacy code used set iteration so
-    // ties were nondeterministic — we make it predictable instead).
-    nodes.sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
-    for (const node of nodes) rows.push(rowFor(node));
-  }
-  return rows;
+function realNodes(iter: Iterable<Node>): Node[] {
+  const out: Node[] = [];
+  for (const n of iter) if (!n.synthetic) out.push(n);
+  return out;
+}
+
+function byCountDescThenId(a: Node, b: Node): number {
+  return b.count - a.count || a.id.localeCompare(b.id);
 }
 
 function serialize(

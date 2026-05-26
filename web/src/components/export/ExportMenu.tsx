@@ -12,9 +12,13 @@ interface ExportMenuProps {
   /** Full ontology — required for the OntoloViz-compatible TSV export. */
   readonly ontology?: Ontology | null;
   readonly focusId?: string;
+  /** Base canvas size; PNG outputs are this × scale. */
   readonly width?: number;
   readonly height?: number;
 }
+
+const PNG_SCALES = [2, 4, 8] as const;
+type PngScale = (typeof PNG_SCALES)[number];
 
 /**
  * Header export dropdown. Builds the layout fresh on each export so the
@@ -40,9 +44,8 @@ export function ExportMenu({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // The image exports (PNG/SVG/HTML) render one sunburst, so they require an
-  // active subtree. The TSV export is whole-ontology, so it works on overview
-  // too. Hide the menu entirely only when neither is available.
+  // Image exports render one sunburst, so they need an active subtree. TSV is
+  // whole-ontology, so it stays available on overview too.
   if (!subtree && !ontology) return null;
 
   const filename = (ext: string) => {
@@ -53,18 +56,19 @@ export function ExportMenu({
   const buildLayout = () =>
     subtree ? layoutSunburst(subtree, focusId !== undefined ? { focusId } : {}) : null;
 
-  const handlePng = async () => {
+  const handlePng = async (scale: PngScale) => {
     const layout = buildLayout();
     if (!layout) return;
-    setBusy("png");
+    const tag = `png${scale}`;
+    setBusy(tag);
     try {
       const blob = await exportLayoutToPngBlob(layout, {
         width,
         height,
-        scale: 2,
+        scale,
         background: "#0B0B10",
       });
-      if (blob) downloadBlob(blob, filename("png"));
+      if (blob) downloadBlob(blob, filename(`${scale}x.png`));
     } finally {
       setBusy(null);
       setOpen(false);
@@ -83,21 +87,6 @@ export function ExportMenu({
         title: `OntoloViz · ${subtree.rootId}`,
       });
       downloadBlob(new Blob([svg], { type: "image/svg+xml" }), filename("svg"));
-    } finally {
-      setBusy(null);
-      setOpen(false);
-    }
-  };
-
-  const handleTsv = () => {
-    if (!ontology) return;
-    setBusy("tsv");
-    try {
-      const tsv = ontologyToTsv(ontology);
-      downloadBlob(
-        new Blob([tsv], { type: "text/tab-separated-values;charset=utf-8" }),
-        filename("tsv"),
-      );
     } finally {
       setBusy(null);
       setOpen(false);
@@ -127,6 +116,21 @@ export function ExportMenu({
     }
   };
 
+  const handleTsv = () => {
+    if (!ontology) return;
+    setBusy("tsv");
+    try {
+      const tsv = ontologyToTsv(ontology);
+      downloadBlob(
+        new Blob([tsv], { type: "text/tab-separated-values;charset=utf-8" }),
+        filename("tsv"),
+      );
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -141,16 +145,20 @@ export function ExportMenu({
       {open ? (
         <div
           role="menu"
-          className="fade-in absolute right-0 top-full z-40 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-panel shadow-pop"
+          className="fade-in absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-lg border border-border bg-panel py-1.5 shadow-pop"
         >
           {subtree ? (
             <>
-              <ExportRow
-                label="PNG (2×)"
-                hint="raster · 2400px"
-                onClick={handlePng}
-                busy={busy === "png"}
-              />
+              <SectionLabel>Image</SectionLabel>
+              {PNG_SCALES.map((scale) => (
+                <ExportRow
+                  key={scale}
+                  label={`PNG · ${scale}×`}
+                  hint={`${(width * scale).toLocaleString()} × ${(height * scale).toLocaleString()} px`}
+                  onClick={() => handlePng(scale)}
+                  busy={busy === `png${scale}`}
+                />
+              ))}
               <ExportRow
                 label="SVG"
                 hint="vector · editable"
@@ -166,17 +174,33 @@ export function ExportMenu({
             </>
           ) : null}
           {ontology ? (
-            <ExportRow
-              label="TSV"
-              hint="data · OntoloViz format"
-              onClick={handleTsv}
-              busy={busy === "tsv"}
-            />
+            <>
+              {subtree ? <Divider /> : null}
+              <SectionLabel>Data</SectionLabel>
+              <ExportRow
+                label="TSV"
+                hint="OntoloViz format · full ontology"
+                onClick={handleTsv}
+                busy={busy === "tsv"}
+              />
+            </>
           ) : null}
         </div>
       ) : null}
     </div>
   );
+}
+
+function SectionLabel({ children }: { readonly children: string }) {
+  return (
+    <div className="px-3 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-subtle">
+      {children}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="my-1 h-px bg-border/60" aria-hidden />;
 }
 
 function ExportRow({
@@ -196,10 +220,10 @@ function ExportRow({
       role="menuitem"
       onClick={onClick}
       disabled={busy}
-      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-elevated disabled:opacity-50"
+      className="flex w-full items-baseline justify-between gap-4 whitespace-nowrap px-3 py-1.5 text-left text-xs hover:bg-elevated disabled:opacity-50"
     >
       <span className="font-medium text-ink">{label}</span>
-      <span className="font-mono text-[10px] text-muted">{busy ? "…" : hint}</span>
+      <span className="text-[11px] text-muted">{busy ? "exporting…" : hint}</span>
     </button>
   );
 }

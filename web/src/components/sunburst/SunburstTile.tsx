@@ -82,6 +82,16 @@ export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTile
     });
   }, [layout, size, theme]);
 
+  const rootNode = subtree.nodes.get(subtree.rootId);
+  const rawLabel = rootNode?.label?.trim() ?? "";
+  // Suppress fallback labels: synthetic backfill ("N/A"), the parser's
+  // "label-empty → label = id" shortcut, and bare whitespace.
+  const displayLabel =
+    rawLabel && rawLabel !== "N/A" && rawLabel !== subtree.rootId ? rawLabel : "";
+  const ariaLabel = displayLabel
+    ? `Open ${subtree.rootId} (${displayLabel}) in detail view`
+    : `Open ${subtree.rootId} in detail view`;
+
   const handleClick = () => onActivate(subtree.rootId);
 
   const handleKey = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -97,16 +107,26 @@ export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTile
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKey}
-      aria-label={`Open ${subtree.rootId} in detail view`}
+      aria-label={ariaLabel}
       className="group relative flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-panel p-3 shadow-panel transition-colors hover:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate font-mono text-[11px] text-ink">
-          {subtree.rootId}
-        </span>
-        <span className="shrink-0 text-[10px] uppercase tracking-widest text-subtle">
-          {subtree.nodes.size.toLocaleString()} nodes
-        </span>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate font-mono text-[11px] text-ink">
+            {subtree.rootId}
+          </span>
+          <span className="shrink-0 text-[10px] uppercase tracking-widest text-subtle">
+            {subtree.nodes.size.toLocaleString()} nodes
+          </span>
+        </div>
+        {displayLabel && (
+          <span
+            className="truncate text-xs text-subtle"
+            title={displayLabel}
+          >
+            {displayLabel}
+          </span>
+        )}
       </div>
       <div
         ref={wrapperRef}

@@ -37,6 +37,16 @@ Quickstart
 ontoloviz       # Launch classic UI
 ```
 
+> **Linux note (desktop GUI only):** uv's prebuilt CPython ships a Tk build
+> that crashes the file dialog on some distros (e.g. Fedora) with
+> `[xcb] Aborting, sorry about that.` Use the distro's Python for the GUI:
+> ```bash
+> uv sync --python /usr/bin/python3
+> uv run --python /usr/bin/python3 ontoloviz
+> ```
+> Building wheels (`uv build`) and running the web app are unaffected and
+> work with either Python.
+
 **Web app**
 
 A browser-based version lives in `web/` (Vite + React + TS + D3 + Canvas)

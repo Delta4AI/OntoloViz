@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { layoutSunburst } from "@/lib/ontology/layout";
 import { renderSunburst } from "@/lib/ontology/render";
 import type { Subtree } from "@/lib/ontology/types";
+import { readThemeColor, useTheme } from "@/lib/theme";
 
 interface SunburstTileProps {
   readonly subtree: Subtree;
@@ -11,21 +12,14 @@ interface SunburstTileProps {
    * was actually clicked — overview tiles are previews, not drill-targets.
    */
   readonly onActivate: (rootId: string) => void;
-  /**
-   * Inclusive depth cap measured from the subtree root. Defaults to 3, which
-   * keeps tiles legible without cramming arc text. Set higher for richer
-   * previews when the grid has few tiles.
-   */
-  readonly maxDepth?: number;
   /** Tile height in CSS pixels. Width fills the parent grid cell. */
   readonly height?: number;
 }
 
 /**
  * Small-multiples preview tile. Reuses the same pure `layoutSunburst` +
- * `renderSunburst` as the full sunburst, with three deliberate trims:
+ * `renderSunburst` as the full sunburst, with two deliberate trims:
  *
- *  - depth cap so inner rings stay readable at small sizes
  *  - local hover only (no store wiring — N tiles writing to a shared
  *    `hoveredId` would create a hover-storm with no benefit)
  *  - no breadcrumbs / no tooltip — interaction surface is "click to drill in"
@@ -37,7 +31,6 @@ interface SunburstTileProps {
 export function SunburstTile({
   subtree,
   onActivate,
-  maxDepth = 3,
   height = 220,
 }: SunburstTileProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -47,6 +40,8 @@ export function SunburstTile({
     width: 0,
     height: 0,
   });
+
+  const theme = useTheme();
 
   // Match the full Sunburst's wrapper-observed sizing pattern: absolute-position
   // the canvas so its explicit pixel dimensions never feed back through the
@@ -67,10 +62,7 @@ export function SunburstTile({
     return () => ro.disconnect();
   }, []);
 
-  const layout = useMemo(
-    () => layoutSunburst(subtree, { maxDepth }),
-    [subtree, maxDepth],
-  );
+  const layout = useMemo(() => layoutSunburst(subtree), [subtree]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,9 +82,9 @@ export function SunburstTile({
     renderSunburst(ctx, layout, {
       width,
       height: h,
-      background: "#0B0B10",
+      background: readThemeColor("--c-canvas", "#0B0B10"),
     });
-  }, [layout, size]);
+  }, [layout, size, theme]);
 
   const handleClick = () => onActivate(subtree.rootId);
 

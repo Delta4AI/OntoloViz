@@ -4,6 +4,7 @@ import { layoutSunburst } from "@/lib/ontology/layout";
 import { hitTest, renderSunburst } from "@/lib/ontology/render";
 import { useAppStore } from "@/lib/store";
 import type { Subtree } from "@/lib/ontology/types";
+import { readThemeColor, useTheme } from "@/lib/theme";
 
 import { Breadcrumbs } from "./Breadcrumbs";
 
@@ -36,6 +37,10 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
   // highlight when nothing local is hovered.
   const externalHoverId = useAppStore((s) => s.hoveredId);
   const setExternalHoverId = useAppStore((s) => s.setHoveredId);
+
+  // Repaint when the user toggles dark/light so the canvas background matches
+  // the surrounding panel instead of staying stuck on the dark-mode value.
+  const theme = useTheme();
 
   // Reset focus when the underlying subtree changes (e.g. new upload).
   useEffect(() => {
@@ -90,9 +95,9 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
       width,
       height: h,
       ...(highlight !== undefined ? { highlightId: highlight } : {}),
-      background: "#0B0B10",
+      background: readThemeColor("--c-canvas", "#0B0B10"),
     });
-  }, [layout, size, hoverId, externalHoverId]);
+  }, [layout, size, hoverId, externalHoverId, theme]);
 
   const handleMove = (event: MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

@@ -11,6 +11,7 @@
  * viewport works without per-tree tuning.
  */
 
+import { EXPORT_THEME_DEFAULT, type ExportTheme } from "../export/theme";
 import type { LayoutNode } from "./layout";
 
 /**
@@ -39,10 +40,16 @@ export interface RenderOptions {
   readonly height: number;
   /** Optional hover/focus highlight; node id rendered with a brighter stroke. */
   readonly highlightId?: string;
-  /** Stroke color for slice borders. Defaults to a subtle dark line. */
+  /** Stroke color for slice borders. Empty string = no stroke. Defaults to the theme stroke. */
   readonly strokeStyle?: string;
+  /** Slice-border line width in CSS px. Defaults to 1. */
+  readonly strokeWidth?: number;
   /** Background color drawn first; pass `null` to skip clearing. */
   readonly background?: string | null;
+  /**
+   * Theme baseline for background/stroke. Per-field options above still win.
+   */
+  readonly theme?: ExportTheme;
 }
 
 /**
@@ -56,21 +63,27 @@ export function renderSunburst(
   layout: readonly LayoutNode[],
   options: RenderOptions,
 ): void {
+  const theme = options.theme ?? EXPORT_THEME_DEFAULT;
   const { width, height } = options;
   if (width <= 0 || height <= 0 || layout.length === 0) return;
 
   if (options.background !== null) {
-    ctx.fillStyle = options.background ?? "#0B0B10";
+    ctx.fillStyle = options.background ?? theme.background;
     ctx.fillRect(0, 0, width, height);
-  } else {
-    ctx.clearRect(0, 0, width, height);
   }
+  // `background: null` means: leave whatever's already in the canvas alone
+  // and draw slices over it. The overview-tile exporter relies on this so
+  // the tile's pre-painted background (e.g. white for the publication
+  // preset) shows through gaps between slices instead of being cleared to
+  // transparent — which renders as black in most PNG viewers.
 
   const cx = width / 2;
   const cy = height / 2;
   const radius = Math.min(width, height) / 2 - 4;
 
-  const strokeStyle = options.strokeStyle ?? "rgba(0, 0, 0, 0.35)";
+  const strokeStyle = options.strokeStyle ?? theme.stroke;
+  const hasStroke = strokeStyle !== "";
+  const sliceLineWidth = options.strokeWidth ?? 1;
   const angleOffset = -Math.PI / 2;
 
   for (const slice of layout) {
@@ -91,11 +104,12 @@ export function renderSunburst(
     if (options.highlightId && slice.id === options.highlightId) {
       ctx.lineWidth = 2;
       ctx.strokeStyle = contrastingHoverStroke(slice.node.color || "#FFFFFF");
-    } else {
-      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (hasStroke) {
+      ctx.lineWidth = sliceLineWidth;
       ctx.strokeStyle = strokeStyle;
+      ctx.stroke();
     }
-    ctx.stroke();
   }
 }
 

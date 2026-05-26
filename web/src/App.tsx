@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { ExportMenu } from "./components/export/ExportMenu";
+import { ExportPanel } from "./components/export/ExportPanel";
 import { HealthIndicator } from "./components/HealthIndicator";
 import { LandingPage } from "./components/landing/LandingPage";
 import {
@@ -55,6 +56,7 @@ export function App() {
 
   const [loading, setLoading] = useState<LoadingState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [tableOpen, setTableOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -237,13 +239,24 @@ export function App() {
         settingsOpen={settingsOpen}
         exportSubtree={activeSubtree}
         exportOntology={propagated}
+        onOpenExportPanel={() => {
+          setSettingsOpen(false);
+          setExportOpen(true);
+        }}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         canShowOverview={subtrees.length > 1}
       />
 
       <main className="relative flex-1" aria-busy={isRecomputing}>
-        {hasData && propagated ? (
+        {exportOpen && hasData && propagated ? (
+          <ExportPanel
+            subtree={activeSubtree}
+            ontology={propagated}
+            {...(activeRoot !== null ? { focusId: activeRoot } : {})}
+            onClose={() => setExportOpen(false)}
+          />
+        ) : hasData && propagated ? (
           <LoadedView
             isRecomputing={isRecomputing}
             viewKey={
@@ -278,7 +291,7 @@ export function App() {
           />
         )}
 
-        {settingsOpen ? (
+        {settingsOpen && !exportOpen ? (
           <>
             <button
               type="button"
@@ -402,6 +415,7 @@ interface HeaderProps {
   readonly settingsOpen: boolean;
   readonly exportSubtree: import("./lib/ontology/types").Subtree | null;
   readonly exportOntology: import("./lib/ontology/types").Ontology | null;
+  readonly onOpenExportPanel: () => void;
   readonly viewMode: ViewMode;
   readonly onViewModeChange: (mode: ViewMode) => void;
   /** Overview toggle is hidden for single-subtree ontologies (one tile == sunburst). */
@@ -419,6 +433,7 @@ function Header({
   settingsOpen,
   exportSubtree,
   exportOntology,
+  onOpenExportPanel,
   viewMode,
   onViewModeChange,
   canShowOverview,
@@ -475,7 +490,11 @@ function Header({
           <ThemeToggle />
           {hasData ? (
             <>
-              <ExportMenu subtree={exportSubtree} ontology={exportOntology} />
+              <ExportMenu
+                subtree={exportSubtree}
+                ontology={exportOntology}
+                onOpenPanel={onOpenExportPanel}
+              />
               <button
                 type="button"
                 onClick={onToggleSettings}

@@ -162,7 +162,13 @@ export const RUNTIME_CSS = `
   #ov-tip .ov-desc { margin-top: 6px; font-size: 11px; opacity: 0.75; white-space: pre-wrap; }
 `;
 
-export type ExportTheme = "dark" | "light";
+/**
+ * Theme of the interactive HTML export's runtime shell — distinct from
+ * `ExportTheme` in `./theme.ts`, which configures static SVG/PNG rendering.
+ * This is just the value stamped on `<html data-theme="…">` so the runtime
+ * CSS picks the matching palette.
+ */
+export type HtmlTheme = "dark" | "light";
 
 /* -------------------------------------------------------------------------- */
 /* JS                                                                          */

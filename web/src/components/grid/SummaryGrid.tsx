@@ -46,19 +46,18 @@ export function SummaryGrid({
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
   const updateNode = useAppStore((s) => s.updateNode);
 
-  // Default to showing only the active subtree's rows; toggling on "All
-  // subtrees" expands the view back to the full ontology.
-  const [showAll, setShowAll] = useState(false);
-
+  // Scope follows the page-level selection: overview (no activeRoot) shows
+  // every node; a selected subtree narrows the view to that subtree.
   const allRows = useMemo(() => flattenRows(ontology), [ontology]);
   const scoped = useMemo(() => {
-    if (showAll || !activeRoot) return allRows;
+    if (!activeRoot) return allRows;
     return allRows.filter((r) => r.rootId === activeRoot);
-  }, [allRows, showAll, activeRoot]);
+  }, [allRows, activeRoot]);
   const filtered = useMemo(
     () => filterRows(scoped, searchQuery),
     [scoped, searchQuery],
   );
+  const isFiltering = searchQuery.trim().length > 0;
 
   const handlePatch = (rootId: string, nodeId: string, patch: NodePatch) => {
     if (onEdit) onEdit(rootId, nodeId, patch);
@@ -95,9 +94,11 @@ export function SummaryGrid({
           <Chevron open={open} />
           <span className="text-sm font-medium text-ink">Data table</span>
           <span className="font-mono text-[11px] text-muted">
-            {showAll || !activeRoot
-              ? `${allRows.length.toLocaleString()} nodes`
-              : `${scoped.length.toLocaleString()} of ${allRows.length.toLocaleString()} nodes · ${activeRoot}`}
+            {isFiltering
+              ? `${filtered.length.toLocaleString()} of ${scoped.length.toLocaleString()} nodes${activeRoot ? ` · ${activeRoot}` : ""}`
+              : !activeRoot
+                ? `${allRows.length.toLocaleString()} nodes`
+                : `${scoped.length.toLocaleString()} of ${allRows.length.toLocaleString()} nodes · ${activeRoot}`}
           </span>
         </span>
         <span className="text-[11px] uppercase tracking-widest text-subtle">
@@ -118,20 +119,6 @@ export function SummaryGrid({
                 aria-label="Filter nodes"
               />
             </div>
-            <label className="inline-flex cursor-pointer select-none items-center gap-2 whitespace-nowrap text-[11px] text-muted">
-              <input
-                type="checkbox"
-                checked={showAll}
-                onChange={(e) => setShowAll(e.currentTarget.checked)}
-                className="h-3.5 w-3.5 cursor-pointer accent-accent"
-              />
-              <span className="uppercase tracking-widest text-subtle">
-                all subtrees
-              </span>
-            </label>
-            <span className="whitespace-nowrap font-mono text-[11px] text-muted">
-              {filtered.length.toLocaleString()} / {scoped.length.toLocaleString()}
-            </span>
           </div>
 
           <div className="overflow-hidden rounded-lg border border-border">

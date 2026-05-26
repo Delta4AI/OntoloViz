@@ -62,6 +62,7 @@
       radial-gradient(1200px 600px at 80% -10%, rgb(var(--c-accent) / 0.06), transparent 60%),
       radial-gradient(900px 500px at -10% 110%, rgb(var(--c-accent-soft) / 0.04), transparent 60%),
       rgb(var(--c-bg));
+    background-attachment: fixed, fixed, fixed;
     color: rgb(var(--c-ink));
   }
 

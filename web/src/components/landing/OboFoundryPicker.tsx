@@ -2,9 +2,16 @@ import { useEffect, useRef, useState } from "react";
 
 import { OBO_PRESETS, type OboPreset } from "../../lib/ontology/obo";
 
+export interface OboFetchRequest {
+  readonly url: string;
+  readonly label: string;
+  readonly rootId?: string;
+  readonly minNodeSize?: number;
+}
+
 interface OboFoundryPickerProps {
   readonly onClose: () => void;
-  readonly onFetch: (url: string, label: string) => void;
+  readonly onFetch: (req: OboFetchRequest) => void;
 }
 
 /**
@@ -28,14 +35,21 @@ export function OboFoundryPicker({ onClose, onFetch }: OboFoundryPickerProps) {
 
   const submitPreset = (preset: OboPreset) => {
     setSelected(preset.id);
-    onFetch(preset.url, preset.name);
+    onFetch({
+      url: preset.url,
+      label: preset.name,
+      ...(preset.rootId ? { rootId: preset.rootId } : {}),
+      ...(typeof preset.minNodeSize === "number"
+        ? { minNodeSize: preset.minNodeSize }
+        : {}),
+    });
   };
 
   const submitCustom = () => {
     const trimmed = customUrl.trim();
     if (!trimmed) return;
     const label = trimmed.split("/").pop() || trimmed;
-    onFetch(trimmed, label);
+    onFetch({ url: trimmed, label });
   };
 
   return (

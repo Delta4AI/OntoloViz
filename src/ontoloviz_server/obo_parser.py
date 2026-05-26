@@ -43,11 +43,26 @@ class _Term:
     obsolete: bool = False
 
 
-def parse_obo(text: str) -> Ontology:
-    """Parse OBO text and return an `Ontology` ready for the frontend."""
+def parse_obo(
+    text: str,
+    root_id: str | None = None,
+    min_node_size: int | None = None,
+) -> Ontology:
+    """Parse OBO text and return an `Ontology` ready for the frontend.
+
+    ``root_id`` mirrors the desktop GUI's per-ontology override (HPO →
+    ``HP:0000118``, ChEBI → ``CHEBI:23367``, …): instead of using structural
+    roots (terms with no ``is_a``), the *direct children* of ``root_id``
+    become subtree roots. The ``root_id`` term itself and anything outside
+    its descendant set are dropped. Falls back to natural roots with a
+    warning if ``root_id`` is not present in the file.
+
+    ``min_node_size`` drops subtrees whose node count is below the threshold,
+    matching the GO/UBERON/CL/PO behaviour in the legacy ``obo_utils.py``.
+    """
 
     terms = _collect_terms(text)
-    return _build_ontology(terms)
+    return _build_ontology(terms, root_id=root_id, min_node_size=min_node_size)
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +125,11 @@ def _collect_terms(text: str) -> dict[str, _Term]:
 # ---------------------------------------------------------------------------
 
 
-def _build_ontology(terms: dict[str, _Term]) -> Ontology:
+def _build_ontology(
+    terms: dict[str, _Term],
+    root_id: str | None = None,
+    min_node_size: int | None = None,
+) -> Ontology:
     warnings: list[str] = []
 
     # Drop is_a edges pointing at terms we never saw (or that were filtered as
@@ -126,14 +145,6 @@ def _build_ontology(terms: dict[str, _Term]) -> Ontology:
                 )
         term.parents = kept
 
-    # Discover the roots: every term whose first parent (or any parent) is
-    # missing/empty. Cycles end up rooted at their first-visited term via the
-    # BFS below.
-    children: dict[str, list[str]] = defaultdict(list)
-    for term in terms.values():
-        for parent in term.parents:
-            children[parent].append(term.id)
-
     # Pick a canonical parent for each term (the first declared `is_a`). If a
     # term has multiple parents, record the secondary ones in `comment`.
     canonical_parent: dict[str, str] = {}
@@ -147,46 +158,73 @@ def _build_ontology(terms: dict[str, _Term]) -> Ontology:
             suffix = f"[also is_a: {extras}]"
             term.comment = f"{term.comment} {suffix}".strip()
 
-    roots = [tid for tid, parent in canonical_parent.items() if parent == ""]
+    # Root selection: optional override (direct children of `root_id` each
+    # become a subtree root) vs. natural roots (terms with no parent).
+    use_override = root_id is not None and root_id in terms
+    if root_id is not None and not use_override:
+        warnings.append(
+            f"requested root {root_id} not found — falling back to natural roots"
+        )
 
-    # If the canonical-parent map left any non-root term unreachable (e.g. a
-    # pure is_a cycle), pick the lexicographically smallest as a synthetic
-    # root for that component so no term is silently dropped.
+    if use_override:
+        # Promote any term that declares `root_id` as a parent (in any
+        # position, not just first) to a subtree root. Mirrors the desktop's
+        # `if root_id == is_a[0]:` scan in obo_utils.build_tree_from_obo_ontology.
+        direct_children = sorted(
+            tid for tid, term in terms.items() if root_id in term.parents
+        )
+        for cid in direct_children:
+            canonical_parent[cid] = ""
+        # Exclude root_id itself from any subtree's node set.
+        canonical_parent.pop(root_id, None)
+        roots = list(direct_children)
+    else:
+        roots = sorted(tid for tid, parent in canonical_parent.items() if parent == "")
+
+    # Children map derived from canonical_parent so multi-parent secondary
+    # edges don't pull a term into a second subtree.
+    children: dict[str, list[str]] = defaultdict(list)
+    for tid, parent in canonical_parent.items():
+        if parent:
+            children[parent].append(tid)
+
     level_of: dict[str, int] = {}
     forest: dict[str, list[str]] = {}
-    pending = set(terms.keys())
 
-    def bfs(root_id: str) -> None:
-        level_of[root_id] = 0
-        forest[root_id] = []
-        pending.discard(root_id)
-        queue: deque[str] = deque([root_id])
+    def bfs(root: str) -> None:
+        level_of[root] = 0
+        forest[root] = []
+        queue: deque[str] = deque([root])
         while queue:
             current = queue.popleft()
             for child_id in children.get(current, []):
-                if canonical_parent.get(child_id) != current:
-                    continue
                 if child_id in level_of:
                     warnings.append(
                         f"{child_id}: cycle or repeated visit — skipping at {current}"
                     )
                     continue
                 level_of[child_id] = level_of[current] + 1
-                forest[root_id].append(child_id)
-                pending.discard(child_id)
+                forest[root].append(child_id)
                 queue.append(child_id)
 
-    for root in sorted(roots):
+    for root in roots:
         bfs(root)
 
-    while pending:
-        synthetic = min(pending)
-        warnings.append(
-            f"{synthetic}: promoted to synthetic root (unreachable from declared roots)"
-        )
-        canonical_parent[synthetic] = ""
-        roots.append(synthetic)
-        bfs(synthetic)
+    # In natural-root mode, any term unreachable from a declared root (e.g.
+    # a pure is_a cycle component) is promoted to a synthetic root so it's
+    # not silently lost. In override mode, anything outside `root_id`'s
+    # descendant set is intentionally excluded.
+    if not use_override:
+        pending = set(terms.keys()) - level_of.keys()
+        while pending:
+            synthetic = min(pending)
+            warnings.append(
+                f"{synthetic}: promoted to synthetic root (unreachable from declared roots)"
+            )
+            canonical_parent[synthetic] = ""
+            roots.append(synthetic)
+            bfs(synthetic)
+            pending = set(terms.keys()) - level_of.keys()
 
     # Build subtrees.
     subtrees: dict[str, OntologySubtree] = {}
@@ -198,6 +236,8 @@ def _build_ontology(terms: dict[str, _Term]) -> Ontology:
             nodes[child_id] = _to_node(
                 terms[child_id], canonical_parent[child_id], level_of[child_id]
             )
+        if min_node_size is not None and len(nodes) < min_node_size:
+            continue
         subtrees[root] = OntologySubtree(root_id=root, nodes=nodes)
         node_count += len(nodes)
 

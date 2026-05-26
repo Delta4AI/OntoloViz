@@ -144,3 +144,77 @@ def test_empty_obo_yields_empty_ontology() -> None:
     ont = parse_obo("format-version: 1.4\n")
     assert ont.node_count == 0
     assert ont.subtrees == {}
+
+
+# ---------------------------------------------------------------------------
+# root_id override — desktop GUI parity (HPO → HP:0000118, etc.)
+# ---------------------------------------------------------------------------
+
+# Mini HPO-shaped fixture: HP:0000001 (All) → HP:0000118 (Phenotypic
+# abnormality) → two system branches (eye, nervous). HP:0000005 (Mode of
+# inheritance) is also a child of HP:0000001 but outside the phenotype branch.
+HPO_LIKE = """[Term]
+id: HP:0000001
+name: All
+
+[Term]
+id: HP:0000118
+name: Phenotypic abnormality
+is_a: HP:0000001
+
+[Term]
+id: HP:0000478
+name: Abnormality of the eye
+is_a: HP:0000118
+
+[Term]
+id: HP:0000479
+name: Abnormality of the retina
+is_a: HP:0000478
+
+[Term]
+id: HP:0000707
+name: Abnormality of the nervous system
+is_a: HP:0000118
+
+[Term]
+id: HP:0000005
+name: Mode of inheritance
+is_a: HP:0000001
+"""
+
+
+def test_root_id_splits_into_per_child_subtrees() -> None:
+    ont = parse_obo(HPO_LIKE, root_id="HP:0000118")
+    # Two phenotype-system children become independent subtree roots.
+    assert set(ont.subtrees.keys()) == {"HP:0000478", "HP:0000707"}
+    # Each subtree's root is at level 0 with no parent.
+    eye = ont.subtrees["HP:0000478"]
+    assert eye.nodes["HP:0000478"].level == 0
+    assert eye.nodes["HP:0000478"].parent == ""
+    # The descendant inherits level 1.
+    assert eye.nodes["HP:0000479"].level == 1
+    assert eye.nodes["HP:0000479"].parent == "HP:0000478"
+    # HP:0000118 (the override) and HP:0000005 (outside the phenotype branch)
+    # are excluded — node_count covers only descendants of HP:0000118.
+    all_ids = {nid for s in ont.subtrees.values() for nid in s.nodes}
+    assert "HP:0000118" not in all_ids
+    assert "HP:0000005" not in all_ids
+    assert "HP:0000001" not in all_ids
+
+
+def test_root_id_falls_back_when_term_missing() -> None:
+    ont = parse_obo(HPO_LIKE, root_id="HP:9999999")
+    # Falls back to natural-root behaviour with a warning.
+    assert "HP:0000001" in ont.subtrees
+    assert any("HP:9999999" in w for w in ont.warnings)
+
+
+def test_min_node_size_drops_small_subtrees() -> None:
+    # Without min_node_size: two subtrees (eye=2 nodes, nervous=1 node).
+    full = parse_obo(HPO_LIKE, root_id="HP:0000118")
+    assert set(full.subtrees.keys()) == {"HP:0000478", "HP:0000707"}
+    # With min_node_size=2: nervous-system (single node) is dropped.
+    trimmed = parse_obo(HPO_LIKE, root_id="HP:0000118", min_node_size=2)
+    assert set(trimmed.subtrees.keys()) == {"HP:0000478"}
+    assert trimmed.node_count == 2

@@ -242,16 +242,9 @@ export function App() {
       />
 
       <main className="relative flex-1" aria-busy={isRecomputing}>
-        {isRecomputing ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden"
-          >
-            <div className="h-full w-1/3 animate-[loading-slide_1.2s_ease-in-out_infinite] rounded-full bg-accent" />
-          </div>
-        ) : null}
         {hasData && propagated ? (
           <LoadedView
+            isRecomputing={isRecomputing}
             viewKey={
               viewMode === "overview" ? "__overview__" : (activeSubtree?.rootId ?? "")
             }
@@ -586,16 +579,20 @@ function LoadedView({
   viewKey,
   sunburst,
   table,
+  isRecomputing,
 }: {
   readonly viewKey: string;
   readonly sunburst: ReactNode;
   readonly table: ReactNode;
+  readonly isRecomputing: boolean;
 }) {
   return (
     <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-6 px-6 py-6">
       <div
         key={viewKey}
-        className="fade-in rounded-2xl border border-border bg-panel p-4 shadow-panel"
+        className={`fade-in rounded-2xl border border-border bg-panel p-4 shadow-panel ${
+          isRecomputing ? "recomputing-ring" : ""
+        }`}
       >
         {sunburst}
       </div>

@@ -166,11 +166,67 @@
   }
 }
 
+@property --recompute-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes recompute-ring-spin {
+  to {
+    --recompute-angle: 360deg;
+  }
+}
+
+@keyframes recompute-ring-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgb(var(--c-accent) / 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgb(var(--c-accent) / 0.9),
+      0 0 18px 0 rgb(var(--c-accent) / 0.4);
+  }
+}
+
 @layer utilities {
   .drawer-in {
     animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .fade-in {
     animation: fade-in 180ms ease-out;
+  }
+  /* Spinning accent arc + accent glow while async work is in flight.
+     The arc requires @property animation (Chrome 85+, Safari 16.4+,
+     Firefox 128+); the glow is the always-on fallback signal. */
+  .recomputing-ring {
+    position: relative;
+    isolation: isolate;
+    animation: recompute-ring-pulse 1.6s ease-in-out infinite;
+  }
+  .recomputing-ring::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: conic-gradient(
+      from var(--recompute-angle),
+      transparent 0deg,
+      rgb(var(--c-accent) / 0) 40deg,
+      rgb(var(--c-accent-soft)) 80deg,
+      rgb(var(--c-accent)) 110deg,
+      transparent 180deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: recompute-ring-spin 1.4s linear infinite;
+    pointer-events: none;
+    z-index: 1;
   }
 }

@@ -1,6 +1,6 @@
 [project]
 name = "ontoloviz-server"
-version = "0.0.1"
+version = "2.0.1"
 description = "OntoloViz V2 backend: data ingestion, OBO loading, future model adapters"
 authors = [
     { name = "Matthias Ley", email = "matthias.ley@delta4.ai" },

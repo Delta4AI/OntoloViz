@@ -55,6 +55,22 @@ ontoloviz-server   # serves the web UI at http://127.0.0.1:8000
 ontoloviz          # launches the legacy desktop GUI
 ```
 
+Production launch:
+```bash
+ontoloviz-server --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
+# or via env vars — see .env.example
+```
+All flags have `ONTOLOVIZ_*` env-var fallbacks. Behind nginx/Caddy on the
+public edge, `--proxy-headers` makes FastAPI trust forwarded client IPs.
+
+Container:
+```bash
+docker build -t ontoloviz .
+docker run --rm -p 8000:8000 ontoloviz
+```
+The image bundles the web build, exposes :8000, runs as a non-root user,
+and ships a `/api/health` healthcheck.
+
 See [web/README.md](web/README.md) for frontend details.
 
 

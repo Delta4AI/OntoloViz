@@ -125,7 +125,9 @@ export function SummaryGrid({
                 onChange={(e) => setShowAll(e.currentTarget.checked)}
                 className="h-3.5 w-3.5 cursor-pointer accent-accent"
               />
-              <span className="uppercase tracking-widest text-subtle">all subtrees</span>
+              <span className="uppercase tracking-widest text-subtle">
+                all subtrees
+              </span>
             </label>
             <span className="whitespace-nowrap font-mono text-[11px] text-muted">
               {filtered.length.toLocaleString()} / {scoped.length.toLocaleString()}
@@ -160,9 +162,7 @@ export function SummaryGrid({
                       onHover={() => setHoveredId(row.node.id)}
                       onLeave={() => setHoveredId(null)}
                       onJumpToSubtree={() => setActiveRoot(row.rootId)}
-                      onPatch={(patch) =>
-                        handlePatch(row.rootId, row.node.id, patch)
-                      }
+                      onPatch={(patch) => handlePatch(row.rootId, row.node.id, patch)}
                     />
                   );
                 })}
@@ -198,7 +198,9 @@ interface RowProps {
   readonly onLeave: () => void;
   readonly onJumpToSubtree: () => void;
   readonly onPatch: (
-    patch: Partial<Pick<import("@/lib/ontology/types").Node, "count" | "color" | "label">>,
+    patch: Partial<
+      Pick<import("@/lib/ontology/types").Node, "count" | "color" | "label">
+    >,
   ) => void;
 }
 
@@ -251,10 +253,7 @@ function Row({
         className="text-right font-mono text-ink"
       />
 
-      <ColorCell
-        value={row.node.color}
-        onCommit={(color) => onPatch({ color })}
-      />
+      <ColorCell value={row.node.color} onCommit={(color) => onPatch({ color })} />
     </div>
   );
 }

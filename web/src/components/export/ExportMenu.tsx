@@ -157,9 +157,7 @@ function ExportRow({
       className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-elevated disabled:opacity-50"
     >
       <span className="font-medium text-ink">{label}</span>
-      <span className="font-mono text-[10px] text-muted">
-        {busy ? "…" : hint}
-      </span>
+      <span className="font-mono text-[10px] text-muted">{busy ? "…" : hint}</span>
     </button>
   );
 }

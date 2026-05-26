@@ -1,7 +1,7 @@
 {
   "name": "ontoloviz-web",
   "private": true,
-  "version": "0.0.1",
+  "version": "2.0.1",
   "type": "module",
   "description": "OntoloViz V2 — browser-based ontology visualization (React + D3 + Canvas)",
   "scripts": {

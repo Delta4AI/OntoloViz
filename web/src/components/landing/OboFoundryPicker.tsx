@@ -66,8 +66,8 @@ export function OboFoundryPicker({ onClose, onFetch }: OboFoundryPickerProps) {
 
         <div className="max-h-[68vh] overflow-y-auto px-5 py-4">
           <p className="text-xs text-muted">
-            Pick a curated ontology or paste a direct <code>.obo</code> URL. Files
-            are proxied through the local backend and parsed server-side.
+            Pick a curated ontology or paste a direct <code>.obo</code> URL. Files are
+            proxied through the local backend and parsed server-side.
           </p>
 
           <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">

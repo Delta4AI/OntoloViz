@@ -6,7 +6,7 @@ from threading import Thread
 import time
 import textwrap
 
-from tkinter import Tk, StringVar, BooleanVar, IntVar, filedialog, messagebox, END
+from tkinter import Tk, StringVar, BooleanVar, IntVar, PhotoImage, filedialog, messagebox, END
 from tkinter.ttk import LabelFrame, Frame, Style
 
 from ontoloviz.core import MeSHSunburst, ATCSunburst
@@ -24,6 +24,11 @@ class App(Tk):
         self.title("OntoloViz")
         self.resizable(True, True)
         self.minsize(400, 80)
+
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+        if os.path.exists(icon_path):
+            self._icon = PhotoImage(file=icon_path)
+            self.iconphoto(True, self._icon)
 
         # highres settings for screenshot
         # import ctypes

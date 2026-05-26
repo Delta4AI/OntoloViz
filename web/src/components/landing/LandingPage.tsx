@@ -143,18 +143,30 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
           />
         </div>
 
-        <footer className="border-t border-hairline pt-5 text-[11px] text-subtle">
+        <footer className="flex flex-col items-center gap-2 border-t border-hairline pt-5 text-[11px] text-subtle">
           <p className="mx-auto max-w-md leading-relaxed">
-            Files stay on your machine unless you fetch a remote ontology. Reach out at{" "}
+            Files stay on your machine unless you fetch a remote ontology.
+          </p>
+          <p className="flex items-center gap-3">
             <a
-              href="https://github.com/Mnikley/OntoloViz"
+              href="https://github.com/Delta4AI/OntoloViz"
               className="text-muted underline-offset-2 hover:text-ink hover:underline"
               target="_blank"
               rel="noreferrer"
             >
-              github.com/Mnikley/OntoloViz
+              GitHub
             </a>
-            .
+            <span aria-hidden="true" className="text-hairline">
+              ·
+            </span>
+            <a
+              href="https://delta4.ai/"
+              className="text-muted underline-offset-2 hover:text-ink hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Delta4
+            </a>
           </p>
         </footer>
       </div>

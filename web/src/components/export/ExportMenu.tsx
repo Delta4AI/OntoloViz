@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
 import type { Ontology, Subtree } from "@/lib/ontology/types";
+import { useTheme } from "@/lib/theme";
 import { buildStandaloneHtml } from "@/lib/export/html";
+import {
+  overviewToHtml,
+  overviewToPngBlob,
+  overviewToSvg,
+} from "@/lib/export/overview";
 import { downloadBlob, exportLayoutToPngBlob } from "@/lib/export/png";
 import { layoutToSvg } from "@/lib/export/svg";
 import { ontologyToTsv } from "@/lib/export/tsv";
@@ -34,6 +40,9 @@ export function ExportMenu({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Snapshot the app's current theme so the interactive HTML exports match
+  // the surface the user just clicked the export from.
+  const theme = useTheme();
 
   useEffect(() => {
     if (!open) return;
@@ -94,21 +103,72 @@ export function ExportMenu({
   };
 
   const handleHtml = () => {
-    const layout = buildLayout();
-    if (!layout || !subtree) return;
+    if (!subtree) return;
     setBusy("html");
     try {
-      const html = buildStandaloneHtml(layout, {
+      const html = buildStandaloneHtml(subtree, {
         width,
         height,
         background: "#0B0B10",
         title: `OntoloViz · ${subtree.rootId}`,
         documentTitle: `OntoloViz · ${subtree.rootId}`,
         caption: `Subtree ${subtree.rootId} — ${subtree.nodes.size.toLocaleString()} nodes`,
+        theme,
+        ...(focusId !== undefined ? { initialFocus: focusId } : {}),
       });
       downloadBlob(
         new Blob([html], { type: "text/html;charset=utf-8" }),
         filename("html"),
+      );
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
+  const handleOverviewPng = async (scale: PngScale) => {
+    if (!ontology) return;
+    const tag = `opng${scale}`;
+    setBusy(tag);
+    try {
+      const blob = await overviewToPngBlob(ontology, {
+        scale,
+        title: "OntoloViz · overview",
+      });
+      if (blob) downloadBlob(blob, filename(`overview-${scale}x.png`));
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
+  const handleOverviewSvg = () => {
+    if (!ontology) return;
+    setBusy("osvg");
+    try {
+      const svg = overviewToSvg(ontology, { title: "OntoloViz · overview" });
+      downloadBlob(
+        new Blob([svg], { type: "image/svg+xml" }),
+        filename("overview.svg"),
+      );
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
+  const handleOverviewHtml = () => {
+    if (!ontology) return;
+    setBusy("ohtml");
+    try {
+      const html = overviewToHtml(ontology, {
+        title: "OntoloViz · overview",
+        documentTitle: "OntoloViz · overview",
+        theme,
+      });
+      downloadBlob(
+        new Blob([html], { type: "text/html;charset=utf-8" }),
+        filename("overview.html"),
       );
     } finally {
       setBusy(null);
@@ -149,7 +209,7 @@ export function ExportMenu({
         >
           {subtree ? (
             <>
-              <SectionLabel>Image</SectionLabel>
+              <SectionLabel>Subtree image</SectionLabel>
               {PNG_SCALES.map((scale) => (
                 <ExportRow
                   key={scale}
@@ -176,6 +236,29 @@ export function ExportMenu({
           {ontology ? (
             <>
               {subtree ? <Divider /> : null}
+              <SectionLabel>Overview image</SectionLabel>
+              {PNG_SCALES.map((scale) => (
+                <ExportRow
+                  key={`o${scale}`}
+                  label={`PNG · ${scale}×`}
+                  hint="all subtrees · grid"
+                  onClick={() => handleOverviewPng(scale)}
+                  busy={busy === `opng${scale}`}
+                />
+              ))}
+              <ExportRow
+                label="SVG"
+                hint="all subtrees · vector"
+                onClick={handleOverviewSvg}
+                busy={busy === "osvg"}
+              />
+              <ExportRow
+                label="HTML"
+                hint="all subtrees · standalone"
+                onClick={handleOverviewHtml}
+                busy={busy === "ohtml"}
+              />
+              <Divider />
               <SectionLabel>Data</SectionLabel>
               <ExportRow
                 label="TSV"

@@ -1,13 +1,24 @@
 /**
- * Self-contained interactive HTML export.
+ * Self-contained interactive HTML export for a single subtree.
  *
- * Wraps the generated SVG in a minimal HTML document. The SVG already carries
- * `<title>` children per slice, so the browser provides native hover tooltips
- * — interactivity without shipping a JS bundle. Suitable for sharing as a
- * single artifact that opens in any modern browser.
+ * Ships the subtree's full node graph + an inline JS runtime (partition,
+ * arc rendering, tooltip, click-to-focus, breadcrumb). Clicking a slice
+ * re-partitions with it as the new root — mirroring the live app's
+ * focus-zoom — clicking the focused slice or a breadcrumb navigates up.
+ *
+ * Without JavaScript the page still shows an initial server-rendered SVG
+ * of the root layout (read-only fallback). The runtime takes over on load.
  */
 
-import type { LayoutNode } from "../ontology/layout";
+import { layoutSunburst } from "../ontology/layout";
+import type { Subtree } from "../ontology/types";
+import {
+  RUNTIME_CSS,
+  RUNTIME_JS,
+  encodeRuntimeJson,
+  toRuntimeSubtree,
+  type ExportTheme,
+} from "./runtime";
 import { layoutToSvg, type SvgOptions } from "./svg";
 
 export interface HtmlExportOptions extends SvgOptions {
@@ -15,35 +26,60 @@ export interface HtmlExportOptions extends SvgOptions {
   readonly documentTitle?: string;
   /** Optional caption rendered below the figure. */
   readonly caption?: string;
+  /** Initial focus node id; defaults to the subtree root. */
+  readonly initialFocus?: string;
+  /** Initial color theme of the exported HTML. Defaults to dark. */
+  readonly theme?: ExportTheme;
 }
 
 export function buildStandaloneHtml(
-  layout: readonly LayoutNode[],
+  subtree: Subtree,
   options: HtmlExportOptions,
 ): string {
-  const svg = layoutToSvg(layout, options);
+  const initialFocus = options.initialFocus ?? subtree.rootId;
+  const layout = layoutSunburst(subtree, { focusId: initialFocus });
+  const svg = layoutToSvg(layout, { ...options, interactive: true });
   const title = options.documentTitle ?? "OntoloViz export";
   const caption = options.caption ?? "";
+  const runtimeSubtree = toRuntimeSubtree(subtree);
+  const dataJson = encodeRuntimeJson({
+    subtree: runtimeSubtree,
+    initialFocus,
+  });
+
+  const theme: ExportTheme = options.theme ?? "dark";
   return [
     "<!doctype html>",
-    '<html lang="en">',
+    `<html lang="en" data-theme="${theme}">`,
     "<head>",
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
     `<title>${escapeHtml(title)}</title>`,
-    "<style>",
-    "  :root { color-scheme: dark; }",
-    "  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: #0B0B10; color: #E5E7EB; font-family: ui-sans-serif, system-ui, sans-serif; }",
-    "  figure { margin: 0; max-width: 95vw; }",
-    "  figcaption { margin-top: 0.75rem; font-size: 0.875rem; opacity: 0.7; text-align: center; }",
-    "  svg { max-width: 100%; height: auto; }",
-    "</style>",
+    `<style>${RUNTIME_CSS}</style>`,
     "</head>",
     "<body>",
+    '<div class="ov-app">',
+    '<div class="ov-toolbar">',
+    `<div class="ov-title">${escapeHtml(title)}</div>`,
+    '<nav class="ov-crumbs" id="ov-crumbs" aria-label="Breadcrumb"></nav>',
+    "</div>",
+    '<div class="ov-stage" id="ov-stage">',
     "<figure>",
     svg,
     caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : "",
     "</figure>",
+    "</div>",
+    "</div>",
+    '<div id="ov-tip" role="tooltip" aria-hidden="true"></div>',
+    `<script>${RUNTIME_JS}</script>`,
+    "<script>",
+    `(function(){var D=${dataJson};`,
+    "var stage = document.querySelector('#ov-stage figure');",
+    "var crumbs = document.getElementById('ov-crumbs');",
+    "var tip = document.getElementById('ov-tip');",
+    "window.OntoloViz.mount({ stage: stage, subtree: D.subtree, initialFocus: D.initialFocus, crumbHost: crumbs, tooltip: tip });",
+    "})();",
+    "</script>",
     "</body>",
     "</html>",
   ].join("\n");

@@ -25,6 +25,12 @@ export interface SvgOptions {
   readonly strokeWidth?: number;
   /** Optional document title — embedded as &lt;title&gt; at the top. */
   readonly title?: string;
+  /**
+   * When true, paths carry a `data-id` attribute and the per-slice
+   * `<title>` child is omitted — leaving tooltip presentation to an
+   * outer host (e.g. the standalone HTML export's JS overlay).
+   */
+  readonly interactive?: boolean;
 }
 
 const TWO_PI = 2 * Math.PI;
@@ -57,8 +63,14 @@ export function layoutToSvg(
     parts.push(`<title>${escapeXml(options.title)}</title>`);
   }
   if (options.background !== null) {
-    const bg = options.background ?? "#0B0B10";
-    parts.push(`<rect width="${width}" height="${height}" fill="${bg}" />`);
+    if (options.interactive) {
+      // Interactive exports theme the canvas via CSS class, so the background
+      // follows the host document's `data-theme` attribute.
+      parts.push(`<rect class="ov-canvas-bg" width="${width}" height="${height}" />`);
+    } else {
+      const bg = options.background ?? "#0B0B10";
+      parts.push(`<rect width="${width}" height="${height}" fill="${bg}" />`);
+    }
   }
 
   for (const slice of layout) {
@@ -70,10 +82,16 @@ export function layoutToSvg(
 
     const path = arcPath(cx, cy, slice.x0, slice.x1, r0, r1);
     const fill = slice.node.color || "#FFFFFF";
-    const tooltip = `${slice.node.id} · ${slice.node.label} · ${slice.node.count.toLocaleString()}`;
-    parts.push(
-      `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"><title>${escapeXml(tooltip)}</title></path>`,
-    );
+    if (options.interactive) {
+      parts.push(
+        `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" data-id="${escapeXml(slice.node.id)}"></path>`,
+      );
+    } else {
+      const tooltip = `${slice.node.id} · ${slice.node.label} · ${slice.node.count.toLocaleString()}`;
+      parts.push(
+        `<path d="${path}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"><title>${escapeXml(tooltip)}</title></path>`,
+      );
+    }
   }
 
   parts.push("</svg>");

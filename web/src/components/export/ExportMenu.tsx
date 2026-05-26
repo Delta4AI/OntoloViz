@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
-import type { Subtree } from "@/lib/ontology/types";
+import type { Ontology, Subtree } from "@/lib/ontology/types";
 import { buildStandaloneHtml } from "@/lib/export/html";
 import { downloadBlob, exportLayoutToPngBlob } from "@/lib/export/png";
 import { layoutToSvg } from "@/lib/export/svg";
+import { ontologyToTsv } from "@/lib/export/tsv";
 
 interface ExportMenuProps {
   readonly subtree: Subtree | null;
+  /** Full ontology — required for the OntoloViz-compatible TSV export. */
+  readonly ontology?: Ontology | null;
   readonly focusId?: string;
   readonly width?: number;
   readonly height?: number;
@@ -19,6 +22,7 @@ interface ExportMenuProps {
  */
 export function ExportMenu({
   subtree,
+  ontology,
   focusId,
   width = 1200,
   height = 1200,
@@ -36,18 +40,25 @@ export function ExportMenu({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  if (!subtree) return null;
+  // The image exports (PNG/SVG/HTML) render one sunburst, so they require an
+  // active subtree. The TSV export is whole-ontology, so it works on overview
+  // too. Hide the menu entirely only when neither is available.
+  if (!subtree && !ontology) return null;
 
-  const filename = (ext: string) =>
-    `ontoloviz-${subtree.rootId.toLowerCase()}-${Date.now()}.${ext}`;
+  const filename = (ext: string) => {
+    const slug = subtree?.rootId.toLowerCase() ?? "ontology";
+    return `ontoloviz-${slug}-${Date.now()}.${ext}`;
+  };
 
   const buildLayout = () =>
-    layoutSunburst(subtree, focusId !== undefined ? { focusId } : {});
+    subtree ? layoutSunburst(subtree, focusId !== undefined ? { focusId } : {}) : null;
 
   const handlePng = async () => {
+    const layout = buildLayout();
+    if (!layout) return;
     setBusy("png");
     try {
-      const blob = await exportLayoutToPngBlob(buildLayout(), {
+      const blob = await exportLayoutToPngBlob(layout, {
         width,
         height,
         scale: 2,
@@ -61,9 +72,11 @@ export function ExportMenu({
   };
 
   const handleSvg = () => {
+    const layout = buildLayout();
+    if (!layout || !subtree) return;
     setBusy("svg");
     try {
-      const svg = layoutToSvg(buildLayout(), {
+      const svg = layoutToSvg(layout, {
         width,
         height,
         background: "#0B0B10",
@@ -76,10 +89,27 @@ export function ExportMenu({
     }
   };
 
+  const handleTsv = () => {
+    if (!ontology) return;
+    setBusy("tsv");
+    try {
+      const tsv = ontologyToTsv(ontology);
+      downloadBlob(
+        new Blob([tsv], { type: "text/tab-separated-values;charset=utf-8" }),
+        filename("tsv"),
+      );
+    } finally {
+      setBusy(null);
+      setOpen(false);
+    }
+  };
+
   const handleHtml = () => {
+    const layout = buildLayout();
+    if (!layout || !subtree) return;
     setBusy("html");
     try {
-      const html = buildStandaloneHtml(buildLayout(), {
+      const html = buildStandaloneHtml(layout, {
         width,
         height,
         background: "#0B0B10",
@@ -113,24 +143,36 @@ export function ExportMenu({
           role="menu"
           className="fade-in absolute right-0 top-full z-40 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-panel shadow-pop"
         >
-          <ExportRow
-            label="PNG (2×)"
-            hint="raster · 2400px"
-            onClick={handlePng}
-            busy={busy === "png"}
-          />
-          <ExportRow
-            label="SVG"
-            hint="vector · editable"
-            onClick={handleSvg}
-            busy={busy === "svg"}
-          />
-          <ExportRow
-            label="HTML"
-            hint="standalone · interactive"
-            onClick={handleHtml}
-            busy={busy === "html"}
-          />
+          {subtree ? (
+            <>
+              <ExportRow
+                label="PNG (2×)"
+                hint="raster · 2400px"
+                onClick={handlePng}
+                busy={busy === "png"}
+              />
+              <ExportRow
+                label="SVG"
+                hint="vector · editable"
+                onClick={handleSvg}
+                busy={busy === "svg"}
+              />
+              <ExportRow
+                label="HTML"
+                hint="standalone · interactive"
+                onClick={handleHtml}
+                busy={busy === "html"}
+              />
+            </>
+          ) : null}
+          {ontology ? (
+            <ExportRow
+              label="TSV"
+              hint="data · OntoloViz format"
+              onClick={handleTsv}
+              busy={busy === "tsv"}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

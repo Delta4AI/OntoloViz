@@ -60,7 +60,12 @@ export function App() {
   );
 
   const subtrees = useMemo(
-    () => (propagated ? [...propagated.subtrees.values()] : []),
+    () =>
+      propagated
+        ? [...propagated.subtrees.values()].sort((a, b) =>
+            a.rootId < b.rootId ? -1 : a.rootId > b.rootId ? 1 : 0,
+          )
+        : [],
     [propagated],
   );
 

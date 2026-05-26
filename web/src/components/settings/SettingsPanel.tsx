@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useAppStore } from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
@@ -168,20 +168,36 @@ function LevelSlider({
   readonly onChange: (n: number) => void;
   readonly disabled?: boolean;
 }) {
+  // Stage drags locally so propagation only re-runs on release.
+  // The thumb tracks `display` for immediate feedback; commit on
+  // pointer-up, key-up, or blur — whichever ends the interaction.
+  const [draft, setDraft] = useState<number | null>(null);
+  const display = draft ?? value;
+
+  const commit = () => {
+    if (draft === null) return;
+    const v = draft;
+    setDraft(null);
+    if (v !== value) onChange(v);
+  };
+
   return (
     <label className={`flex flex-col gap-1.5 ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center justify-between text-[11px]">
         <span className="uppercase tracking-widest text-muted">{label}</span>
-        <span className="font-mono text-ink">{value}</span>
+        <span className="font-mono text-ink">{display}</span>
       </span>
       <input
         type="range"
         min={0}
         max={12}
         step={1}
-        value={value}
+        value={display}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.currentTarget.value))}
+        onChange={(e) => setDraft(Number(e.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
       />
     </label>
   );

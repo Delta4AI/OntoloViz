@@ -35,7 +35,8 @@ The FastAPI backend now lives in the unified Python package at
 | `pnpm typecheck` | `tsc --noEmit`                            |
 | `pnpm lint`      | ESLint (zero warnings)                    |
 | `pnpm format`    | Prettier write                            |
-| `pnpm test`      | Vitest run                                |
+| `pnpm test`      | Vitest run (single pass)                  |
+| `pnpm test:watch`| Vitest in watch mode                      |
 
 ## Layout
 

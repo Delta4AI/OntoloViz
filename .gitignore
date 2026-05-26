@@ -133,3 +133,6 @@ dmypy.json
 
 # Web frontend build artifact bundled into the wheel
 src/ontoloviz_server/web_dist/
+
+# Playwright MCP session output (console logs, page snapshots, screenshots)
+.playwright-mcp/

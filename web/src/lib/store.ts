@@ -102,16 +102,27 @@ export const useAppStore = create<AppState>((set) => ({
       if (!ontology) {
         return { raw: null, activeRoot: null, hoveredId: null, viewMode: "overview" };
       }
-      const firstRoot = ontology.subtrees.keys().next().value ?? null;
       // Single-subtree ontologies skip overview — the grid would render one
       // tile which adds zero information vs. the full sunburst.
-      const viewMode: ViewMode = ontology.subtrees.size > 1 ? "overview" : "detail";
-      return { raw: ontology, activeRoot: firstRoot, hoveredId: null, viewMode };
+      const multi = ontology.subtrees.size > 1;
+      const viewMode: ViewMode = multi ? "overview" : "detail";
+      // In overview, leave activeRoot null so the data table shows all nodes
+      // and the sunburst grid isn't anchored to an arbitrary subtree.
+      const activeRoot = multi ? null : (ontology.subtrees.keys().next().value ?? null);
+      return { raw: ontology, activeRoot, hoveredId: null, viewMode };
     }),
 
   setActiveRoot: (rootId) => set(() => ({ activeRoot: rootId })),
 
-  setViewMode: (mode) => set(() => ({ viewMode: mode })),
+  setViewMode: (mode) =>
+    set((state) => {
+      // Leaving detail for overview should unscope the data table — otherwise
+      // the previously-active subtree keeps filtering it.
+      if (mode === "overview" && state.raw && state.raw.subtrees.size > 1) {
+        return { viewMode: mode, activeRoot: null };
+      }
+      return { viewMode: mode };
+    }),
 
   setCountSettings: (partial) =>
     set((state) => ({ count: { ...state.count, ...partial } })),

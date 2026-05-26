@@ -206,8 +206,12 @@ export function App() {
         subtrees={subtrees.map((s) => ({ id: s.rootId, count: s.nodes.size }))}
         activeRoot={activeRoot}
         onPickSubtree={(id) => {
-          setActiveRoot(id);
-          setViewMode("detail");
+          if (id === null) {
+            setViewMode("overview");
+          } else {
+            setActiveRoot(id);
+            setViewMode("detail");
+          }
         }}
         onRequestReset={requestReset}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
@@ -371,7 +375,7 @@ interface HeaderProps {
   readonly fileName: string | null;
   readonly subtrees: readonly { id: string; count: number }[];
   readonly activeRoot: string | null;
-  readonly onPickSubtree: (id: string) => void;
+  readonly onPickSubtree: (id: string | null) => void;
   readonly onRequestReset: () => void;
   readonly onToggleSettings: () => void;
   readonly settingsOpen: boolean;
@@ -515,7 +519,7 @@ function SubtreePicker({
 }: {
   readonly subtrees: readonly { id: string; count: number }[];
   readonly activeRoot: string | null;
-  readonly onPick: (id: string) => void;
+  readonly onPick: (id: string | null) => void;
 }) {
   if (subtrees.length === 0) return null;
   if (subtrees.length === 1) {
@@ -532,9 +536,15 @@ function SubtreePicker({
       <span className="uppercase tracking-widest text-subtle">subtree</span>
       <select
         value={activeRoot ?? ""}
-        onChange={(e) => onPick(e.currentTarget.value)}
+        onChange={(e) => {
+          const v = e.currentTarget.value;
+          onPick(v === "" ? null : v);
+        }}
         className="rounded-md border border-border bg-elevated px-2 py-1 font-mono text-[11px] text-ink focus:border-accent focus:outline-none"
       >
+        <option value="" className="bg-elevated">
+          — all subtrees —
+        </option>
         {subtrees.map((s) => (
           <option key={s.id} value={s.id} className="bg-elevated">
             {s.id} ({s.count.toLocaleString()})

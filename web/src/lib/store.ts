@@ -121,6 +121,13 @@ export const useAppStore = create<AppState>((set) => ({
       if (mode === "overview" && state.raw && state.raw.subtrees.size > 1) {
         return { viewMode: mode, activeRoot: null };
       }
+      // Entering detail from overview leaves activeRoot null, which keeps the
+      // overview grid rendering despite the toggle reading "Detail". Pick the
+      // first subtree so the click actually drills in.
+      if (mode === "detail" && state.raw && state.activeRoot === null) {
+        const firstRoot = state.raw.subtrees.keys().next().value ?? null;
+        return { viewMode: mode, activeRoot: firstRoot };
+      }
       return { viewMode: mode };
     }),
 

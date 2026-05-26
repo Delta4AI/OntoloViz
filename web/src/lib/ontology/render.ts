@@ -13,6 +13,25 @@
 
 import type { LayoutNode } from "./layout";
 
+/**
+ * Pick a hover stroke that stays visible on any fill. Uses Rec.601 luminance
+ * on the raw 8-bit channels — accurate enough to flip at the white/black
+ * boundary without a gamma pass. Falls back to white if the fill isn't a
+ * `#RRGGBB` string (e.g. a CSS color name from upstream data).
+ */
+function contrastingHoverStroke(fill: string): string {
+  const dark = "rgba(20, 20, 24, 0.9)";
+  const light = "rgba(245, 245, 250, 0.95)";
+  if (fill.length !== 7 || fill.charCodeAt(0) !== 35 /* '#' */) return dark;
+  const r = Number.parseInt(fill.slice(1, 3), 16);
+  const g = Number.parseInt(fill.slice(3, 5), 16);
+  const b = Number.parseInt(fill.slice(5, 7), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return dark;
+  // Rec.601 luminance; threshold ~140 keeps mid-tones on the dark-stroke side.
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luma > 140 ? dark : light;
+}
+
 export interface RenderOptions {
   /** CSS pixel width of the canvas viewport. */
   readonly width: number;
@@ -71,7 +90,7 @@ export function renderSunburst(
 
     if (options.highlightId && slice.id === options.highlightId) {
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.strokeStyle = contrastingHoverStroke(slice.node.color || "#FFFFFF");
     } else {
       ctx.lineWidth = 1;
       ctx.strokeStyle = strokeStyle;

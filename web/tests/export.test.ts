@@ -209,24 +209,72 @@ describe("ontologyToTsv", () => {
   });
 });
 
+describe("overviewToSvg", () => {
+  function buildTwoSubtrees() {
+    return parseTsv(
+      [
+        "ID\tParent\tLabel\tDescription\tCounts\tColor",
+        "A\t\tAlpha root\t\t0\t#FFFFFF",
+        "A.1\tA\tA-One\t\t3\t#FF0000",
+        "B\t\tBeta root\t\t0\t#FFFFFF",
+        "B.1\tB\tB-One\t\t5\t#00FF00",
+      ].join("\n"),
+    );
+  }
+
+  it("emits one <svg> root with both subtree labels", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svg = overviewToSvg(buildTwoSubtrees());
+    expect(svg.startsWith("<svg")).toBe(true);
+    expect(svg.endsWith("</svg>")).toBe(true);
+    expect(svg).toContain(">A<");
+    expect(svg).toContain(">B<");
+    expect(svg).toContain("Alpha root");
+    expect(svg).toContain("Beta root");
+  });
+
+  it("places tiles at distinct transforms so subtrees don't overlap", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svg = overviewToSvg(buildTwoSubtrees(), { columns: 2 });
+    const transforms = [
+      ...svg.matchAll(/<g transform="translate\(([^,]+), ([^)]+)\)"/g),
+    ].map((m) => `${m[1]},${m[2]}`);
+    expect(transforms.length).toBe(2);
+    expect(new Set(transforms).size).toBe(2);
+  });
+
+  it("escapes labels containing markup", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const ontology = parseTsv(
+      [
+        "ID\tParent\tLabel\tDescription\tCounts\tColor",
+        "X\t\t<bad & label>\t\t0\t#FFFFFF",
+      ].join("\n"),
+    );
+    const svg = overviewToSvg(ontology);
+    expect(svg).toContain("&lt;bad &amp; label&gt;");
+    expect(svg).not.toContain("<bad & label>");
+  });
+});
+
 describe("buildStandaloneHtml", () => {
-  const layout = layoutSunburst(makeSubtree());
+  const subtree = makeSubtree();
 
   it("returns a doctype + html document", () => {
-    const html = buildStandaloneHtml(layout, { width: 200, height: 200 });
+    const html = buildStandaloneHtml(subtree, { width: 200, height: 200 });
     expect(html.startsWith("<!doctype html>")).toBe(true);
     expect(html).toContain("<html");
     expect(html).toContain("</html>");
   });
 
-  it("embeds the SVG inline", () => {
-    const html = buildStandaloneHtml(layout, { width: 200, height: 200 });
+  it("embeds the initial SVG inline", () => {
+    const html = buildStandaloneHtml(subtree, { width: 200, height: 200 });
     expect(html).toContain("<svg");
     expect(html).toContain("</svg>");
   });
 
   it("renders the optional caption escaped", () => {
-    const html = buildStandaloneHtml(layout, {
+    const html = buildStandaloneHtml(subtree, {
       width: 200,
       height: 200,
       caption: "5 < 10 & rising",
@@ -236,11 +284,85 @@ describe("buildStandaloneHtml", () => {
   });
 
   it("uses documentTitle for the <head><title>", () => {
-    const html = buildStandaloneHtml(layout, {
+    const html = buildStandaloneHtml(subtree, {
       width: 200,
       height: 200,
       documentTitle: "My export",
     });
     expect(html).toMatch(/<title>My export<\/title>/);
+  });
+
+  it("ships interactive paths with data-id, runtime, breadcrumb host, tooltip", () => {
+    const html = buildStandaloneHtml(subtree, { width: 200, height: 200 });
+    expect(html).toContain('data-id="A.B.1"');
+    // Native per-slice <title> children are gone (the document-level
+    // <head><title> remains).
+    expect(html).not.toMatch(/<path[^>]*><title>/);
+    expect(html).toContain('id="ov-tip"');
+    expect(html).toContain('id="ov-crumbs"');
+    // Runtime is inlined.
+    expect(html).toContain("window.OntoloViz");
+    expect(html).toContain("mount");
+    // Full subtree node graph is inlined (not just the laid-out slices),
+    // so the runtime can re-partition on any focus change.
+    expect(html).toContain('"rootId":"A"');
+    expect(html).toContain('"id":"A.B.2"');
+  });
+
+  it("escapes </script> sequences inside the inlined JSON map", () => {
+    const sub = makeSubtree();
+    const tricky = new Map(sub.nodes);
+    const ab = tricky.get("A.B")!;
+    tricky.set("A.B", { ...ab, description: "before </script> after" });
+    const html = buildStandaloneHtml(
+      { rootId: "A", nodes: tricky },
+      { width: 200, height: 200 },
+    );
+    expect(html).not.toContain("</script> after");
+    expect(html).toContain("\\u003c/script> after");
+  });
+
+  it("uses initialFocus when provided", () => {
+    const html = buildStandaloneHtml(subtree, {
+      width: 200,
+      height: 200,
+      initialFocus: "A.B",
+    });
+    expect(html).toContain('"initialFocus":"A.B"');
+  });
+});
+
+describe("overviewToHtml (interactive)", () => {
+  function buildTwoSubtrees() {
+    return parseTsv(
+      [
+        "ID\tParent\tLabel\tDescription\tCounts\tColor",
+        "A\t\tAlpha root\t\t0\t#FFFFFF",
+        "A.1\tA\tA-One\t\t3\t#FF0000",
+        "B\t\tBeta root\t\t0\t#FFFFFF",
+        "B.1\tB\tB-One\t\t5\t#00FF00",
+      ].join("\n"),
+    );
+  }
+
+  it("wraps tiles as clickable groups with a rootId data attribute", async () => {
+    const { overviewToHtml } = await import("@/lib/export/overview");
+    const html = overviewToHtml(buildTwoSubtrees());
+    expect(html).toContain('class="ov-tile"');
+    expect(html).toContain('data-rootid="A"');
+    expect(html).toContain('data-rootid="B"');
+    expect(html).toContain('class="ov-tile-hit"');
+  });
+
+  it("inlines the per-subtree node graph and mounts the runtime", async () => {
+    const { overviewToHtml } = await import("@/lib/export/overview");
+    const html = overviewToHtml(buildTwoSubtrees());
+    expect(html).toContain("window.OntoloViz");
+    // Both subtrees' graphs are shipped (drill-down needs full nodes).
+    expect(html).toContain('"A":{"rootId":"A"');
+    expect(html).toContain('"B":{"rootId":"B"');
+    expect(html).toContain('id="ov-back"');
+    expect(html).toContain('id="ov-grid"');
+    expect(html).toContain('id="ov-stage"');
   });
 });

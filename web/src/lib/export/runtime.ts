@@ -154,12 +154,12 @@ export const RUNTIME_CSS = `
   .ov-tile { cursor: pointer; }
   .ov-tile-hit { fill: transparent; }
   .ov-tile:hover .ov-tile-bg { stroke: var(--ov-tile-hover); }
-  #ov-tip { position: fixed; pointer-events: none; z-index: 10; max-width: 320px; padding: 0.5rem 0.75rem; border-radius: 0.375rem; background: var(--ov-tip-bg); color: var(--ov-tip-fg); font-size: 12px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,0.45); backdrop-filter: blur(6px); opacity: 0; transform: translate(-50%, calc(-100% - 12px)); transition: opacity 80ms ease; }
+  #ov-tip { position: fixed; pointer-events: none; z-index: 10; max-width: min(360px, calc(100vw - 16px)); padding: 0.5rem 0.75rem; border-radius: 0.375rem; background: var(--ov-tip-bg); color: var(--ov-tip-fg); font-size: 12px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,0.45); backdrop-filter: blur(6px); opacity: 0; transform: translate(-50%, calc(-100% - 12px)); transition: opacity 80ms ease; overflow-wrap: anywhere; word-break: break-word; }
   #ov-tip.is-visible { opacity: 1; }
   #ov-tip .ov-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
   #ov-tip .ov-label { font-weight: 600; margin-top: 2px; }
   #ov-tip .ov-count { margin-top: 4px; font-size: 11px; opacity: 0.85; }
-  #ov-tip .ov-desc { margin-top: 6px; font-size: 11px; opacity: 0.75; max-height: 8em; overflow: hidden; }
+  #ov-tip .ov-desc { margin-top: 6px; font-size: 11px; opacity: 0.75; white-space: pre-wrap; }
 `;
 
 export type ExportTheme = "dark" | "light";
@@ -334,10 +334,17 @@ export const RUNTIME_JS = `
       tip.setAttribute('aria-hidden','false');
       var pad = 8;
       var w = tip.offsetWidth, h = tip.offsetHeight;
-      var left = x; var top = y - 12;
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var left = x;
       if (left - w/2 < pad) left = w/2 + pad;
-      if (left + w/2 > window.innerWidth - pad) left = window.innerWidth - w/2 - pad;
+      if (left + w/2 > vw - pad) left = vw - w/2 - pad;
+      // Default: anchor bottom-edge of tip 12px above cursor (transform shifts up by full height).
+      var top = y - 12;
+      // If it would clip above, try placing below the cursor instead.
       if (top - h < pad) top = y + 24 + h;
+      // If still clipped (tip taller than space above AND below), clamp to viewport.
+      if (top - h < pad) top = h + pad;
+      if (top > vh - pad) top = Math.max(h + pad, vh - pad);
       tip.style.left = left + 'px';
       tip.style.top = top + 'px';
     }

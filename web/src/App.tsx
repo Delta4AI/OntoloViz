@@ -253,6 +253,7 @@ export function App() {
           <ExportPanel
             subtree={activeSubtree}
             ontology={propagated}
+            scope={viewMode === "overview" ? "overview" : "subtree"}
             {...(activeRoot !== null ? { focusId: activeRoot } : {})}
             onClose={() => setExportOpen(false)}
           />
@@ -493,6 +494,7 @@ function Header({
               <ExportMenu
                 subtree={exportSubtree}
                 ontology={exportOntology}
+                viewMode={viewMode}
                 onOpenPanel={onOpenExportPanel}
               />
               <button

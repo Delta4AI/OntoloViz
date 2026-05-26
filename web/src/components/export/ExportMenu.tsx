@@ -22,6 +22,12 @@ interface ExportMenuProps {
   readonly width?: number;
   readonly height?: number;
   /**
+   * Active view mode — gates which image sections appear: overview view
+   * shows overview options only, detail view shows subtree options only.
+   * TSV (data) stays available in both since it's whole-ontology.
+   */
+  readonly viewMode?: "overview" | "detail";
+  /**
    * Opens the configurable export panel. The dropdown's quick exports stay
    * for one-click defaults; "Export…" routes to the panel for fine-grained
    * control (presets, theme, dimensions, captions, live preview).
@@ -42,8 +48,11 @@ export function ExportMenu({
   focusId,
   width = 1200,
   height = 1200,
+  viewMode,
   onOpenPanel,
 }: ExportMenuProps) {
+  const showSubtreeSection = viewMode !== "overview" && Boolean(subtree);
+  const showOverviewSection = viewMode !== "detail" && Boolean(ontology);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -214,7 +223,7 @@ export function ExportMenu({
           role="menu"
           className="fade-in absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-lg border border-border bg-panel py-1.5 shadow-pop"
         >
-          {subtree ? (
+          {showSubtreeSection ? (
             <>
               <SectionLabel>Subtree image</SectionLabel>
               {PNG_SCALES.map((scale) => (
@@ -240,9 +249,9 @@ export function ExportMenu({
               />
             </>
           ) : null}
-          {ontology ? (
+          {showOverviewSection ? (
             <>
-              {subtree ? <Divider /> : null}
+              {showSubtreeSection ? <Divider /> : null}
               <SectionLabel>Overview image</SectionLabel>
               {PNG_SCALES.map((scale) => (
                 <ExportRow
@@ -265,7 +274,11 @@ export function ExportMenu({
                 onClick={handleOverviewHtml}
                 busy={busy === "ohtml"}
               />
-              <Divider />
+            </>
+          ) : null}
+          {ontology ? (
+            <>
+              {showSubtreeSection || showOverviewSection ? <Divider /> : null}
               <SectionLabel>Data</SectionLabel>
               <ExportRow
                 label="TSV"
@@ -279,8 +292,8 @@ export function ExportMenu({
             <>
               <Divider />
               <ExportRow
-                label="Export…"
-                hint="presets · theme · preview"
+                label="Customize export…"
+                hint="presets, dimensions, …"
                 onClick={() => {
                   setOpen(false);
                   onOpenPanel();

@@ -17,19 +17,22 @@ import {
   RUNTIME_JS,
   encodeRuntimeJson,
   toRuntimeSubtree,
-  type ExportTheme,
+  type HtmlTheme,
 } from "./runtime";
 import { layoutToSvg, type SvgOptions } from "./svg";
 
-export interface HtmlExportOptions extends SvgOptions {
+export interface HtmlExportOptions extends Omit<SvgOptions, "theme"> {
   /** Document <title> shown in the browser tab. */
   readonly documentTitle?: string;
   /** Optional caption rendered below the figure. */
   readonly caption?: string;
   /** Initial focus node id; defaults to the subtree root. */
   readonly initialFocus?: string;
-  /** Initial color theme of the exported HTML. Defaults to dark. */
-  readonly theme?: ExportTheme;
+  /**
+   * Theme stamped on `<html data-theme>` so the runtime's CSS picks the
+   * matching palette. Distinct from the `ExportTheme` used by static SVG/PNG.
+   */
+  readonly theme?: HtmlTheme;
 }
 
 export function buildStandaloneHtml(
@@ -38,7 +41,12 @@ export function buildStandaloneHtml(
 ): string {
   const initialFocus = options.initialFocus ?? subtree.rootId;
   const layout = layoutSunburst(subtree, { focusId: initialFocus });
-  const svg = layoutToSvg(layout, { ...options, interactive: true });
+  // Strip the HtmlTheme-typed `theme` field before forwarding — it conflicts
+  // with the static SVG renderer's `ExportTheme` slot. The HTML output drives
+  // theme via the `data-theme` attribute on `<html>` instead.
+  const { theme: _htmlTheme, ...svgForward } = options;
+  void _htmlTheme;
+  const svg = layoutToSvg(layout, { ...svgForward, interactive: true });
   const title = options.documentTitle ?? "OntoloViz export";
   const caption = options.caption ?? "";
   const runtimeSubtree = toRuntimeSubtree(subtree);
@@ -47,7 +55,7 @@ export function buildStandaloneHtml(
     initialFocus,
   });
 
-  const theme: ExportTheme = options.theme ?? "dark";
+  const theme: HtmlTheme = options.theme ?? "dark";
   return [
     "<!doctype html>",
     `<html lang="en" data-theme="${theme}">`,

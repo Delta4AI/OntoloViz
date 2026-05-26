@@ -8,18 +8,35 @@
  * SVG path: emit one `<g transform>` per tile wrapping the per-subtree slices.
  * PNG path: paint into an offscreen canvas, translating between tiles.
  * HTML path: reuses the SVG inside the existing standalone-HTML template.
+ *
+ * Theming: pass an `ExportTheme` for background/stroke/label/font. Two label
+ * placements are supported — `above` (legacy app look) and `below`
+ * (figure-caption style for publication) and `overlay` (in-tile). Tile
+ * borders are opt-in via `tileBorder` so publication exports can ship a
+ * borderless grid.
  */
 
 import { layoutSunburst, type LayoutNode } from "../ontology/layout";
 import { renderSunburst } from "../ontology/render";
+import { proportionalStrokeWidth } from "./png";
 import type { Ontology, Subtree } from "../ontology/types";
 import {
   RUNTIME_CSS,
   RUNTIME_JS,
   encodeRuntimeJson,
   toRuntimeSubtree,
-  type ExportTheme,
+  type HtmlTheme,
 } from "./runtime";
+import {
+  DEFAULT_OVERVIEW_LABEL_STYLES,
+  EXPORT_THEME_DEFAULT,
+  type ExportLabelFlags,
+  type ExportTheme,
+  type LabelAlign,
+  type LabelPosition,
+  type OverviewLabelStyle,
+  type OverviewLabelStyles,
+} from "./theme";
 
 export interface OverviewExportOptions {
   /** Tile size in CSS pixels (sunburst area only — label sits above it). */
@@ -30,12 +47,38 @@ export interface OverviewExportOptions {
   readonly background?: string | null;
   /** Document title — used for the SVG/HTML title tag. */
   readonly title?: string;
+  /** Optional caption rendered below the grid (requires `showHeader: true`). */
+  readonly caption?: string;
+  /**
+   * Render title + caption as visible bands above/below the grid. Off by
+   * default so legacy callers (the dropdown) keep producing the same
+   * artifact; the panel turns this on explicitly.
+   */
+  readonly showHeader?: boolean;
+  /** Font size (CSS px) for the title band. Defaults to 18. */
+  readonly titleFontSize?: number;
+  /** Font size (CSS px) for the caption band. Defaults to 12. */
+  readonly captionFontSize?: number;
   /**
    * When true, each tile is wrapped in a clickable `<g class="ov-tile"
    * data-rootid="...">` with a transparent hit rect on top. Used by the
    * interactive HTML export to drill from overview into a single subtree.
    */
   readonly interactive?: boolean;
+  /** Theme baseline. Defaults to the in-app dark look for back-compat. */
+  readonly theme?: ExportTheme;
+  /** Whether to draw a 1px stroke around each tile. */
+  readonly tileBorder?: boolean;
+  /** Where to place the per-tile label. */
+  readonly labelPosition?: LabelPosition;
+  /** Which label fields to include per tile. */
+  readonly labels?: ExportLabelFlags;
+  /** Per-element styling (font size, weight, alignment) for tile labels. */
+  readonly labelStyles?: OverviewLabelStyles;
+  /** Outer padding around the grid in CSS px. */
+  readonly outerPadding?: number;
+  /** Gap between tiles in CSS px. */
+  readonly tileGap?: number;
 }
 
 export interface OverviewPngOptions extends OverviewExportOptions {
@@ -43,13 +86,13 @@ export interface OverviewPngOptions extends OverviewExportOptions {
   readonly scale?: number;
 }
 
-const TILE_LABEL_HEIGHT = 40;
-const TILE_GAP = 16;
-const OUTER_PADDING = 24;
-const LABEL_COLOR = "rgba(229, 231, 235, 0.92)";
-const SUBLABEL_COLOR = "rgba(229, 231, 235, 0.55)";
-const TILE_BG = "#0B0B10";
-const TILE_BORDER = "rgba(255, 255, 255, 0.08)";
+// Matches the pre-panel overview look so the dropdown's one-shot exports
+// keep producing the same artifact when callers don't pass `labels`.
+const DEFAULT_LABELS: ExportLabelFlags = { id: true, count: true, name: true };
+const DEFAULT_TITLE_FONT = 18;
+const DEFAULT_CAPTION_FONT = 12;
+const titleBandFor = (fontSize: number): number => Math.round(fontSize * 2.6);
+const captionBandFor = (fontSize: number): number => Math.round(fontSize * 3);
 
 interface Tile {
   readonly subtree: Subtree;
@@ -64,13 +107,32 @@ interface Composition {
   readonly rows: number;
   readonly tileSize: number;
   readonly tileTotalHeight: number;
+  readonly labelHeight: number;
+  /** Y offset within the label band where the first text row's baseline sits. */
+  readonly labelFirstBaseline: number;
+  /** Y offset within the label band where the second text row's baseline sits. */
+  readonly labelSecondBaseline: number;
+  readonly labelPosition: LabelPosition;
+  readonly outerPadding: number;
+  readonly tileGap: number;
   readonly canvasWidth: number;
   readonly canvasHeight: number;
+  readonly topBand: number;
+  readonly bottomBand: number;
+  readonly titleFontSize: number;
+  readonly captionFontSize: number;
+  readonly labelStyles: OverviewLabelStyles;
+  readonly labels: ExportLabelFlags;
 }
 
 /** Lay out subtrees into a grid and return the composition + total size. */
 function compose(ontology: Ontology, options: OverviewExportOptions): Composition {
   const tileSize = options.tileSize ?? 320;
+  const labelPosition: LabelPosition = options.labelPosition ?? "above";
+  const labels = options.labels ?? DEFAULT_LABELS;
+  const outerPadding = options.outerPadding ?? 24;
+  const tileGap = options.tileGap ?? 16;
+
   const subtrees = [...ontology.subtrees.values()].sort((a, b) =>
     a.rootId < b.rootId ? -1 : a.rootId > b.rootId ? 1 : 0,
   );
@@ -78,8 +140,8 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
   const tiles: Tile[] = subtrees.map((subtree) => {
     const layout = layoutSunburst(subtree);
     const rootNode = subtree.nodes.get(subtree.rootId);
-    const sublabel = `${subtree.nodes.size.toLocaleString()} nodes`;
-    const title = rootNode?.label?.trim() || subtree.rootId;
+    const sublabel = labels.count ? `${subtree.nodes.size.toLocaleString()} nodes` : "";
+    const title = labels.name ? rootNode?.label?.trim() || subtree.rootId : "";
     return { subtree, layout, title, sublabel };
   });
 
@@ -87,11 +149,48 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
     options.columns ??
     Math.min(tiles.length, Math.max(1, Math.ceil(Math.sqrt(tiles.length))));
   const rows = Math.max(1, Math.ceil(tiles.length / cols));
-  const tileTotalHeight = tileSize + TILE_LABEL_HEIGHT;
+  const labelStyles = options.labelStyles ?? DEFAULT_OVERVIEW_LABEL_STYLES;
+  // Above/below stack id+count on the first row and name on the second row
+  // (when present). Heights scale with the actual font sizes so a 24px id
+  // doesn't get clipped. Overlay keeps zero extra height — labels float
+  // inside the sunburst area.
+  const wantFirstRow = labels.id || labels.count;
+  const wantNameLine = labels.name && labelPosition !== "overlay";
+  const firstRowFontH = Math.max(
+    labels.id ? labelStyles.id.fontSize : 0,
+    labels.count ? labelStyles.count.fontSize : 0,
+  );
+  const firstRowH = wantFirstRow ? firstRowFontH + 8 : 0;
+  const secondRowH = wantNameLine ? labelStyles.name.fontSize + 10 : 0;
+  const labelHeight = labelPosition === "overlay" ? 0 : firstRowH + secondRowH;
+  // Baselines are measured from the top of the label band. SVG `y` on
+  // `<text>` is the glyph baseline, so we offset by ~80% of the row's
+  // font height to put the top of the glyph near the band's top.
+  const labelFirstBaseline = wantFirstRow ? Math.round(firstRowFontH * 0.85) : 0;
+  const labelSecondBaseline = wantNameLine
+    ? labelFirstBaseline +
+      (wantFirstRow ? 6 : 0) +
+      Math.round(labelStyles.name.fontSize * 1.2)
+    : 0;
+  const tileTotalHeight = tileSize + labelHeight;
 
-  const canvasWidth = OUTER_PADDING * 2 + cols * tileSize + (cols - 1) * TILE_GAP;
+  const trimmedTitle = options.title?.trim() ?? "";
+  const trimmedCaption = options.caption?.trim() ?? "";
+  const titleFontSize = options.titleFontSize ?? DEFAULT_TITLE_FONT;
+  const captionFontSize = options.captionFontSize ?? DEFAULT_CAPTION_FONT;
+  // Header bands are opt-in via `showHeader`. Interactive HTML exports
+  // never get them — the HTML shell draws its own toolbar.
+  const wantBands = options.showHeader === true && !options.interactive;
+  const topBand = wantBands && trimmedTitle ? titleBandFor(titleFontSize) : 0;
+  const bottomBand = wantBands && trimmedCaption ? captionBandFor(captionFontSize) : 0;
+
+  const canvasWidth = outerPadding * 2 + cols * tileSize + (cols - 1) * tileGap;
   const canvasHeight =
-    OUTER_PADDING * 2 + rows * tileTotalHeight + (rows - 1) * TILE_GAP;
+    topBand +
+    bottomBand +
+    outerPadding * 2 +
+    rows * tileTotalHeight +
+    (rows - 1) * tileGap;
 
   return {
     tiles,
@@ -99,9 +198,47 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
     rows,
     tileSize,
     tileTotalHeight,
+    labelHeight,
+    labelPosition,
+    outerPadding,
+    tileGap,
     canvasWidth,
     canvasHeight,
+    topBand,
+    bottomBand,
+    titleFontSize,
+    captionFontSize,
+    labelStyles,
+    labels,
+    labelFirstBaseline,
+    labelSecondBaseline,
   };
+}
+
+/** Inset from the tile edge for left/right alignments. */
+const LABEL_EDGE_PADDING = 4;
+
+function alignToAnchor(align: LabelAlign): "start" | "middle" | "end" {
+  return align === "center" ? "middle" : align === "right" ? "end" : "start";
+}
+
+function alignToCanvasTextAlign(align: LabelAlign): "left" | "center" | "right" {
+  return align;
+}
+
+/**
+ * X coordinate (in user-space px) at which a single label should anchor,
+ * given the tile's left edge and the label's alignment. Pairs with
+ * `alignToAnchor` for SVG and `alignToCanvasTextAlign` for canvas.
+ */
+function alignToX(align: LabelAlign, tileLeft: number, tileSize: number): number {
+  if (align === "center") return tileLeft + tileSize / 2;
+  if (align === "right") return tileLeft + tileSize - LABEL_EDGE_PADDING;
+  return tileLeft + LABEL_EDGE_PADDING;
+}
+
+function fontWeight(style: OverviewLabelStyle): number {
+  return style.bold ? 600 : 400;
 }
 
 /** Top-left position (CSS px) of the i-th tile within the composition. */
@@ -109,9 +246,19 @@ function tileOrigin(c: Composition, index: number): { x: number; y: number } {
   const col = index % c.cols;
   const row = Math.floor(index / c.cols);
   return {
-    x: OUTER_PADDING + col * (c.tileSize + TILE_GAP),
-    y: OUTER_PADDING + row * (c.tileTotalHeight + TILE_GAP),
+    x: c.outerPadding + col * (c.tileSize + c.tileGap),
+    y: c.topBand + c.outerPadding + row * (c.tileTotalHeight + c.tileGap),
   };
+}
+
+/** Y of the sunburst body relative to a tile's top, depending on label pos. */
+function sunburstYOffset(c: Composition): number {
+  return c.labelPosition === "above" ? c.labelHeight : 0;
+}
+
+/** Y where label text should render relative to a tile's top. */
+function labelBandY(c: Composition): number {
+  return c.labelPosition === "below" ? c.tileSize : 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -122,14 +269,20 @@ export function overviewToSvg(
   ontology: Ontology,
   options: OverviewExportOptions = {},
 ): string {
+  const theme = options.theme ?? EXPORT_THEME_DEFAULT;
   const c = compose(ontology, options);
-  const bg = options.background ?? "#06060A";
+  const bg = options.background === undefined ? theme.background : options.background;
+  const tileBorderStroke =
+    (options.tileBorder ?? false) ? theme.stroke || "rgba(0, 0, 0, 0.12)" : "";
+  const labels = options.labels ?? DEFAULT_LABELS;
+  const titleText = options.title?.trim() ?? "";
+  const captionText = options.caption?.trim() ?? "";
 
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${c.canvasWidth} ${c.canvasHeight}" width="${c.canvasWidth}" height="${c.canvasHeight}">`,
   );
-  if (options.title) parts.push(`<title>${escapeXml(options.title)}</title>`);
+  if (titleText) parts.push(`<title>${escapeXml(titleText)}</title>`);
   if (bg !== null) {
     if (options.interactive) {
       parts.push(
@@ -142,44 +295,112 @@ export function overviewToSvg(
     }
   }
 
+  if (c.topBand > 0) {
+    parts.push(
+      `<text x="${c.canvasWidth / 2}" y="${Math.round(c.topBand * 0.62)}" text-anchor="middle" font-family="${escapeAttr(theme.fontFamily)}" font-size="${c.titleFontSize}" font-weight="600" fill="${theme.labelColor}">${escapeXml(titleText)}</text>`,
+    );
+  }
+
   c.tiles.forEach((tile, i) => {
     const { x, y } = tileOrigin(c, i);
     const groupOpen = options.interactive
       ? `<g class="ov-tile" data-rootid="${escapeXml(tile.subtree.rootId)}">`
       : "<g>";
     parts.push(groupOpen);
-    // Header band. In interactive mode the fill comes from CSS so the
-    // text follows the document theme; static SVG export keeps explicit
-    // colors so the artifact is portable on its own.
-    const headerFill = options.interactive ? "" : ` fill="${LABEL_COLOR}"`;
+
+    const headerFill = options.interactive ? "" : ` fill="${theme.labelColor}"`;
     const subFill = options.interactive
       ? ' class="ov-sub"'
-      : ` fill="${SUBLABEL_COLOR}"`;
+      : ` fill="${theme.sublabelColor}"`;
+    const fontAttr = ` font-family="${escapeAttr(theme.fontFamily)}"`;
+
+    const sy = y + sunburstYOffset(c);
+    const tileBgFill = options.interactive ? "" : ` fill="${theme.background}"`;
+    const tileBgStroke = tileBorderStroke
+      ? options.interactive
+        ? ""
+        : ` stroke="${tileBorderStroke}"`
+      : "";
     parts.push(
-      `<text x="${x + 4}" y="${y + 18}"${headerFill} font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="600">${escapeXml(tile.subtree.rootId)}</text>`,
+      `<rect class="ov-tile-bg" x="${x}" y="${sy}" width="${c.tileSize}" height="${c.tileSize}" rx="8"${tileBgFill}${tileBgStroke} stroke-width="1" />`,
     );
     parts.push(
-      `<text x="${x + c.tileSize - 4}" y="${y + 18}"${subFill} font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" text-anchor="end">${escapeXml(tile.sublabel)}</text>`,
+      `<g transform="translate(${x}, ${sy})">${tileToSvgPaths(tile.layout, c.tileSize, theme)}</g>`,
     );
-    parts.push(
-      `<text x="${x + 4}" y="${y + 34}"${subFill} font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">${escapeXml(truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))))}</text>`,
-    );
-    // Sunburst tile body
-    const sx = x;
-    const sy = y + TILE_LABEL_HEIGHT;
-    const tileBgAttrs = options.interactive
-      ? ""
-      : ` fill="${TILE_BG}" stroke="${TILE_BORDER}"`;
-    parts.push(
-      `<rect class="ov-tile-bg" x="${sx}" y="${sy}" width="${c.tileSize}" height="${c.tileSize}" rx="8"${tileBgAttrs} stroke-width="1" />`,
-    );
-    parts.push(
-      `<g transform="translate(${sx}, ${sy})">${tileToSvgPaths(tile.layout, c.tileSize)}</g>`,
-    );
+
+    const styles = c.labelStyles;
+    const emitText = (
+      text: string,
+      style: OverviewLabelStyle,
+      tx: number,
+      ty: number,
+      isPrimary: boolean,
+    ): void => {
+      const anchor = alignToAnchor(style.align);
+      const fill = isPrimary ? headerFill : subFill;
+      parts.push(
+        `<text x="${tx}" y="${ty}"${fontAttr} font-size="${style.fontSize}" font-weight="${fontWeight(style)}" text-anchor="${anchor}"${fill}>${escapeXml(text)}</text>`,
+      );
+    };
+
+    if (c.labelPosition === "overlay") {
+      // Anchor labels inside the tile's top region. Vertical offset scales
+      // with the id font size so larger glyphs aren't clipped.
+      const idTop = sy + Math.round(styles.id.fontSize * 0.85) + 4;
+      const subTop = idTop + Math.round(styles.count.fontSize * 1.2);
+      if (labels.id) {
+        emitText(
+          tile.subtree.rootId,
+          styles.id,
+          alignToX(styles.id.align, x, c.tileSize),
+          idTop,
+          true,
+        );
+      }
+      if (tile.sublabel) {
+        emitText(
+          tile.sublabel,
+          styles.count,
+          alignToX(styles.count.align, x, c.tileSize),
+          subTop,
+          false,
+        );
+      }
+    } else {
+      const labelY = y + labelBandY(c);
+      const idY = labelY + c.labelFirstBaseline + 4;
+      const nameY = labelY + c.labelSecondBaseline + 4;
+      if (labels.id) {
+        emitText(
+          tile.subtree.rootId,
+          styles.id,
+          alignToX(styles.id.align, x, c.tileSize),
+          idY,
+          true,
+        );
+      }
+      if (tile.sublabel) {
+        emitText(
+          tile.sublabel,
+          styles.count,
+          alignToX(styles.count.align, x, c.tileSize),
+          idY,
+          false,
+        );
+      }
+      if (tile.title) {
+        emitText(
+          truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))),
+          styles.name,
+          alignToX(styles.name.align, x, c.tileSize),
+          nameY,
+          false,
+        );
+      }
+    }
+
     if (options.interactive) {
-      // Transparent hit target spanning header + body so the whole tile is
-      // clickable regardless of where the cursor lands.
-      const totalH = c.tileSize + TILE_LABEL_HEIGHT;
+      const totalH = c.tileSize + c.labelHeight;
       parts.push(
         `<rect class="ov-tile-hit" x="${x}" y="${y}" width="${c.tileSize}" height="${totalH}"/>`,
       );
@@ -187,17 +408,29 @@ export function overviewToSvg(
     parts.push("</g>");
   });
 
+  if (c.bottomBand > 0) {
+    const cy = c.canvasHeight - Math.round(c.bottomBand * 0.42);
+    parts.push(
+      `<text x="${c.canvasWidth / 2}" y="${cy}" text-anchor="middle" font-family="${escapeAttr(theme.fontFamily)}" font-size="${c.captionFontSize}" fill="${theme.sublabelColor}">${escapeXml(captionText)}</text>`,
+    );
+  }
+
   parts.push("</svg>");
   return parts.join("");
 }
 
 /** Emit just the slice paths for one tile (no outer <svg>). */
-function tileToSvgPaths(layout: readonly LayoutNode[], size: number): string {
+function tileToSvgPaths(
+  layout: readonly LayoutNode[],
+  size: number,
+  theme: ExportTheme,
+): string {
   const cx = size / 2;
   const cy = size / 2;
   const radius = Math.min(size, size) / 2 - 6;
-  const stroke = "rgba(0, 0, 0, 0.35)";
-  const strokeWidth = 0.4;
+  const stroke = theme.stroke;
+  const hasStroke = stroke !== "";
+  const strokeWidth = Math.max(1, size / 600);
   const out: string[] = [];
 
   for (const slice of layout) {
@@ -208,9 +441,10 @@ function tileToSvgPaths(layout: readonly LayoutNode[], size: number): string {
     if (r1 <= r0) continue;
     const d = arcPath(cx, cy, slice.x0, slice.x1, r0, r1);
     const fill = slice.node.color || "#FFFFFF";
-    out.push(
-      `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`,
-    );
+    const strokeAttrs = hasStroke
+      ? ` stroke="${stroke}" stroke-width="${strokeWidth}"`
+      : "";
+    out.push(`<path d="${d}" fill="${fill}"${strokeAttrs}/>`);
   }
   return out.join("");
 }
@@ -290,8 +524,14 @@ export async function overviewToPngBlob(
   ontology: Ontology,
   options: OverviewPngOptions = {},
 ): Promise<Blob | null> {
+  const theme = options.theme ?? EXPORT_THEME_DEFAULT;
   const c = compose(ontology, options);
   const scale = options.scale ?? 2;
+  const labels = options.labels ?? DEFAULT_LABELS;
+  const wantBorder = options.tileBorder ?? false;
+  const titleText = options.title?.trim() ?? "";
+  const captionText = options.caption?.trim() ?? "";
+
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(c.canvasWidth * scale));
   canvas.height = Math.max(1, Math.round(c.canvasHeight * scale));
@@ -299,55 +539,123 @@ export async function overviewToPngBlob(
   if (!ctx) throw new Error("overviewToPngBlob: 2D context unavailable");
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-  // Backdrop
-  const bg = options.background ?? "#06060A";
+  const bg = options.background === undefined ? theme.background : options.background;
   if (bg !== null) {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, c.canvasWidth, c.canvasHeight);
   }
 
-  ctx.font = "14px ui-sans-serif, system-ui, sans-serif";
+  if (c.topBand > 0) {
+    ctx.fillStyle = theme.labelColor;
+    ctx.font = `600 ${c.titleFontSize}px ${theme.fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(titleText, c.canvasWidth / 2, c.topBand * 0.55);
+  }
+
   ctx.textBaseline = "alphabetic";
 
   c.tiles.forEach((tile, i) => {
     const { x, y } = tileOrigin(c, i);
+    const sy = y + sunburstYOffset(c);
 
-    // Tile background
-    ctx.fillStyle = TILE_BG;
-    roundRect(ctx, x, y + TILE_LABEL_HEIGHT, c.tileSize, c.tileSize, 8);
+    ctx.fillStyle = theme.background;
+    roundRect(ctx, x, sy, c.tileSize, c.tileSize, 8);
     ctx.fill();
-    ctx.strokeStyle = TILE_BORDER;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    if (wantBorder && theme.stroke) {
+      ctx.strokeStyle = theme.stroke;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
 
-    // Header
-    ctx.fillStyle = LABEL_COLOR;
-    ctx.font = "600 14px ui-sans-serif, system-ui, sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText(tile.subtree.rootId, x + 4, y + 18);
-
-    ctx.fillStyle = SUBLABEL_COLOR;
-    ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(tile.sublabel, x + c.tileSize - 4, y + 18);
-
-    ctx.textAlign = "left";
-    ctx.fillText(
-      truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))),
-      x + 4,
-      y + 34,
-    );
-
-    // Sunburst
+    // Sunburst body first; labels paint on top so overlay-mode stays legible.
     ctx.save();
-    ctx.translate(x, y + TILE_LABEL_HEIGHT);
+    ctx.translate(x, sy);
     renderSunburst(ctx, tile.layout, {
       width: c.tileSize,
       height: c.tileSize,
       background: null,
+      theme,
+      strokeWidth: proportionalStrokeWidth(c.tileSize, c.tileSize),
     });
     ctx.restore();
+
+    const styles = c.labelStyles;
+    const drawText = (
+      text: string,
+      style: OverviewLabelStyle,
+      tx: number,
+      ty: number,
+      color: string,
+    ): void => {
+      ctx.fillStyle = color;
+      ctx.font = `${style.bold ? "600 " : ""}${style.fontSize}px ${theme.fontFamily}`;
+      ctx.textAlign = alignToCanvasTextAlign(style.align);
+      ctx.fillText(text, tx, ty);
+    };
+
+    if (c.labelPosition === "overlay") {
+      const idTop = sy + Math.round(styles.id.fontSize * 0.85) + 4;
+      const subTop = idTop + Math.round(styles.count.fontSize * 1.2);
+      if (labels.id) {
+        drawText(
+          tile.subtree.rootId,
+          styles.id,
+          alignToX(styles.id.align, x, c.tileSize),
+          idTop,
+          theme.labelColor,
+        );
+      }
+      if (tile.sublabel) {
+        drawText(
+          tile.sublabel,
+          styles.count,
+          alignToX(styles.count.align, x, c.tileSize),
+          subTop,
+          theme.sublabelColor,
+        );
+      }
+    } else {
+      const labelY = y + labelBandY(c);
+      const idY = labelY + c.labelFirstBaseline + 4;
+      const nameY = labelY + c.labelSecondBaseline + 4;
+      if (labels.id) {
+        drawText(
+          tile.subtree.rootId,
+          styles.id,
+          alignToX(styles.id.align, x, c.tileSize),
+          idY,
+          theme.labelColor,
+        );
+      }
+      if (tile.sublabel) {
+        drawText(
+          tile.sublabel,
+          styles.count,
+          alignToX(styles.count.align, x, c.tileSize),
+          idY,
+          theme.sublabelColor,
+        );
+      }
+      if (tile.title) {
+        drawText(
+          truncate(tile.title, Math.max(8, Math.floor(c.tileSize / 8))),
+          styles.name,
+          alignToX(styles.name.align, x, c.tileSize),
+          nameY,
+          theme.sublabelColor,
+        );
+      }
+    }
   });
+
+  if (c.bottomBand > 0) {
+    ctx.fillStyle = theme.sublabelColor;
+    ctx.font = `${c.captionFontSize}px ${theme.fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(captionText, c.canvasWidth / 2, c.canvasHeight - c.bottomBand * 0.45);
+  }
 
   return await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/png"),
@@ -386,9 +694,11 @@ export function overviewToHtml(
     readonly documentTitle?: string;
     /** Initial color theme of the exported HTML. Defaults to dark. */
     readonly theme?: ExportTheme;
+    /** Theme stamped on <html data-theme>; defaults to dark. */
+    readonly htmlTheme?: HtmlTheme;
   } = {},
 ): string {
-  const theme: ExportTheme = options.theme ?? "dark";
+  const htmlTheme: HtmlTheme = options.htmlTheme ?? "dark";
   const gridSvg = overviewToSvg(ontology, { ...options, interactive: true });
   const docTitle = options.documentTitle ?? options.title ?? "OntoloViz overview";
 
@@ -407,7 +717,7 @@ export function overviewToHtml(
 
   return [
     "<!doctype html>",
-    `<html lang="en" data-theme="${theme}">`,
+    `<html lang="en" data-theme="${htmlTheme}">`,
     "<head>",
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
@@ -503,4 +813,8 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }

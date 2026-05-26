@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { buildStandaloneHtml } from "@/lib/export/html";
 import { layoutToSvg } from "@/lib/export/svg";
+import {
+  EXPORT_THEME_DEFAULT,
+  PUBLICATION_LIGHT_THEME,
+  type ExportTheme,
+} from "@/lib/export/theme";
 import { ontologyToTsv } from "@/lib/export/tsv";
 import { layoutSunburst } from "@/lib/ontology/layout";
 import { parseTsv } from "@/lib/ontology/parse";
@@ -78,6 +83,46 @@ describe("layoutToSvg", () => {
     expect(firstTitle).toBeGreaterThan(-1);
     expect(firstTitle).toBeLessThan(firstPath);
     expect(svg.slice(firstTitle, firstTitle + 30)).toContain("X");
+  });
+
+  it("uses the light publication theme's white background and a subtle slice stroke", () => {
+    const svg = layoutToSvg(layout, {
+      width: 400,
+      height: 400,
+      theme: PUBLICATION_LIGHT_THEME,
+    });
+    expect(svg).toContain(`fill="${PUBLICATION_LIGHT_THEME.background}"`);
+    // The publication theme keeps a faint slice stroke so individual slices
+    // remain distinguishable in print — every emitted <path> should carry one.
+    const pathCount = (svg.match(/<path /g) ?? []).length;
+    const strokeCount = (svg.match(/<path [^>]*stroke=/g) ?? []).length;
+    expect(strokeCount).toBe(pathCount);
+    expect(svg).toContain(`stroke="${PUBLICATION_LIGHT_THEME.stroke}"`);
+  });
+
+  it("threads the theme's fontFamily through visible header bands", () => {
+    const customTheme: ExportTheme = {
+      ...EXPORT_THEME_DEFAULT,
+      fontFamily: "Inter, ui-sans-serif",
+    };
+    const svg = layoutToSvg(layout, {
+      width: 600,
+      height: 600,
+      theme: customTheme,
+      title: "Figure 1",
+      caption: "Hand-curated",
+      showHeader: true,
+    });
+    // Both the title (top band) and caption (bottom band) carry the font.
+    const fontMatches = svg.match(/font-family="Inter, ui-sans-serif"/g) ?? [];
+    expect(fontMatches.length).toBeGreaterThanOrEqual(2);
+    expect(svg).toContain(">Figure 1<");
+    expect(svg).toContain(">Hand-curated<");
+  });
+
+  it("falls back to the dark default theme when none is provided", () => {
+    const svg = layoutToSvg(layout, { width: 200, height: 200 });
+    expect(svg).toContain(`fill="${EXPORT_THEME_DEFAULT.background}"`);
   });
 });
 
@@ -254,6 +299,46 @@ describe("overviewToSvg", () => {
     const svg = overviewToSvg(ontology);
     expect(svg).toContain("&lt;bad &amp; label&gt;");
     expect(svg).not.toContain("<bad & label>");
+  });
+
+  it("respects the light publication theme for tile backgrounds and fonts", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svg = overviewToSvg(buildTwoSubtrees(), {
+      theme: PUBLICATION_LIGHT_THEME,
+      tileBorder: false,
+    });
+    expect(svg).toContain(`fill="${PUBLICATION_LIGHT_THEME.background}"`);
+    expect(svg).toContain(`font-family="${PUBLICATION_LIGHT_THEME.fontFamily}"`);
+    // Tile borders are off, so no stroke attribute on `<rect class="ov-tile-bg">`.
+    expect(svg).not.toMatch(/<rect class="ov-tile-bg"[^>]*stroke="/);
+  });
+
+  it("shifts labels below the tile when labelPosition='below'", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svgAbove = overviewToSvg(buildTwoSubtrees(), {
+      labelPosition: "above",
+    });
+    const svgBelow = overviewToSvg(buildTwoSubtrees(), {
+      labelPosition: "below",
+    });
+    // Same content; only the relative y of the "A" label vs the inner tile
+    // transform should differ.
+    const idAbove = svgAbove.match(/<text [^>]*y="(\d+)"[^>]*>A<\/text>/);
+    const idBelow = svgBelow.match(/<text [^>]*y="(\d+)"[^>]*>A<\/text>/);
+    expect(idAbove).not.toBeNull();
+    expect(idBelow).not.toBeNull();
+    expect(Number(idBelow![1])).toBeGreaterThan(Number(idAbove![1]));
+  });
+
+  it("burns visible title + caption bands when showHeader is true", async () => {
+    const { overviewToSvg } = await import("@/lib/export/overview");
+    const svg = overviewToSvg(buildTwoSubtrees(), {
+      title: "Overview figure",
+      caption: "All subtrees",
+      showHeader: true,
+    });
+    expect(svg).toContain(">Overview figure<");
+    expect(svg).toContain(">All subtrees<");
   });
 });
 

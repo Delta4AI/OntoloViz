@@ -21,6 +21,12 @@ interface ExportMenuProps {
   /** Base canvas size; PNG outputs are this × scale. */
   readonly width?: number;
   readonly height?: number;
+  /**
+   * Opens the configurable export panel. The dropdown's quick exports stay
+   * for one-click defaults; "Export…" routes to the panel for fine-grained
+   * control (presets, theme, dimensions, captions, live preview).
+   */
+  readonly onOpenPanel?: () => void;
 }
 
 const PNG_SCALES = [2, 4, 8] as const;
@@ -36,6 +42,7 @@ export function ExportMenu({
   focusId,
   width = 1200,
   height = 1200,
+  onOpenPanel,
 }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -164,7 +171,7 @@ export function ExportMenu({
       const html = overviewToHtml(ontology, {
         title: "OntoloViz · overview",
         documentTitle: "OntoloViz · overview",
-        theme,
+        htmlTheme: theme,
       });
       downloadBlob(
         new Blob([html], { type: "text/html;charset=utf-8" }),
@@ -265,6 +272,20 @@ export function ExportMenu({
                 hint="OntoloViz format · full ontology"
                 onClick={handleTsv}
                 busy={busy === "tsv"}
+              />
+            </>
+          ) : null}
+          {onOpenPanel ? (
+            <>
+              <Divider />
+              <ExportRow
+                label="Export…"
+                hint="presets · theme · preview"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenPanel();
+                }}
+                busy={false}
               />
             </>
           ) : null}

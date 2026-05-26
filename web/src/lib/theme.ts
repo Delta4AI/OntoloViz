@@ -55,3 +55,17 @@ export function useEnsureThemeAttribute(): void {
     applyTheme(theme);
   }, [theme]);
 }
+
+/**
+ * Resolve a theme token (e.g. `--c-canvas`) to a concrete CSS color string,
+ * suitable for canvas/SVG/PNG painters that can't consume CSS variables
+ * directly. Falls back to the dark-mode value when run outside a browser.
+ */
+export function readThemeColor(token: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue(token)
+    .trim();
+  if (!raw) return fallback;
+  return raw.includes(" ") ? `rgb(${raw})` : raw;
+}

@@ -145,8 +145,8 @@ export function OboFoundryPicker({ onClose, onFetch }: OboFoundryPickerProps) {
           >
             OBO Foundry
           </a>{" "}
-          and remain under their respective licenses. OntoloViz is not affiliated
-          with or endorsed by the OBO Foundry.
+          and remain under their respective licenses. OntoloViz is not affiliated with
+          or endorsed by the OBO Foundry.
         </footer>
       </div>
     </div>

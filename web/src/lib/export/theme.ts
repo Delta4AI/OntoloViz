@@ -78,6 +78,57 @@ export const DEFAULT_OVERVIEW_LABEL_POSITIONS: LabelPositions = Object.freeze({
   name: "above",
 });
 
+/**
+ * Detail (subtree) export labels. A single sunburst describes one focused
+ * root node, so the configurable labels are that node's id, header (its
+ * display name), and description — distinct from the overview's per-tile
+ * id/count/name set. They reuse the same per-element style/position
+ * primitives as the overview labels.
+ */
+export interface SubtreeLabelFlags {
+  /** Show the focused node's id. */
+  readonly id: boolean;
+  /** Show the focused node's display name. */
+  readonly header: boolean;
+  /** Show the focused node's long-form description. */
+  readonly description: boolean;
+}
+
+export interface SubtreeLabelPositions {
+  readonly id: LabelPosition;
+  readonly header: LabelPosition;
+  readonly description: LabelPosition;
+}
+
+export interface SubtreeLabelStyles {
+  readonly id: OverviewLabelStyle;
+  readonly header: OverviewLabelStyle;
+  readonly description: OverviewLabelStyle;
+}
+
+/**
+ * Default off so existing subtree exports stay byte-for-byte unchanged until
+ * the user opts a label in. The header is the prominent line (bold, larger);
+ * id and description read as secondary captions.
+ */
+export const DEFAULT_SUBTREE_LABELS: SubtreeLabelFlags = Object.freeze({
+  id: false,
+  header: false,
+  description: false,
+});
+
+export const DEFAULT_SUBTREE_LABEL_POSITIONS: SubtreeLabelPositions = Object.freeze({
+  id: "above",
+  header: "above",
+  description: "below",
+});
+
+export const DEFAULT_SUBTREE_LABEL_STYLES: SubtreeLabelStyles = Object.freeze({
+  id: { fontSize: 13, bold: false, align: "center" as LabelAlign },
+  header: { fontSize: 18, bold: true, align: "center" as LabelAlign },
+  description: { fontSize: 12, bold: false, align: "center" as LabelAlign },
+});
+
 export type ExportPresetId = "pub-light" | "presentation" | "web";
 
 export interface ExportPreset {

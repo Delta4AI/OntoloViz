@@ -124,6 +124,58 @@ describe("layoutToSvg", () => {
     const svg = layoutToSvg(layout, { width: 200, height: 200 });
     expect(svg).toContain(`fill="${EXPORT_THEME_DEFAULT.background}"`);
   });
+
+  it("renders structured caption lines and honours muted styling", () => {
+    const svg = layoutToSvg(layout, {
+      width: 400,
+      height: 400,
+      theme: EXPORT_THEME_DEFAULT,
+      labels: [
+        {
+          text: "GO:0008150",
+          position: "below",
+          fontSize: 13,
+          bold: false,
+          align: "center",
+          muted: true,
+        },
+        {
+          text: "biological_process",
+          position: "above",
+          fontSize: 18,
+          bold: true,
+          align: "center",
+          muted: false,
+        },
+      ],
+    });
+    expect(svg).toContain(">GO:0008150<");
+    expect(svg).toContain(">biological_process<");
+    // Header line is bold + primary color; id line is muted (sublabel color).
+    expect(svg).toContain(
+      `font-weight="700" fill="${EXPORT_THEME_DEFAULT.labelColor}"`,
+    );
+    expect(svg).toContain(`fill="${EXPORT_THEME_DEFAULT.sublabelColor}"`);
+  });
+
+  it("ignores structured labels for interactive exports (host draws chrome)", () => {
+    const svg = layoutToSvg(layout, {
+      width: 400,
+      height: 400,
+      interactive: true,
+      labels: [
+        {
+          text: "should-not-appear",
+          position: "above",
+          fontSize: 14,
+          bold: false,
+          align: "center",
+          muted: false,
+        },
+      ],
+    });
+    expect(svg).not.toContain("should-not-appear");
+  });
 });
 
 describe("ontologyToTsv", () => {

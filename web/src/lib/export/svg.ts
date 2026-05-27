@@ -17,6 +17,7 @@
  */
 
 import { EXPORT_THEME_DEFAULT, type ExportTheme } from "./theme";
+import { layoutLabelBands, type ExportLabelLine, type PlacedLabel } from "./labelBands";
 import type { LayoutNode } from "../ontology/layout";
 
 export interface SvgOptions {
@@ -45,6 +46,12 @@ export interface SvgOptions {
   readonly titleFontSize?: number;
   /** Font size (CSS px) for the visible caption band. Defaults to 12. */
   readonly captionFontSize?: number;
+  /**
+   * Structured caption lines (e.g. the focused node's id / name / description)
+   * positioned above, below, or overlaid on the figure. Independent of the
+   * freeform `title`/`caption` bands and rendered even without `showHeader`.
+   */
+  readonly labels?: readonly ExportLabelLine[];
   /**
    * When true, paths carry a `data-id` attribute and the per-slice
    * `<title>` child is omitted — leaving tooltip presentation to an
@@ -90,8 +97,19 @@ export function layoutToSvg(
   // exports never get them — the HTML shell draws its own toolbar / figcaption
   // around the SVG so a baked-in band would double up.
   const wantBands = options.showHeader === true && !options.interactive;
-  const topBand = wantBands && titleText ? titleBandFor(titleFontSize) : 0;
-  const bottomBand = wantBands && captionText ? captionBandFor(captionFontSize) : 0;
+  const titleBand = wantBands && titleText ? titleBandFor(titleFontSize) : 0;
+  const captionBand = wantBands && captionText ? captionBandFor(captionFontSize) : 0;
+  // Interactive HTML exports render their own chrome; never burn label lines.
+  const labelLines = options.interactive ? [] : (options.labels ?? []);
+  const bands = layoutLabelBands({
+    width,
+    height,
+    lines: labelLines,
+    titleBand,
+    captionBand,
+  });
+  const topBand = bands.topBand;
+  const bottomBand = bands.bottomBand;
 
   const sunburstSize = Math.max(1, Math.min(width, height - topBand - bottomBand));
   const cx = width / 2;
@@ -121,8 +139,8 @@ export function layoutToSvg(
     }
   }
 
-  if (topBand > 0) {
-    const ty = Math.round(topBand * 0.62);
+  if (titleBand > 0) {
+    const ty = Math.round(titleBand * 0.62);
     parts.push(
       `<text x="${width / 2}" y="${ty}" text-anchor="middle" font-family="${escapeAttr(theme.fontFamily)}" font-size="${titleFontSize}" font-weight="600" fill="${theme.labelColor}">${escapeXml(titleText)}</text>`,
     );
@@ -152,15 +170,31 @@ export function layoutToSvg(
     }
   }
 
-  if (bottomBand > 0) {
-    const cy2 = height - Math.round(bottomBand * 0.42);
+  if (captionBand > 0) {
+    const cy2 = height - Math.round(captionBand * 0.42);
     parts.push(
       `<text x="${width / 2}" y="${cy2}" text-anchor="middle" font-family="${escapeAttr(theme.fontFamily)}" font-size="${captionFontSize}" fill="${theme.sublabelColor}">${escapeXml(captionText)}</text>`,
     );
   }
 
+  for (const label of bands.placed) {
+    parts.push(labelToSvg(label, theme));
+  }
+
   parts.push("</svg>");
   return parts.join("");
+}
+
+/** Render a placed caption line as a vertically-centered `<text>` element. */
+function labelToSvg(label: PlacedLabel, theme: ExportTheme): string {
+  const color = label.muted ? theme.sublabelColor : theme.labelColor;
+  const weight = label.bold ? 700 : 400;
+  return (
+    `<text x="${label.x}" y="${label.y}" text-anchor="${label.anchor}" ` +
+    `dominant-baseline="middle" font-family="${escapeAttr(theme.fontFamily)}" ` +
+    `font-size="${label.fontSize}" font-weight="${weight}" fill="${color}">` +
+    `${escapeXml(label.text)}</text>`
+  );
 }
 
 /**

@@ -15,6 +15,7 @@
 import type { LayoutNode } from "../ontology/layout";
 import { renderSunburst } from "../ontology/render";
 import { EXPORT_THEME_DEFAULT, type ExportTheme } from "./theme";
+import { layoutLabelBands, type ExportLabelLine, type PlacedLabel } from "./labelBands";
 
 export interface PngExportOptions {
   /** Logical width (CSS pixels). */
@@ -39,6 +40,12 @@ export interface PngExportOptions {
   readonly titleFontSize?: number;
   /** Font size (CSS px) for the caption band. Defaults to 12. */
   readonly captionFontSize?: number;
+  /**
+   * Structured caption lines (e.g. the focused node's id / name / description)
+   * positioned above, below, or overlaid on the figure. Independent of the
+   * freeform `title`/`caption` bands.
+   */
+  readonly labels?: readonly ExportLabelLine[];
   /**
    * Theme baseline for background/stroke/font. Per-field options above
    * still win.
@@ -78,8 +85,17 @@ export function renderLayoutToCanvas(
   const captionText = options.caption?.trim() ?? "";
   const titleFontSize = options.titleFontSize ?? DEFAULT_TITLE_FONT;
   const captionFontSize = options.captionFontSize ?? DEFAULT_CAPTION_FONT;
-  const topBand = wantBands && titleText ? titleBandFor(titleFontSize) : 0;
-  const bottomBand = wantBands && captionText ? captionBandFor(captionFontSize) : 0;
+  const titleBand = wantBands && titleText ? titleBandFor(titleFontSize) : 0;
+  const captionBand = wantBands && captionText ? captionBandFor(captionFontSize) : 0;
+  const bands = layoutLabelBands({
+    width: w,
+    height: h,
+    lines: options.labels ?? [],
+    titleBand,
+    captionBand,
+  });
+  const topBand = bands.topBand;
+  const bottomBand = bands.bottomBand;
   const sunburstHeight = Math.max(1, h - topBand - bottomBand);
 
   const canvas = document.createElement("canvas");
@@ -95,12 +111,12 @@ export function renderLayoutToCanvas(
     ctx.fillRect(0, 0, w, h);
   }
 
-  if (topBand > 0) {
+  if (titleBand > 0) {
     ctx.fillStyle = theme.labelColor;
     ctx.font = `600 ${titleFontSize}px ${theme.fontFamily}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(titleText, w / 2, topBand * 0.55);
+    ctx.fillText(titleText, w / 2, titleBand * 0.55);
   }
 
   ctx.save();
@@ -118,15 +134,33 @@ export function renderLayoutToCanvas(
   });
   ctx.restore();
 
-  if (bottomBand > 0) {
+  if (captionBand > 0) {
     ctx.fillStyle = theme.sublabelColor;
     ctx.font = `${captionFontSize}px ${theme.fontFamily}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(captionText, w / 2, h - bottomBand * 0.45);
+    ctx.fillText(captionText, w / 2, h - captionBand * 0.45);
+  }
+
+  for (const label of bands.placed) {
+    drawLabel(ctx, label, theme);
   }
 
   return canvas;
+}
+
+/** Paint a placed caption line onto the canvas with middle baseline. */
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  label: PlacedLabel,
+  theme: ExportTheme,
+): void {
+  ctx.fillStyle = label.muted ? theme.sublabelColor : theme.labelColor;
+  ctx.font = `${label.bold ? 700 : 400} ${label.fontSize}px ${theme.fontFamily}`;
+  ctx.textAlign =
+    label.anchor === "start" ? "left" : label.anchor === "end" ? "right" : "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label.text, label.x, label.y);
 }
 
 /**

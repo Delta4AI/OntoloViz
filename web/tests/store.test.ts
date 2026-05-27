@@ -100,6 +100,44 @@ describe("useAppStore", () => {
     expect(state.searchQuery).toBe("");
   });
 
+  it("starts with empty ring weights (uniform)", () => {
+    expect(useAppStore.getState().layout.ringWeights).toEqual([]);
+  });
+
+  it("setRingWeight sets a single ring's multiplier", () => {
+    useAppStore.getState().setRingWeight(0, 2);
+    expect(useAppStore.getState().layout.ringWeights).toEqual([2]);
+  });
+
+  it("setRingWeight pads intervening rings with the baseline", () => {
+    // Setting depth 2 without 0/1 fills them with weight 1.
+    useAppStore.getState().setRingWeight(2, 0.5);
+    expect(useAppStore.getState().layout.ringWeights).toEqual([1, 1, 0.5]);
+  });
+
+  it("setRingWeight overwrites in place without regrowing the array", () => {
+    useAppStore.getState().setRingWeight(2, 0.5);
+    useAppStore.getState().setRingWeight(0, 3);
+    expect(useAppStore.getState().layout.ringWeights).toEqual([3, 1, 0.5]);
+  });
+
+  it("setRingWeight ignores negative depths", () => {
+    useAppStore.getState().setRingWeight(-1, 2);
+    expect(useAppStore.getState().layout.ringWeights).toEqual([]);
+  });
+
+  it("resetRingWeights clears back to uniform", () => {
+    useAppStore.getState().setRingWeight(1, 2);
+    useAppStore.getState().resetRingWeights();
+    expect(useAppStore.getState().layout.ringWeights).toEqual([]);
+  });
+
+  it("reset restores uniform ring weights", () => {
+    useAppStore.getState().setRingWeight(0, 2.5);
+    useAppStore.getState().reset();
+    expect(useAppStore.getState().layout.ringWeights).toEqual([]);
+  });
+
   it("setHoveredId / setSearchQuery update independently", () => {
     useAppStore.getState().setHoveredId("X.Y");
     useAppStore.getState().setSearchQuery("abc");

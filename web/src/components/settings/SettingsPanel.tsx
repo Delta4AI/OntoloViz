@@ -1,6 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
 
-import { useAppStore } from "@/lib/store";
+import {
+  RING_WEIGHT_DEFAULT,
+  RING_WEIGHT_MAX,
+  RING_WEIGHT_MIN,
+  useAppStore,
+} from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
 import type { CountPropagationMode } from "@/lib/ontology/propagate";
 
@@ -25,8 +30,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const raw = useAppStore((s) => s.raw);
   const count = useAppStore((s) => s.count);
   const color = useAppStore((s) => s.color);
+  const ringWeights = useAppStore((s) => s.layout.ringWeights);
   const setCountSettings = useAppStore((s) => s.setCountSettings);
   const setColorSettings = useAppStore((s) => s.setColorSettings);
+  const setRingWeight = useAppStore((s) => s.setRingWeight);
+  const resetRingWeights = useAppStore((s) => s.resetRingWeights);
 
   // Deepest level in the loaded data — bounds the depth sliders so they never
   // offer depths the ontology doesn't have.
@@ -201,8 +209,112 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             onChange={(defaultColor) => setColorSettings({ defaultColor })}
           />
         </Section>
+
+        <Divider />
+
+        <Section
+          title="Ring thickness"
+          hint="Resize each ring's radial band — thin a busy outer layer or emphasize a structural one. Affects appearance only, never the counts."
+        >
+          <RingWeightControls
+            maxDepth={maxDepth}
+            weights={ringWeights}
+            onChange={setRingWeight}
+            onReset={resetRingWeights}
+          />
+        </Section>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Per-depth ring-thickness sliders. One row per ring (0 = center), each a
+ * relative multiplier where 1× is the uniform baseline. Drags stage locally
+ * and commit on release so the (re-layout) only runs once per gesture, matching
+ * DepthField. A reset appears once any ring departs from the baseline.
+ */
+function RingWeightControls({
+  maxDepth,
+  weights,
+  onChange,
+  onReset,
+}: {
+  readonly maxDepth: number;
+  readonly weights: readonly number[];
+  readonly onChange: (depth: number, weight: number) => void;
+  readonly onReset: () => void;
+}) {
+  if (maxDepth <= 0) {
+    return (
+      <p className="text-[11px] leading-snug text-muted">
+        This ontology has a single ring, so there is nothing to resize.
+      </p>
+    );
+  }
+
+  const dirty = weights.some((w) => w !== RING_WEIGHT_DEFAULT);
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {Array.from({ length: maxDepth + 1 }, (_, depth) => (
+        <RingWeightSlider
+          key={depth}
+          label={depth === 0 ? "Center" : `Ring ${depth}`}
+          value={weights[depth] ?? RING_WEIGHT_DEFAULT}
+          onChange={(weight) => onChange(depth, weight)}
+        />
+      ))}
+      {dirty ? (
+        <button
+          type="button"
+          onClick={onReset}
+          className="self-start rounded-md border border-border bg-canvas px-2 py-1 text-[11px] text-muted hover:bg-border hover:text-ink"
+        >
+          Reset to uniform
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function RingWeightSlider({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly onChange: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const display = draft ?? value;
+  const commit = () => {
+    if (draft === null) return;
+    const v = draft;
+    setDraft(null);
+    if (v !== value) onChange(v);
+  };
+
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="flex items-center justify-between text-[11px]">
+        <span className="text-muted">{label}</span>
+        <span className="font-mono text-ink">{display.toFixed(2)}×</span>
+      </span>
+      <input
+        type="range"
+        min={RING_WEIGHT_MIN}
+        max={RING_WEIGHT_MAX}
+        step={0.05}
+        value={display}
+        onChange={(e) => setDraft(Number(e.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        aria-label={`${label} thickness`}
+      />
+    </label>
   );
 }
 

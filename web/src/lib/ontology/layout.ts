@@ -56,6 +56,43 @@ export interface LayoutOptions {
    * Used by the overview grid to render simplified previews.
    */
   readonly maxDepth?: number;
+  /**
+   * Optional per-depth radial thickness weights, indexed by layout depth
+   * (0 = the center ring). A weight of `1` is the uniform baseline; `2` makes
+   * that ring twice as thick as a baseline ring, `0.5` half. Missing or
+   * non-finite entries default to `1`, so a short or sparse array only affects
+   * the depths it names. When omitted or empty, rings stay uniform — identical
+   * to d3's default partition. Purely visual: angular (count) encoding is
+   * untouched, so quantitative meaning is preserved.
+   */
+  readonly ringWeights?: readonly number[];
+}
+
+/**
+ * Cumulative radial boundaries in [0, 1] for `bands` rings given per-depth
+ * `weights`. Returns `bands + 1` ascending values: ring `d` spans
+ * `[out[d], out[d + 1]]`. Falls back to uniform bands when weights sum to ≤ 0.
+ */
+function ringBoundaries(bands: number, weights: readonly number[]): number[] {
+  const out = [0];
+  let total = 0;
+  const resolved: number[] = [];
+  for (let i = 0; i < bands; i++) {
+    const w = weights[i];
+    const v = Number.isFinite(w) && (w as number) >= 0 ? (w as number) : 1;
+    resolved.push(v);
+    total += v;
+  }
+  if (total <= 0) {
+    for (let i = 1; i <= bands; i++) out.push(i / bands);
+    return out;
+  }
+  let acc = 0;
+  for (let i = 0; i < bands; i++) {
+    acc += resolved[i];
+    out.push(acc / total);
+  }
+  return out;
 }
 
 /**
@@ -109,6 +146,13 @@ export function layoutSunburst(
 
   const layout = partition<TreeShell>().size([2 * Math.PI, 1])(root);
 
+  // Remap radii by per-depth weight only when asked. d3 lays out `root.height + 1`
+  // uniform bands; we keep that geometry untouched (byte-identical output) unless
+  // the caller supplies weights, then we resize bands by the cumulative weight.
+  const weights = options.ringWeights;
+  const boundaries =
+    weights && weights.length > 0 ? ringBoundaries(root.height + 1, weights) : null;
+
   const maxDepth = options.maxDepth;
   const out: LayoutNode[] = [];
   layout.each((d: HierarchyRectangularNode<TreeShell>) => {
@@ -119,8 +163,8 @@ export function layoutSunburst(
       depth: d.depth,
       x0: d.x0,
       x1: d.x1,
-      y0: d.y0,
-      y1: d.y1,
+      y0: boundaries ? boundaries[d.depth] : d.y0,
+      y1: boundaries ? boundaries[d.depth + 1] : d.y1,
       node: d.data.node,
     });
   });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
+import { useAppStore } from "@/lib/store";
 import type { Ontology, Subtree } from "@/lib/ontology/types";
 import { useTheme } from "@/lib/theme";
 import { buildStandaloneHtml } from "@/lib/export/html";
@@ -59,6 +60,7 @@ export function ExportMenu({
   // Snapshot the app's current theme so the interactive HTML exports match
   // the surface the user just clicked the export from.
   const theme = useTheme();
+  const ringWeights = useAppStore((s) => s.layout.ringWeights);
 
   useEffect(() => {
     if (!open) return;
@@ -79,7 +81,12 @@ export function ExportMenu({
   };
 
   const buildLayout = () =>
-    subtree ? layoutSunburst(subtree, focusId !== undefined ? { focusId } : {}) : null;
+    subtree
+      ? layoutSunburst(subtree, {
+          ...(focusId !== undefined ? { focusId } : {}),
+          ringWeights,
+        })
+      : null;
 
   const handlePng = async (scale: PngScale) => {
     const layout = buildLayout();
@@ -130,6 +137,7 @@ export function ExportMenu({
         documentTitle: `OntoloViz · ${subtree.rootId}`,
         caption: `Subtree ${subtree.rootId} — ${subtree.nodes.size.toLocaleString()} nodes`,
         theme,
+        ringWeights,
         ...(focusId !== undefined ? { initialFocus: focusId } : {}),
       });
       downloadBlob(
@@ -150,6 +158,7 @@ export function ExportMenu({
       const blob = await overviewToPngBlob(ontology, {
         scale,
         title: "OntoloViz · overview",
+        ringWeights,
       });
       if (blob) downloadBlob(blob, filename(`overview-${scale}x.png`));
     } finally {
@@ -162,7 +171,10 @@ export function ExportMenu({
     if (!ontology) return;
     setBusy("osvg");
     try {
-      const svg = overviewToSvg(ontology, { title: "OntoloViz · overview" });
+      const svg = overviewToSvg(ontology, {
+        title: "OntoloViz · overview",
+        ringWeights,
+      });
       downloadBlob(
         new Blob([svg], { type: "image/svg+xml" }),
         filename("overview.svg"),
@@ -181,6 +193,7 @@ export function ExportMenu({
         title: "OntoloViz · overview",
         documentTitle: "OntoloViz · overview",
         htmlTheme: theme,
+        ringWeights,
       });
       downloadBlob(
         new Blob([html], { type: "text/html;charset=utf-8" }),

@@ -33,6 +33,12 @@ export interface HtmlExportOptions extends Omit<SvgOptions, "theme"> {
    * matching palette. Distinct from the `ExportTheme` used by static SVG/PNG.
    */
   readonly theme?: HtmlTheme;
+  /**
+   * Per-depth ring thickness weights (see `LayoutOptions.ringWeights`). Used for
+   * both the server-rendered fallback SVG and the inline runtime's client-side
+   * re-partition, so zoomed re-renders keep the same ring proportions.
+   */
+  readonly ringWeights?: readonly number[];
 }
 
 export function buildStandaloneHtml(
@@ -40,7 +46,8 @@ export function buildStandaloneHtml(
   options: HtmlExportOptions,
 ): string {
   const initialFocus = options.initialFocus ?? subtree.rootId;
-  const layout = layoutSunburst(subtree, { focusId: initialFocus });
+  const ringWeights = options.ringWeights ?? [];
+  const layout = layoutSunburst(subtree, { focusId: initialFocus, ringWeights });
   // Strip the HtmlTheme-typed `theme` field before forwarding — it conflicts
   // with the static SVG renderer's `ExportTheme` slot. The HTML output drives
   // theme via the `data-theme` attribute on `<html>` instead.
@@ -53,6 +60,7 @@ export function buildStandaloneHtml(
   const dataJson = encodeRuntimeJson({
     subtree: runtimeSubtree,
     initialFocus,
+    ringWeights,
   });
 
   const theme: HtmlTheme = options.theme ?? "dark";
@@ -85,7 +93,7 @@ export function buildStandaloneHtml(
     "var stage = document.querySelector('#ov-stage figure');",
     "var crumbs = document.getElementById('ov-crumbs');",
     "var tip = document.getElementById('ov-tip');",
-    "window.OntoloViz.mount({ stage: stage, subtree: D.subtree, initialFocus: D.initialFocus, crumbHost: crumbs, tooltip: tip });",
+    "window.OntoloViz.mount({ stage: stage, subtree: D.subtree, initialFocus: D.initialFocus, ringWeights: D.ringWeights, crumbHost: crumbs, tooltip: tip });",
     "})();",
     "</script>",
     "</body>",

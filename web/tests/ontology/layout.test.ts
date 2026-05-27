@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { breadcrumbTrail, layoutSunburst } from "@/lib/ontology/layout";
+import {
+  breadcrumbTrail,
+  layoutSunburst,
+  type LayoutNode,
+} from "@/lib/ontology/layout";
 import type { Node, Subtree } from "@/lib/ontology/types";
 
 function mkNode(id: string, parent: string, level: number, count: number): Node {
@@ -126,6 +130,82 @@ describe("layoutSunburst", () => {
     layoutSunburst(subtree, { focusId: "A.B" });
     const after = JSON.stringify([...subtree.nodes.entries()]);
     expect(after).toBe(before);
+  });
+});
+
+/**
+ * `makeSubtree` is three rings deep (depths 0, 1, 2), so d3 lays out three
+ * uniform radial bands of 1/3 each. These tests pin the `ringWeights` remap
+ * against that baseline.
+ */
+describe("layoutSunburst ringWeights", () => {
+  const byId = (layout: readonly LayoutNode[], id: string) =>
+    layout.find((n) => n.id === id)!;
+
+  it("leaves radii at uniform thirds when omitted or empty", () => {
+    for (const opts of [{}, { ringWeights: [] }]) {
+      const layout = layoutSunburst(makeSubtree(), opts);
+      expect(byId(layout, "A").y1).toBeCloseTo(1 / 3, 10);
+      const ab = byId(layout, "A.B");
+      expect(ab.y0).toBeCloseTo(1 / 3, 10);
+      expect(ab.y1).toBeCloseTo(2 / 3, 10);
+      expect(byId(layout, "A.B.1").y1).toBeCloseTo(1, 10);
+    }
+  });
+
+  it("resizes bands proportionally to per-depth weights", () => {
+    // Weights [1, 1, 2] sum to 4 → boundaries 0, 0.25, 0.5, 1.0.
+    const layout = layoutSunburst(makeSubtree(), { ringWeights: [1, 1, 2] });
+    expect(byId(layout, "A").y1).toBeCloseTo(0.25, 10);
+    const ab = byId(layout, "A.B");
+    expect(ab.y0).toBeCloseTo(0.25, 10);
+    expect(ab.y1).toBeCloseTo(0.5, 10);
+    const leaf = byId(layout, "A.B.1");
+    expect(leaf.y0).toBeCloseTo(0.5, 10);
+    expect(leaf.y1).toBeCloseTo(1, 10);
+    // The outer ring is now twice as thick as either inner ring.
+    expect(leaf.y1 - leaf.y0).toBeCloseTo(2 * (ab.y1 - ab.y0), 10);
+  });
+
+  it("defaults unspecified depths to weight 1 (short array)", () => {
+    // [2] → depth 0 weight 2, depths 1 & 2 default to 1 → sum 4.
+    const layout = layoutSunburst(makeSubtree(), { ringWeights: [2] });
+    expect(byId(layout, "A").y1).toBeCloseTo(0.5, 10);
+    expect(byId(layout, "A.B").y1).toBeCloseTo(0.75, 10);
+    expect(byId(layout, "A.B.1").y1).toBeCloseTo(1, 10);
+  });
+
+  it("collapses a ring to zero thickness at weight 0", () => {
+    // [1, 0, 1] → sum 2 → boundaries 0, 0.5, 0.5, 1.0.
+    const layout = layoutSunburst(makeSubtree(), { ringWeights: [1, 0, 1] });
+    const ab = byId(layout, "A.B");
+    expect(ab.y0).toBeCloseTo(0.5, 10);
+    expect(ab.y1).toBeCloseTo(0.5, 10);
+  });
+
+  it("falls back to uniform when all weights are zero", () => {
+    const layout = layoutSunburst(makeSubtree(), { ringWeights: [0, 0, 0] });
+    expect(byId(layout, "A").y1).toBeCloseTo(1 / 3, 10);
+    expect(byId(layout, "A.B.1").y0).toBeCloseTo(2 / 3, 10);
+  });
+
+  it("ignores negative or non-finite weights (treats them as 1)", () => {
+    const layout = layoutSunburst(makeSubtree(), {
+      ringWeights: [-5, Number.NaN, 1],
+    });
+    // All three coerce to 1 → uniform thirds.
+    expect(byId(layout, "A").y1).toBeCloseTo(1 / 3, 10);
+    expect(byId(layout, "A.B").y1).toBeCloseTo(2 / 3, 10);
+  });
+
+  it("does not touch the angular (count) encoding", () => {
+    const base = layoutSunburst(makeSubtree());
+    const weighted = layoutSunburst(makeSubtree(), { ringWeights: [3, 0.5, 2] });
+    for (const b of base) {
+      const w = weighted.find((n) => n.id === b.id)!;
+      expect(w.x0).toBeCloseTo(b.x0, 10);
+      expect(w.x1).toBeCloseTo(b.x1, 10);
+    }
   });
 });
 

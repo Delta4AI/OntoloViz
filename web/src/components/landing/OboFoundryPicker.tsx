@@ -134,6 +134,20 @@ export function OboFoundryPicker({ onClose, onFetch }: OboFoundryPickerProps) {
             </div>
           </div>
         </div>
+
+        <footer className="border-t border-hairline px-5 py-3 text-[11px] leading-snug text-subtle">
+          Ontologies are sourced from the{" "}
+          <a
+            href="https://obofoundry.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted underline decoration-dotted underline-offset-2 hover:text-ink"
+          >
+            OBO Foundry
+          </a>{" "}
+          and remain under their respective licenses. OntoloViz is not affiliated
+          with or endorsed by the OBO Foundry.
+        </footer>
       </div>
     </div>
   );

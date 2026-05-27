@@ -1,49 +1,149 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { useAppStore } from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
 import type { CountPropagationMode } from "@/lib/ontology/propagate";
 
 import { ColorStopEditor } from "./ColorStopEditor";
-import { RadioRow } from "./RadioRow";
 
 interface SettingsPanelProps {
   readonly onClose: () => void;
 }
 
-const COUNT_MODES: readonly { value: CountPropagationMode; label: string }[] = [
-  { value: "off", label: "Off" },
-  { value: "level", label: "Level" },
-  { value: "all", label: "All" },
-];
-
-const COLOR_MODES: readonly { value: ColorPropagationMode; label: string }[] = [
-  { value: "off", label: "Off" },
-  { value: "specific", label: "Specific" },
-  { value: "global", label: "Global" },
-  { value: "phenotype", label: "Phenotype" },
-];
-
 /**
- * Settings drawer — drives the count and color propagation pipelines.
+ * Settings drawer — plain-language controls over the count and color
+ * pipelines.
  *
- * The store is the single source of truth; this component is a thin shell of
- * controls that dispatch partial updates. The renderer re-derives its view
- * automatically because App.tsx subscribes to `raw + count + color` and
- * passes the freshly-propagated subtree to <Sunburst />.
+ * The store keys are unchanged from the ported tkinter model
+ * (`count.{enabled,countMode,level}`, `color.{enabled,mode,level,…}`); this
+ * component only reshapes how those keys are presented. The two old "Enabled"
+ * toggles are folded into their mode pickers — "off" means no propagation —
+ * and the fixed 0–12 level slider is now bounded to the loaded ontology's
+ * real depth. App.tsx re-derives the view whenever these settings change.
  */
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
+  const raw = useAppStore((s) => s.raw);
   const count = useAppStore((s) => s.count);
   const color = useAppStore((s) => s.color);
   const setCountSettings = useAppStore((s) => s.setCountSettings);
   const setColorSettings = useAppStore((s) => s.setColorSettings);
 
+  // Deepest level in the loaded data — bounds the depth sliders so they never
+  // offer depths the ontology doesn't have.
+  const maxDepth = useMemo(() => {
+    if (!raw) return 0;
+    let m = 0;
+    for (const subtree of raw.subtrees.values()) {
+      for (const node of subtree.nodes.values()) {
+        if (node.level > m) m = node.level;
+      }
+    }
+    return m;
+  }, [raw]);
+
+  // "Outermost nodes only" relies on dot-path levels — a MeSH (separator-based)
+  // trait. ATC has no such paths, so the option is hidden there to avoid a
+  // control that silently does nothing.
+  const supportsOutermost = raw?.format === "separator-based";
+
+  // Fold the legacy `enabled` flag into the mode: "off" === not propagating.
+  const countChoice: CountPropagationMode =
+    count.enabled && count.countMode !== "off" ? count.countMode : "off";
+  const colorChoice: ColorPropagationMode =
+    color.enabled && color.mode !== "off" ? color.mode : "off";
+
+  const onCountChoice = (choice: CountPropagationMode) =>
+    setCountSettings(
+      choice === "off"
+        ? { enabled: false, countMode: "off" }
+        : { enabled: true, countMode: choice },
+    );
+
+  const onColorChoice = (choice: ColorPropagationMode) =>
+    setColorSettings(
+      choice === "off"
+        ? { enabled: false, mode: "off" }
+        : { enabled: true, mode: choice },
+    );
+
+  const countChoices: readonly Choice<CountPropagationMode>[] = [
+    {
+      value: "off",
+      label: "Keep each node's own value",
+      hint: "Every node shows only the count loaded from your file.",
+    },
+    {
+      value: "all",
+      label: "Roll children into parents",
+      hint: "Each parent's value becomes the sum of everything nested beneath it.",
+    },
+    {
+      value: "level",
+      label: "Roll up to a chosen depth",
+      hint: "Deeper rings pile up at the depth you pick; shallower rings keep their own value.",
+      expand: (
+        <DepthField
+          label="Roll up to depth"
+          value={count.level}
+          max={maxDepth}
+          onChange={(level) => setCountSettings({ level })}
+          explain={rollUpExplanation}
+        />
+      ),
+    },
+  ];
+
+  const colorChoices: readonly Choice<ColorPropagationMode>[] = [
+    {
+      value: "specific",
+      label: "By count — per subtree",
+      hint: "Each subtree's colors scale to its own busiest node.",
+      expand: (
+        <DepthField
+          label="Color from depth"
+          value={color.level}
+          max={maxDepth}
+          onChange={(level) => setColorSettings({ level })}
+          explain={colorDepthExplanation}
+        />
+      ),
+    },
+    {
+      value: "global",
+      label: "By count — across the whole file",
+      hint: "One shared scale from the global maximum, so colors compare across subtrees.",
+      expand: (
+        <DepthField
+          label="Color from depth"
+          value={color.level}
+          max={maxDepth}
+          onChange={(level) => setColorSettings({ level })}
+          explain={colorDepthExplanation}
+        />
+      ),
+    },
+    ...(supportsOutermost
+      ? [
+          {
+            value: "phenotype" as const,
+            label: "Outermost nodes only",
+            hint: "Color just the deepest node in each branch; ancestors stay neutral.",
+          },
+        ]
+      : []),
+    {
+      value: "off",
+      label: "Use the colors from your file",
+      hint: "Keep the Color column as imported and ignore counts.",
+    },
+  ];
+
   return (
     <aside className="flex h-full flex-col text-sm">
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
-          <h2 className="text-sm font-semibold tracking-tight">Settings</h2>
-          <p className="text-[11px] text-muted">Live propagation controls</p>
+          <h2 className="text-sm font-semibold tracking-tight">Display settings</h2>
+          <p className="text-[11px] text-muted">How the sunburst reads your data</p>
         </div>
         <button
           type="button"
@@ -56,62 +156,47 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
-        <Section title="Count propagation">
-          <Toggle
-            label="Enabled"
-            checked={count.enabled}
-            onChange={(enabled) => setCountSettings({ enabled })}
-          />
-          <Field label="Mode">
-            <RadioRow
-              name="count-mode"
-              value={count.countMode}
-              options={COUNT_MODES}
-              onChange={(value) =>
-                setCountSettings({ countMode: value as CountPropagationMode })
-              }
-            />
-          </Field>
-          <LevelSlider
-            label="Threshold level"
-            value={count.level}
-            onChange={(level) => setCountSettings({ level })}
-            disabled={count.countMode !== "level"}
+        <Section
+          title="Counts"
+          hint="Choose how a node's value relates to everything nested inside it."
+        >
+          <OptionList
+            name="How counts add up"
+            value={countChoice}
+            choices={countChoices}
+            onChange={onCountChoice}
           />
         </Section>
 
         <Divider />
 
-        <Section title="Color propagation">
-          <Toggle
-            label="Enabled"
-            checked={color.enabled}
-            onChange={(enabled) => setColorSettings({ enabled })}
+        <Section
+          title="Color"
+          hint="Choose what the fill color of each slice represents."
+        >
+          <OptionList
+            name="How slices are colored"
+            value={colorChoice}
+            choices={colorChoices}
+            onChange={onColorChoice}
           />
-          <Field label="Mode">
-            <RadioRow
-              name="color-mode"
-              value={color.mode}
-              options={COLOR_MODES}
-              onChange={(value) =>
-                setColorSettings({ mode: value as ColorPropagationMode })
-              }
-            />
-          </Field>
-          <LevelSlider
-            label="Threshold level"
-            value={color.level}
-            onChange={(level) => setColorSettings({ level })}
-            disabled={color.mode === "off" || color.mode === "phenotype"}
-          />
-          <Field label="Scale stops">
-            <ColorStopEditor
-              stops={color.colorScale}
-              onChange={(stops) => setColorSettings({ colorScale: stops })}
-            />
-          </Field>
+
+          {colorChoice !== "off" ? (
+            <Field label="Color scale">
+              <ColorStopEditor
+                stops={color.colorScale}
+                onChange={(stops) => setColorSettings({ colorScale: stops })}
+              />
+            </Field>
+          ) : null}
+
           <ColorRow
-            label="Default color"
+            label="Neutral color"
+            hint={
+              colorChoice === "off"
+                ? "Fills nodes with no color in your file."
+                : "Fills nodes below the depth and zero-count nodes."
+            }
             value={color.defaultColor}
             onChange={(defaultColor) => setColorSettings({ defaultColor })}
           />
@@ -121,18 +206,105 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   );
 }
 
+/** One selectable card in an OptionList. */
+interface Choice<T extends string> {
+  readonly value: T;
+  readonly label: string;
+  readonly hint: string;
+  /** Extra control revealed below the label while this choice is selected. */
+  readonly expand?: ReactNode;
+}
+
+/**
+ * Vertical radio-card list. Each card carries a one-line explanation so the
+ * choice's effect is legible without prior knowledge, and can reveal an inline
+ * control (e.g. a depth slider) when selected.
+ */
+function OptionList<T extends string>({
+  name,
+  value,
+  choices,
+  onChange,
+}: {
+  readonly name: string;
+  readonly value: T;
+  readonly choices: readonly Choice<T>[];
+  readonly onChange: (value: T) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={name} className="flex flex-col gap-1.5">
+      {choices.map((choice) => {
+        const selected = choice.value === value;
+        return (
+          <div
+            key={choice.value}
+            className={
+              selected
+                ? "rounded-lg border border-accent/60 bg-accent/[0.06]"
+                : "rounded-lg border border-border bg-canvas"
+            }
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(choice.value)}
+              className="flex w-full items-start gap-2.5 px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <span
+                aria-hidden
+                className={
+                  selected
+                    ? "mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border-2 border-accent"
+                    : "mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-border"
+                }
+              >
+                {selected ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                ) : null}
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span
+                  className={
+                    selected ? "text-xs font-medium text-ink" : "text-xs text-ink"
+                  }
+                >
+                  {choice.label}
+                </span>
+                <span className="text-[11px] leading-snug text-muted">
+                  {choice.hint}
+                </span>
+              </span>
+            </button>
+            {selected && choice.expand ? (
+              <div className="border-t border-border/60 px-3 py-2.5">
+                {choice.expand}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Section({
   title,
+  hint,
   children,
 }: {
   readonly title: string;
+  readonly hint: string;
   readonly children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4">
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-soft">
-        {title}
-      </h3>
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-soft">
+          {title}
+        </h3>
+        <p className="text-[11px] leading-snug text-muted">{hint}</p>
+      </div>
       {children}
     </section>
   );
@@ -150,30 +322,60 @@ function Field({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="mt-3 flex flex-col gap-1.5">
       <span className="text-[11px] uppercase tracking-widest text-muted">{label}</span>
       {children}
     </div>
   );
 }
 
-function LevelSlider({
+/**
+ * Plain-language description of what "roll up to depth `v`" does on a tree of
+ * depth `max`, naming the actual levels so the rule isn't left to inference.
+ */
+function rollUpExplanation(v: number, max: number): string {
+  if (v <= 0)
+    return `Everything rolls inward: levels 1–${max} pile up at the center (level 0).`;
+  if (v >= max) return `Level ${max} is the outermost level, so nothing rolls up.`;
+  return `Levels ${v + 1}–${max} pile up at level ${v}. Levels 0–${v - 1} keep their imported values.`;
+}
+
+/** Mirror description for color: depth-and-deeper get colored by count. */
+function colorDepthExplanation(v: number, max: number): string {
+  if (v <= 0) return `Every level is colored by its count.`;
+  return `Levels ${v}–${max} are colored by count. Levels 0–${v - 1} use the neutral color.`;
+}
+
+/**
+ * Depth slider bounded to the loaded ontology's real depth, with an
+ * "n / max" readout and an optional live explanation that updates as the
+ * thumb moves. Drags stage locally so the (expensive) propagation only
+ * re-runs on release.
+ */
+function DepthField({
   label,
   value,
+  max,
   onChange,
-  disabled,
+  explain,
 }: {
   readonly label: string;
   readonly value: number;
+  readonly max: number;
   readonly onChange: (n: number) => void;
-  readonly disabled?: boolean;
+  readonly explain?: (value: number, max: number) => string;
 }) {
-  // Stage drags locally so propagation only re-runs on release.
-  // The thumb tracks `display` for immediate feedback; commit on
-  // pointer-up, key-up, or blur — whichever ends the interaction.
   const [draft, setDraft] = useState<number | null>(null);
-  const display = draft ?? value;
 
+  if (max <= 0) {
+    return (
+      <p className="text-[11px] leading-snug text-muted">
+        This ontology has a single level, so depth has no effect.
+      </p>
+    );
+  }
+
+  const display = draft ?? Math.min(value, max);
   const commit = () => {
     if (draft === null) return;
     const v = draft;
@@ -182,86 +384,63 @@ function LevelSlider({
   };
 
   return (
-    <label className={`flex flex-col gap-1.5 ${disabled ? "opacity-40" : ""}`}>
+    <label className="flex flex-col gap-1.5">
       <span className="flex items-center justify-between text-[11px]">
-        <span className="uppercase tracking-widest text-muted">{label}</span>
-        <span className="font-mono text-ink">{display}</span>
+        <span className="text-muted">{label}</span>
+        <span className="font-mono text-ink">
+          {display}
+          <span className="text-subtle"> / {max}</span>
+        </span>
       </span>
       <input
         type="range"
         min={0}
-        max={12}
+        max={max}
         step={1}
         value={display}
-        disabled={disabled}
         onChange={(e) => setDraft(Number(e.currentTarget.value))}
         onPointerUp={commit}
         onKeyUp={commit}
         onBlur={commit}
       />
-    </label>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  readonly label: string;
-  readonly checked: boolean;
-  readonly onChange: (b: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center justify-between gap-2">
-      <span className="text-xs text-ink">{label}</span>
-      <span
-        className={
-          checked
-            ? "relative inline-flex h-5 w-9 items-center rounded-full bg-accent transition"
-            : "relative inline-flex h-5 w-9 items-center rounded-full bg-border transition"
-        }
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.currentTarget.checked)}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          aria-label={label}
-        />
-        <span
-          className={
-            checked
-              ? "ml-4 inline-block h-4 w-4 rounded-full bg-canvas transition"
-              : "ml-0.5 inline-block h-4 w-4 rounded-full bg-ink transition"
-          }
-        />
-      </span>
+      {explain ? (
+        <span className="text-[11px] leading-snug text-subtle">
+          {explain(display, max)}
+        </span>
+      ) : null}
     </label>
   );
 }
 
 function ColorRow({
   label,
+  hint,
   value,
   onChange,
 }: {
   readonly label: string;
+  readonly hint: string;
   readonly value: string;
   readonly onChange: (s: string) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs">
-      <span className="uppercase tracking-widest text-muted">{label}</span>
-      <span className="flex items-center gap-2">
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[11px] uppercase tracking-widest text-muted">
+          {label}
+        </span>
+        <span className="text-[11px] leading-snug text-subtle">{hint}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.currentTarget.value.toUpperCase())}
           className="h-6 w-10"
+          aria-label={label}
         />
         <span className="font-mono text-[11px] text-muted">{value}</span>
       </span>
-    </label>
+    </div>
   );
 }

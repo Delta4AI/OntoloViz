@@ -103,6 +103,12 @@ interface AppState {
    * padding as needed so a deep ring can be set without touching shallower ones.
    */
   setRingWeight(depth: number, weight: number): void;
+  /**
+   * Replace the whole per-ring weight array in one update — used by the taper
+   * control, which derives a full ramp from a single knob. A copy is stored so
+   * the caller's array can't mutate state afterward.
+   */
+  setRingWeights(weights: readonly number[]): void;
   /** Restore every ring to the uniform baseline. */
   resetRingWeights(): void;
   setHoveredId(id: string | null): void;
@@ -184,6 +190,9 @@ export const useAppStore = create<AppState>((set) => ({
       next[depth] = weight;
       return { layout: { ...state.layout, ringWeights: next } };
     }),
+
+  setRingWeights: (weights) =>
+    set((state) => ({ layout: { ...state.layout, ringWeights: [...weights] } })),
 
   resetRingWeights: () =>
     set((state) => ({ layout: { ...state.layout, ringWeights: [] } })),

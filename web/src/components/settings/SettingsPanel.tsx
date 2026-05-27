@@ -8,6 +8,13 @@ import {
 } from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
 import type { CountPropagationMode } from "@/lib/ontology/propagate";
+import {
+  TAPER_DEFAULT,
+  TAPER_MAX,
+  TAPER_MIN,
+  TAPER_MIN_RINGS,
+  taperRamp,
+} from "@/lib/ontology/taper";
 
 import { ColorStopEditor } from "./ColorStopEditor";
 
@@ -34,6 +41,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const setCountSettings = useAppStore((s) => s.setCountSettings);
   const setColorSettings = useAppStore((s) => s.setColorSettings);
   const setRingWeight = useAppStore((s) => s.setRingWeight);
+  const setRingWeights = useAppStore((s) => s.setRingWeights);
   const resetRingWeights = useAppStore((s) => s.resetRingWeights);
 
   // Deepest level in the loaded data — bounds the depth sliders so they never
@@ -220,6 +228,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             maxDepth={maxDepth}
             weights={ringWeights}
             onChange={setRingWeight}
+            onSetAll={setRingWeights}
             onReset={resetRingWeights}
           />
         </Section>
@@ -238,11 +247,13 @@ function RingWeightControls({
   maxDepth,
   weights,
   onChange,
+  onSetAll,
   onReset,
 }: {
   readonly maxDepth: number;
   readonly weights: readonly number[];
   readonly onChange: (depth: number, weight: number) => void;
+  readonly onSetAll: (weights: readonly number[]) => void;
   readonly onReset: () => void;
 }) {
   if (maxDepth <= 0) {
@@ -253,11 +264,18 @@ function RingWeightControls({
     );
   }
 
+  const ringCount = maxDepth + 1;
   const dirty = weights.some((w) => w !== RING_WEIGHT_DEFAULT);
 
   return (
     <div className="flex flex-col gap-2.5">
-      {Array.from({ length: maxDepth + 1 }, (_, depth) => (
+      {ringCount >= TAPER_MIN_RINGS ? (
+        <TaperSlider
+          dirty={dirty}
+          onChange={(t) => onSetAll(taperRamp(t, ringCount))}
+        />
+      ) : null}
+      {Array.from({ length: ringCount }, (_, depth) => (
         <RingWeightSlider
           key={depth}
           label={depth === 0 ? "Center" : `Ring ${depth}`}
@@ -275,6 +293,65 @@ function RingWeightControls({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Single "fatten center ↔ fatten edge" knob that writes a full per-ring ramp.
+ * Commits on release like the per-ring sliders so re-layout runs once per drag.
+ * Its position is local UI state, not stored geometry — when the rings return
+ * to uniform (Reset, or a fresh ontology), the knob snaps back to center so it
+ * never lies about a ramp that is no longer applied.
+ */
+function TaperSlider({
+  dirty,
+  onChange,
+}: {
+  readonly dirty: boolean;
+  readonly onChange: (t: number) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const [committed, setCommitted] = useState(TAPER_DEFAULT);
+  // Rings are uniform but the knob is off-center → an external reset happened.
+  const value = dirty ? committed : TAPER_DEFAULT;
+  const display = draft ?? value;
+  const commit = () => {
+    if (draft === null) return;
+    const t = draft;
+    setDraft(null);
+    setCommitted(t);
+    onChange(t);
+  };
+
+  return (
+    <label className="flex flex-col gap-1 border-b border-border pb-2.5">
+      <span className="flex items-center justify-between text-[11px]">
+        <span className="text-muted">Taper</span>
+        <span className="text-[10px] text-muted">
+          {display === 0
+            ? "uniform"
+            : display > 0
+              ? "fatten edge"
+              : "fatten center"}
+        </span>
+      </span>
+      <input
+        type="range"
+        min={TAPER_MIN}
+        max={TAPER_MAX}
+        step={0.05}
+        value={display}
+        onChange={(e) => setDraft(Number(e.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        aria-label="Ring taper from center to edge"
+      />
+      <span className="flex items-center justify-between text-[10px] text-muted">
+        <span>fatten center</span>
+        <span>fatten edge</span>
+      </span>
+    </label>
   );
 }
 

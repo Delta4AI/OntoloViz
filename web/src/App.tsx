@@ -443,7 +443,14 @@ function Header({
   // clicking opens a confirmation dialog. Otherwise it's a static brand mark.
   const brand = (
     <>
-      <span aria-hidden className="inline-block h-2 w-2 rounded-sm bg-ink" />
+      <img
+        src="/logo.svg"
+        width="20"
+        height="20"
+        alt=""
+        aria-hidden
+        className="shrink-0"
+      />
       <span className="text-[14px] font-semibold tracking-tight">OntoloViz</span>
     </>
   );

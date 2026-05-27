@@ -132,6 +132,19 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().layout.ringWeights).toEqual([]);
   });
 
+  it("setRingWeights replaces the whole array", () => {
+    useAppStore.getState().setRingWeight(0, 2);
+    useAppStore.getState().setRingWeights([0.5, 1, 1.5]);
+    expect(useAppStore.getState().layout.ringWeights).toEqual([0.5, 1, 1.5]);
+  });
+
+  it("setRingWeights stores a copy so the source can't mutate state", () => {
+    const source = [0.5, 1, 1.5];
+    useAppStore.getState().setRingWeights(source);
+    source[0] = 99;
+    expect(useAppStore.getState().layout.ringWeights).toEqual([0.5, 1, 1.5]);
+  });
+
   it("reset restores uniform ring weights", () => {
     useAppStore.getState().setRingWeight(0, 2.5);
     useAppStore.getState().reset();

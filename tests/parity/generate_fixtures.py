@@ -33,7 +33,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from ontoloviz.core import ATCSunburst, MeSHSunburst  # noqa: E402
 from ontoloviz.core_utils import generate_color_range  # noqa: E402
 
-TEMPLATES_DIR = REPO_ROOT / "templates"
+TEMPLATES_DIR = REPO_ROOT / "web" / "public" / "templates"
 FIXTURES_DIR = REPO_ROOT / "web" / "tests" / "fixtures" / "parity"
 COLOR_FIXTURES_DIR = REPO_ROOT / "web" / "tests" / "fixtures" / "parity-color"
 

@@ -34,7 +34,7 @@ interface ParityFixture {
 
 const REPO_ROOT = join(__dirname, "..", "..", "..");
 const FIXTURE_DIR = join(REPO_ROOT, "web", "tests", "fixtures", "parity");
-const TEMPLATES = join(REPO_ROOT, "templates");
+const TEMPLATES = join(REPO_ROOT, "web", "public", "templates");
 
 const FIXTURE_TO_TEMPLATE: Record<ParityFixture["kind"], string> = {
   atc: "atc_example_covid_drugs_experimental.tsv",

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { layoutSunburst } from "@/lib/ontology/layout";
 import { renderSunburst } from "@/lib/ontology/render";
+import { useAppStore } from "@/lib/store";
 import type { Subtree } from "@/lib/ontology/types";
 import { readThemeColor, useTheme } from "@/lib/theme";
 
@@ -58,7 +59,11 @@ export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTile
     return () => ro.disconnect();
   }, []);
 
-  const layout = useMemo(() => layoutSunburst(subtree), [subtree]);
+  const ringWeights = useAppStore((s) => s.layout.ringWeights);
+  const layout = useMemo(
+    () => layoutSunburst(subtree, { ringWeights }),
+    [subtree, ringWeights],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -81,6 +81,11 @@ export interface OverviewExportOptions {
   readonly outerPadding?: number;
   /** Gap between tiles in CSS px. */
   readonly tileGap?: number;
+  /**
+   * Per-depth ring thickness weights (see `LayoutOptions.ringWeights`). Applied
+   * to every static grid tile so the export matches the on-screen overview.
+   */
+  readonly ringWeights?: readonly number[];
 }
 
 export interface OverviewPngOptions extends OverviewExportOptions {
@@ -270,7 +275,10 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
   );
 
   const tiles: Tile[] = subtrees.map((subtree) => {
-    const layout = layoutSunburst(subtree);
+    const layout = layoutSunburst(
+      subtree,
+      options.ringWeights ? { ringWeights: options.ringWeights } : {},
+    );
     const rootNode = subtree.nodes.get(subtree.rootId);
     const sublabel = labels.count ? `${subtree.nodes.size.toLocaleString()} nodes` : "";
     const title = labels.name ? rootNode?.label?.trim() || subtree.rootId : "";

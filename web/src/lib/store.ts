@@ -38,6 +38,29 @@ export const DEFAULT_COLOR_SETTINGS: ColorPropagationSettings = {
 };
 
 /**
+ * Purely-visual sunburst geometry settings. Unlike count/color, these never
+ * flow through `derivePropagated` — they reach the renderer as `layoutSunburst`
+ * options instead, so the propagated ontology is untouched.
+ */
+export interface LayoutSettings {
+  /**
+   * Per-depth radial thickness, indexed by ring depth (0 = center). `1` is the
+   * uniform baseline. Empty means uniform everywhere. The array grows only as
+   * far as the user has touched a ring; unset depths render at weight 1.
+   */
+  readonly ringWeights: readonly number[];
+}
+
+/** Allowed range for a single ring's thickness multiplier. */
+export const RING_WEIGHT_MIN = 0.25;
+export const RING_WEIGHT_MAX = 3;
+export const RING_WEIGHT_DEFAULT = 1;
+
+export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
+  ringWeights: [],
+};
+
+/**
  * Visualization view mode.
  *
  * - `overview`: small-multiples grid of every subtree at once. Default for
@@ -58,6 +81,8 @@ interface AppState {
   readonly count: PropagationSettings;
   /** Color-propagation settings. */
   readonly color: ColorPropagationSettings;
+  /** Sunburst ring-geometry settings (purely visual). */
+  readonly layout: LayoutSettings;
   /**
    * Cross-surface hover. The sunburst sets this when the user mouses over a
    * slice; the grid sets this when the user hovers a row. Both surfaces
@@ -73,6 +98,13 @@ interface AppState {
   setViewMode(mode: ViewMode): void;
   setCountSettings(partial: Partial<PropagationSettings>): void;
   setColorSettings(partial: Partial<ColorPropagationSettings>): void;
+  /**
+   * Set one ring's thickness multiplier. Extends `ringWeights` with weight-1
+   * padding as needed so a deep ring can be set without touching shallower ones.
+   */
+  setRingWeight(depth: number, weight: number): void;
+  /** Restore every ring to the uniform baseline. */
+  resetRingWeights(): void;
   setHoveredId(id: string | null): void;
   setSearchQuery(query: string): void;
   /**
@@ -94,6 +126,7 @@ export const useAppStore = create<AppState>((set) => ({
   viewMode: "overview",
   count: DEFAULT_COUNT_SETTINGS,
   color: DEFAULT_COLOR_SETTINGS,
+  layout: DEFAULT_LAYOUT_SETTINGS,
   hoveredId: null,
   searchQuery: "",
 
@@ -141,6 +174,20 @@ export const useAppStore = create<AppState>((set) => ({
   setColorSettings: (partial) =>
     set((state) => ({ color: { ...state.color, ...partial } })),
 
+  setRingWeight: (depth, weight) =>
+    set((state) => {
+      if (depth < 0) return {};
+      const next = [...state.layout.ringWeights];
+      // Pad intervening unset rings with the baseline so depth N can be set
+      // without inventing values for 0..N-1.
+      while (next.length <= depth) next.push(RING_WEIGHT_DEFAULT);
+      next[depth] = weight;
+      return { layout: { ...state.layout, ringWeights: next } };
+    }),
+
+  resetRingWeights: () =>
+    set((state) => ({ layout: { ...state.layout, ringWeights: [] } })),
+
   setHoveredId: (id) => set(() => ({ hoveredId: id })),
 
   setSearchQuery: (searchQuery) => set(() => ({ searchQuery })),
@@ -169,6 +216,7 @@ export const useAppStore = create<AppState>((set) => ({
       viewMode: "overview",
       count: DEFAULT_COUNT_SETTINGS,
       color: DEFAULT_COLOR_SETTINGS,
+      layout: DEFAULT_LAYOUT_SETTINGS,
       hoveredId: null,
       searchQuery: "",
     })),

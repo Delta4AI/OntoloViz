@@ -223,12 +223,23 @@ export const RUNTIME_JS = `
       for (var i=0;i<kids.length;i++) h = Math.max(h, height(kids[i].id));
       return heightCache[id] = h + 1;
     }
-    function partition(focusId){
+    function ringBounds(bands, weights){
+      var b = [0], total = 0, w = [];
+      for (var i=0;i<bands;i++){
+        var v = (weights && isFinite(weights[i]) && weights[i] >= 0) ? weights[i] : 1;
+        w.push(v); total += v;
+      }
+      if (total <= 0){ for (var j=1;j<=bands;j++) b.push(j/bands); return b; }
+      var acc = 0;
+      for (var k=0;k<bands;k++){ acc += w[k]; b.push(acc/total); }
+      return b;
+    }
+    function partition(focusId, weights){
       var H = height(focusId);
-      var step = 1/(H+1);
+      var bounds = ringBounds(H+1, weights);
       var out = [];
       function go(id, x0, x1, depth){
-        out.push({id:id, parent:byId[id].parent, depth:depth, x0:x0, x1:x1, y0:depth*step, y1:(depth+1)*step});
+        out.push({id:id, parent:byId[id].parent, depth:depth, x0:x0, x1:x1, y0:bounds[depth], y1:bounds[depth+1]});
         var kids = children[id] || [];
         if (!kids.length) return;
         var v = value(id);
@@ -384,6 +395,7 @@ export const RUNTIME_JS = `
       var height = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal.height : 800;
       var sub = opts.subtree;
       var idx = indexSubtree(sub);
+      var ringWeights = opts.ringWeights || [];
       var focusId = opts.initialFocus && idx.byId[opts.initialFocus] ? opts.initialFocus : sub.rootId;
       var crumbHost = opts.crumbHost;
       var tip = opts.tooltip;
@@ -391,7 +403,7 @@ export const RUNTIME_JS = `
       function setFocus(id){
         if (!idx.byId[id]) return;
         focusId = id;
-        var layout = idx.partition(id);
+        var layout = idx.partition(id, ringWeights);
         renderInto(svg, layout, idx, width, height);
         if (crumbHost) renderCrumbs(crumbHost, idx.trail(id, sub.rootId), idx, setFocus);
       }

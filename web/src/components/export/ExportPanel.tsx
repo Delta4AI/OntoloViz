@@ -19,6 +19,7 @@
 import { useDeferredValue, useMemo, type ReactNode } from "react";
 
 import { layoutSunburst } from "@/lib/ontology/layout";
+import { useAppStore } from "@/lib/store";
 import type { Ontology, Subtree } from "@/lib/ontology/types";
 import { useTheme } from "@/lib/theme";
 import { overviewToPngBlob, overviewToSvg } from "@/lib/export/overview";
@@ -94,6 +95,7 @@ export function ExportPanel({
   const update = useExportConfig((s) => s.update);
   const applyPreset = useExportConfig((s) => s.applyPreset);
   const appTheme = useTheme();
+  const ringWeights = useAppStore((s) => s.layout.ringWeights);
 
   const preset = getPreset(config.presetId);
   // The "web" preset mirrors the running app's data-theme — picking it
@@ -166,6 +168,7 @@ export function ExportPanel({
         subtree,
         ontology: deferredFilteredOntology,
         focusId,
+        ringWeights,
         busy: isPreviewBusy,
       }),
     [
@@ -175,6 +178,7 @@ export function ExportPanel({
       subtree,
       deferredFilteredOntology,
       focusId,
+      ringWeights,
       isPreviewBusy,
     ],
   );
@@ -189,6 +193,7 @@ export function ExportPanel({
         theme: themeForExport,
         filename,
         format,
+        ringWeights,
       });
     } else {
       if (!subtree) return;
@@ -199,6 +204,7 @@ export function ExportPanel({
         filename,
         focusId,
         format,
+        ringWeights,
       });
     }
   };
@@ -449,11 +455,12 @@ interface BuildPreviewSvgArgs {
   readonly subtree: Subtree | null;
   readonly ontology: Ontology | null;
   readonly focusId: string | undefined;
+  readonly ringWeights: readonly number[];
   readonly busy: boolean;
 }
 
 function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
-  const { scope, config, theme, subtree, ontology, busy } = args;
+  const { scope, config, theme, subtree, ontology, ringWeights, busy } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
   if (scope === "overview") {
@@ -471,6 +478,7 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
       showHeader: burnHeader,
       titleFontSize: config.titleFontSize,
       captionFontSize: config.captionFontSize,
+      ringWeights,
       ...(config.title ? { title: config.title } : {}),
       ...(config.caption ? { caption: config.caption } : {}),
     });
@@ -478,10 +486,10 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
   }
 
   if (!subtree) return <EmptyPreview>No active subtree</EmptyPreview>;
-  const layout = layoutSunburst(
-    subtree,
-    args.focusId !== undefined ? { focusId: args.focusId } : {},
-  );
+  const layout = layoutSunburst(subtree, {
+    ...(args.focusId !== undefined ? { focusId: args.focusId } : {}),
+    ringWeights,
+  });
   const svg = layoutToSvg(layout, {
     width: config.width,
     height: config.height,
@@ -587,13 +595,17 @@ interface SubtreeDownloadArgs {
   readonly filename: string;
   readonly focusId: string | undefined;
   readonly format: ExportFormat;
+  readonly ringWeights: readonly number[];
 }
 
 async function downloadSubtree(args: SubtreeDownloadArgs): Promise<void> {
-  const { subtree, config, theme, filename, focusId, format } = args;
+  const { subtree, config, theme, filename, focusId, format, ringWeights } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
-  const layout = layoutSunburst(subtree, focusId !== undefined ? { focusId } : {});
+  const layout = layoutSunburst(subtree, {
+    ...(focusId !== undefined ? { focusId } : {}),
+    ringWeights,
+  });
 
   if (format === "png") {
     const blob = await exportLayoutToPngBlob(layout, {
@@ -634,10 +646,11 @@ interface OverviewDownloadArgs {
   readonly theme: ExportTheme;
   readonly filename: string;
   readonly format: ExportFormat;
+  readonly ringWeights: readonly number[];
 }
 
 async function downloadOverview(args: OverviewDownloadArgs): Promise<void> {
-  const { ontology, config, theme, filename, format } = args;
+  const { ontology, config, theme, filename, format, ringWeights } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
 
   const baseOptions = {
@@ -650,6 +663,7 @@ async function downloadOverview(args: OverviewDownloadArgs): Promise<void> {
     labelStyles: config.labelStyles,
     outerPadding: config.padding,
     showHeader: burnHeader,
+    ringWeights,
     titleFontSize: config.titleFontSize,
     captionFontSize: config.captionFontSize,
     ...(config.title ? { title: config.title } : {}),

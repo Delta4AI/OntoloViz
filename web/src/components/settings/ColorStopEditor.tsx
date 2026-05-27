@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { ColorStop } from "@/lib/ontology/color";
 
 interface ColorStopEditorProps {
@@ -77,20 +77,20 @@ export function ColorStopEditor({ stops, onChange }: ColorStopEditorProps) {
     return (clientX - rect.left) / rect.width;
   };
 
-  const startDrag = (i: number, e: React.PointerEvent<HTMLButtonElement>) => {
+  const startDrag = (i: number, e: ReactPointerEvent<HTMLButtonElement>) => {
     if (i === 0 || i === view.length - 1) return;
     e.preventDefault();
     setDraggingIdx(i);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const onDragMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onDragMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
     if (draggingIdx === null) return;
     const ratio = positionFromEvent(e.clientX);
     if (ratio !== null) stagePosition(draggingIdx, ratio);
   };
 
-  const endDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const endDrag = (e: ReactPointerEvent<HTMLButtonElement>) => {
     if (draggingIdx === null) return;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);

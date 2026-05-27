@@ -7,7 +7,7 @@ import {
   extractCountLabel,
 } from "../../src/lib/ontology/parse";
 
-const TEMPLATES = join(__dirname, "..", "..", "..", "templates");
+const TEMPLATES = join(__dirname, "..", "..", "..", "web", "public", "templates");
 const readTemplate = (name: string) => readFileSync(join(TEMPLATES, name), "utf-8");
 
 describe("detectFormat", () => {

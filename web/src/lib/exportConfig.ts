@@ -21,6 +21,9 @@ import { persist } from "zustand/middleware";
 
 import {
   DEFAULT_OVERVIEW_LABEL_STYLES,
+  DEFAULT_SUBTREE_LABELS,
+  DEFAULT_SUBTREE_LABEL_POSITIONS,
+  DEFAULT_SUBTREE_LABEL_STYLES,
   EXPORT_PRESETS,
   getPreset,
   type ExportLabelFlags,
@@ -28,6 +31,9 @@ import {
   type ExportPresetId,
   type LabelPositions,
   type OverviewLabelStyles,
+  type SubtreeLabelFlags,
+  type SubtreeLabelPositions,
+  type SubtreeLabelStyles,
 } from "./export/theme";
 
 export type ExportScope = "subtree" | "overview";
@@ -56,6 +62,12 @@ export interface ExportConfig {
   readonly labelPositions: LabelPositions;
   /** Per-element styling (font size, weight, alignment) for overview labels. */
   readonly labelStyles: OverviewLabelStyles;
+  /** Subtree-scope labels: which of id/header/description to burn in. */
+  readonly subtreeLabels: SubtreeLabelFlags;
+  /** Per-element position (above/below/overlay) for subtree labels. */
+  readonly subtreeLabelPositions: SubtreeLabelPositions;
+  /** Per-element styling (font size, weight, alignment) for subtree labels. */
+  readonly subtreeLabelStyles: SubtreeLabelStyles;
   readonly padding: number;
 
   readonly fontChoice: ExportFontChoice;
@@ -105,6 +117,9 @@ function configFromPreset(presetId: ExportPresetId): ExportConfig {
     labels: preset.labels,
     labelPositions: preset.labelPositions,
     labelStyles: DEFAULT_OVERVIEW_LABEL_STYLES,
+    subtreeLabels: DEFAULT_SUBTREE_LABELS,
+    subtreeLabelPositions: DEFAULT_SUBTREE_LABEL_POSITIONS,
+    subtreeLabelStyles: DEFAULT_SUBTREE_LABEL_STYLES,
     padding: preset.padding,
     fontChoice: fontChoiceFor(preset),
     columns: 3,
@@ -154,6 +169,11 @@ export const useExportConfig = create<ExportConfigStore>()(
               titleFontSize: state.config.titleFontSize,
               captionFontSize: state.config.captionFontSize,
               pngScale: state.config.pngScale,
+              // Subtree labels are content choices (which root fields to show),
+              // not a visual style direction — preserve them like title/caption.
+              subtreeLabels: state.config.subtreeLabels,
+              subtreeLabelPositions: state.config.subtreeLabelPositions,
+              subtreeLabelStyles: state.config.subtreeLabelStyles,
             },
           };
         }),
@@ -161,8 +181,8 @@ export const useExportConfig = create<ExportConfigStore>()(
     }),
     {
       name: "ontoloviz-export-config",
-      // Bumped after dropping `format` (download buttons now choose format).
-      version: 6,
+      // Bumped after adding subtree-scope labels (id/header/description).
+      version: 7,
     },
   ),
 );

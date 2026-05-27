@@ -37,15 +37,16 @@ import {
   type ExportFormat,
   type ExportScope,
 } from "@/lib/exportConfig";
+import type { ExportLabelLine } from "@/lib/export/labelBands";
 import {
   getPreset,
   webThemeFor,
+  type ExportLabelFlags,
   type ExportTheme,
   type LabelAlign,
   type LabelPosition,
-  type LabelPositions,
   type OverviewLabelStyle,
-  type OverviewLabelStyles,
+  type SubtreeLabelFlags,
 } from "@/lib/export/theme";
 
 interface ExportPanelProps {
@@ -78,10 +79,16 @@ const LABEL_ALIGNS: readonly { value: LabelAlign; label: string }[] = [
   { value: "right", label: "Right" },
 ];
 
-const LABEL_KEYS: readonly { key: keyof OverviewLabelStyles; label: string }[] = [
+const OVERVIEW_LABEL_KEYS: readonly { key: keyof ExportLabelFlags; label: string }[] = [
   { key: "id", label: "Id" },
   { key: "count", label: "Count" },
   { key: "name", label: "Name" },
+];
+
+const SUBTREE_LABEL_KEYS: readonly { key: keyof SubtreeLabelFlags; label: string }[] = [
+  { key: "id", label: "Id" },
+  { key: "header", label: "Header (name)" },
+  { key: "description", label: "Description" },
 ];
 
 export function ExportPanel({
@@ -361,15 +368,33 @@ export function ExportPanel({
 
           <Divider />
 
-          <LabelsSection
-            scope={effectiveScope}
-            labels={config.labels}
-            labelStyles={config.labelStyles}
-            labelPositions={config.labelPositions}
-            onLabelsChange={(labels) => update({ labels })}
-            onStylesChange={(labelStyles) => update({ labelStyles })}
-            onPositionsChange={(labelPositions) => update({ labelPositions })}
-          />
+          {effectiveScope === "overview" ? (
+            <LabelsSection
+              keys={OVERVIEW_LABEL_KEYS}
+              labels={config.labels}
+              labelStyles={config.labelStyles}
+              labelPositions={config.labelPositions}
+              overlayHint="Overlay snaps each label to a corner (id ↖ · count ↗ · name ↓ center)"
+              overlayAutoAligns
+              onLabelsChange={(labels) => update({ labels })}
+              onStylesChange={(labelStyles) => update({ labelStyles })}
+              onPositionsChange={(labelPositions) => update({ labelPositions })}
+            />
+          ) : (
+            <LabelsSection
+              keys={SUBTREE_LABEL_KEYS}
+              labels={config.subtreeLabels}
+              labelStyles={config.subtreeLabelStyles}
+              labelPositions={config.subtreeLabelPositions}
+              overlayHint="Overlay centers the label inside the sunburst"
+              overlayAutoAligns={false}
+              onLabelsChange={(subtreeLabels) => update({ subtreeLabels })}
+              onStylesChange={(subtreeLabelStyles) => update({ subtreeLabelStyles })}
+              onPositionsChange={(subtreeLabelPositions) =>
+                update({ subtreeLabelPositions })
+              }
+            />
+          )}
 
           <Divider />
 
@@ -459,6 +484,44 @@ interface BuildPreviewSvgArgs {
   readonly busy: boolean;
 }
 
+/**
+ * Resolve the configured subtree labels into renderable caption lines, pulling
+ * id / name / description from the focused root node. Skips disabled labels and
+ * empty fields (e.g. a node with no description).
+ */
+function buildSubtreeLabelLines(
+  config: ExportConfig,
+  subtree: Subtree,
+  focusId: string | undefined,
+): readonly ExportLabelLine[] {
+  const node = subtree.nodes.get(focusId ?? subtree.rootId);
+  if (!node) return [];
+  const fields: readonly {
+    readonly key: keyof SubtreeLabelFlags;
+    readonly text: string;
+    readonly muted: boolean;
+  }[] = [
+    { key: "id", text: node.id, muted: true },
+    { key: "header", text: node.label, muted: false },
+    { key: "description", text: node.description, muted: true },
+  ];
+  const lines: ExportLabelLine[] = [];
+  for (const f of fields) {
+    if (!config.subtreeLabels[f.key]) continue;
+    if (!f.text.trim()) continue;
+    const style = config.subtreeLabelStyles[f.key];
+    lines.push({
+      text: f.text,
+      position: config.subtreeLabelPositions[f.key],
+      fontSize: style.fontSize,
+      bold: style.bold,
+      align: style.align,
+      muted: f.muted,
+    });
+  }
+  return lines;
+}
+
 function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
   const { scope, config, theme, subtree, ontology, ringWeights, busy } = args;
   const burnHeader = Boolean(config.title.trim() || config.caption.trim());
@@ -501,6 +564,7 @@ function buildPreviewSvg(args: BuildPreviewSvgArgs): ReactNode {
     showHeader: burnHeader,
     titleFontSize: config.titleFontSize,
     captionFontSize: config.captionFontSize,
+    labels: buildSubtreeLabelLines(config, subtree, args.focusId),
     ...(config.title ? { title: config.title } : {}),
     ...(config.caption ? { caption: config.caption } : {}),
   });
@@ -606,6 +670,7 @@ async function downloadSubtree(args: SubtreeDownloadArgs): Promise<void> {
     ...(focusId !== undefined ? { focusId } : {}),
     ringWeights,
   });
+  const labels = buildSubtreeLabelLines(config, subtree, focusId);
 
   if (format === "png") {
     const blob = await exportLayoutToPngBlob(layout, {
@@ -617,6 +682,7 @@ async function downloadSubtree(args: SubtreeDownloadArgs): Promise<void> {
       showHeader: burnHeader,
       titleFontSize: config.titleFontSize,
       captionFontSize: config.captionFontSize,
+      labels,
       ...(config.title ? { title: config.title } : {}),
       ...(config.caption ? { caption: config.caption } : {}),
     });
@@ -634,6 +700,7 @@ async function downloadSubtree(args: SubtreeDownloadArgs): Promise<void> {
     showHeader: burnHeader,
     titleFontSize: config.titleFontSize,
     captionFontSize: config.captionFontSize,
+    labels,
     ...(config.title ? { title: config.title } : {}),
     ...(config.caption ? { caption: config.caption } : {}),
   });
@@ -946,50 +1013,48 @@ function ColorRow({
  * (above / below / overlay) — so labels can sit in different bands
  * independently of one another.
  */
-interface LabelsSectionProps {
-  readonly scope: ExportScope;
-  readonly labels: {
-    readonly id: boolean;
-    readonly count: boolean;
-    readonly name: boolean;
-  };
-  readonly labelStyles: OverviewLabelStyles;
-  readonly labelPositions: LabelPositions;
-  readonly onLabelsChange: (next: {
-    readonly id: boolean;
-    readonly count: boolean;
-    readonly name: boolean;
-  }) => void;
-  readonly onStylesChange: (next: OverviewLabelStyles) => void;
-  readonly onPositionsChange: (next: LabelPositions) => void;
+interface LabelsSectionProps<K extends string> {
+  readonly keys: readonly { readonly key: K; readonly label: string }[];
+  readonly labels: Record<K, boolean>;
+  readonly labelStyles: Record<K, OverviewLabelStyle>;
+  readonly labelPositions: Record<K, LabelPosition>;
+  /** Overlay-mode hint, since overlay placement differs by scope. */
+  readonly overlayHint: string;
+  /** When true, overlay snaps to corners and ignores per-label alignment. */
+  readonly overlayAutoAligns: boolean;
+  readonly onLabelsChange: (next: Record<K, boolean>) => void;
+  readonly onStylesChange: (next: Record<K, OverviewLabelStyle>) => void;
+  readonly onPositionsChange: (next: Record<K, LabelPosition>) => void;
 }
 
-function LabelsSection({
-  scope,
+function LabelsSection<K extends string>({
+  keys,
   labels,
   labelStyles,
   labelPositions,
+  overlayHint,
+  overlayAutoAligns,
   onLabelsChange,
   onStylesChange,
   onPositionsChange,
-}: LabelsSectionProps) {
-  const showStyles = scope === "overview";
+}: LabelsSectionProps<K>) {
   return (
     <Section title="Labels">
       <div className="overflow-hidden rounded-md border border-border bg-elevated/40">
-        {LABEL_KEYS.map(({ key, label }, index) => (
+        {keys.map(({ key, label }, index) => (
           <LabelRow
             key={key}
             label={label}
             checked={labels[key]}
             onToggle={(v) => onLabelsChange({ ...labels, [key]: v })}
-            showStyle={showStyles}
             style={labelStyles[key]}
             onStyleChange={(next) => onStylesChange({ ...labelStyles, [key]: next })}
             position={labelPositions[key]}
             onPositionChange={(next) =>
               onPositionsChange({ ...labelPositions, [key]: next })
             }
+            overlayHint={overlayHint}
+            overlayAutoAligns={overlayAutoAligns}
             divided={index > 0}
           />
         ))}
@@ -1002,11 +1067,13 @@ interface LabelRowProps {
   readonly label: string;
   readonly checked: boolean;
   readonly onToggle: (v: boolean) => void;
-  readonly showStyle: boolean;
   readonly style: OverviewLabelStyle;
   readonly onStyleChange: (next: OverviewLabelStyle) => void;
   readonly position: LabelPosition;
   readonly onPositionChange: (next: LabelPosition) => void;
+  readonly overlayHint: string;
+  /** When true, overlay placement snaps to a corner and ignores alignment. */
+  readonly overlayAutoAligns: boolean;
   readonly divided: boolean;
 }
 
@@ -1014,14 +1081,16 @@ function LabelRow({
   label,
   checked,
   onToggle,
-  showStyle,
   style,
   onStyleChange,
   position,
   onPositionChange,
+  overlayHint,
+  overlayAutoAligns,
   divided,
 }: LabelRowProps) {
-  const expanded = checked && showStyle;
+  const expanded = checked;
+  const overlayLocksAlign = position === "overlay" && overlayAutoAligns;
   return (
     <div className={divided ? "border-t border-border" : ""}>
       <label className="flex cursor-pointer items-center gap-2.5 px-3 py-2">
@@ -1058,10 +1127,10 @@ function LabelRow({
               value={style.bold}
               onChange={(bold) => onStyleChange({ ...style, bold })}
             />
-            {position === "overlay" ? (
+            {overlayLocksAlign ? (
               <span
                 className="rounded-md border border-dashed border-border bg-elevated/60 px-2 py-1 text-[10px] leading-none text-muted"
-                title="Overlay snaps each label to a corner (id ↖ · count ↗ · name ↓ center)"
+                title={overlayHint}
               >
                 auto-aligned
               </span>

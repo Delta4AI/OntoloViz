@@ -54,10 +54,16 @@ if [ -z "$WHEEL" ]; then
 fi
 if [ -z "$WHEEL" ] || [ ! -f "$WHEEL" ]; then
     cat >&2 <<'EOF'
-ERROR: no wheel found.
-  Build one here:   make build       (needs Node+pnpm+uv; embeds the SPA bundle)
-  or copy a CI-built wheel into ./dist/, or pass its path:
-                    sudo ./install-service.sh /path/to/ontoloviz-<ver>.whl
+ERROR: no wheel found. Either:
+
+  Build on this host first (as your normal user, NOT root):
+    cd web && pnpm install            # one-time (needs node + pnpm + uv)
+    make build                        # → dist/ontoloviz-<ver>-py3-none-any.whl
+  then re-run this installer with sudo.
+  Sub-path deploy? persist the base once:  echo 'VITE_BASE=/ontoloviz/' > web/.env.production.local
+
+  Or copy a CI/dev-built wheel into ./dist/, or pass its path:
+    sudo ./install-service.sh /path/to/ontoloviz-<ver>.whl
 EOF
     exit 1
 fi

@@ -33,6 +33,12 @@ fi
 WHEEL=""
 if [ "${1:-}" = "--build" ]; then
     # --- source mode: rebuild bundle + wheel here (needs Node + pnpm + uv) --
+    for tool in git node pnpm uv; do
+        command -v "$tool" >/dev/null 2>&1 || {
+            echo "ERROR: --build needs '$tool' on PATH. Install node + pnpm (corepack) + uv." >&2
+            exit 1
+        }
+    done
     branch="$(git rev-parse --abbrev-ref HEAD)"
     if [ "$branch" != "main" ] && [ "$branch" != "master" ]; then
         echo "WARNING: on branch '${branch}', not main/master."
@@ -40,6 +46,10 @@ if [ "${1:-}" = "--build" ]; then
         [[ "$confirm" =~ ^[Yy]$ ]] || exit 1
     fi
     git pull
+    # Sync frontend deps to the (possibly updated) lockfile before building.
+    # The sub-path base is read from web/.env.production.local (see vite.config),
+    # so no VITE_BASE needs re-passing here.
+    ( cd web && pnpm install --frozen-lockfile )
     make build   # build-web (pnpm) THEN build-wheel — order matters
     WHEEL="$(ls -t dist/*.whl 2>/dev/null | head -1 || true)"
 else

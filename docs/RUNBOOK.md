@@ -37,12 +37,39 @@ Both scripts are idempotent (converge to the same state; safe to re-run) and
 run a post-deploy healthcheck that **fails loudly** if the SPA bundle isn't
 served — guarding against a wheel built without the frontend.
 
+### Building on the prod host (instead of shipping a wheel)
+
+Valid for a single internal host if you'd rather not build + copy elsewhere.
+The frontend build is a full toolchain, so this is a deliberate trade-off
+(more to patch; a `pnpm install` hiccup can break a deploy).
+
+One-time on the host:
+
+```bash
+# Toolchain (Debian/Ubuntu): Node (gives corepack) + pnpm + uv
+sudo apt install -y nodejs && sudo corepack enable pnpm
+curl -LsSf https://astral.sh/uv/install.sh | sh        # uv
+
+cd ~/path/to/OntoloViz
+echo 'VITE_BASE=/ontoloviz/' > web/.env.production.local   # persist the sub-path base
+cd web && pnpm install                                     # node_modules (once)
+cd .. && make build                                        # build the wheel here
+sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ONTOLOVIZ_PROXY_HEADERS=1 ./install-service.sh
+```
+
+`web/.env.production.local` is gitignored and read by Vite on every build, so
+the sub-path base is never forgotten and never committed.
+
 ### Update / rollback
 
 ```bash
 ./update-service.sh [path/to/new-wheel]   # wheel mode (no Node needed) + restart
-./update-service.sh --build               # source mode: git pull + make build (needs Node)
+./update-service.sh --build               # build on this host: git pull + pnpm install + make build + restart
 ```
+
+`--build` runs a toolchain preflight (node/pnpm/uv), syncs frontend deps to the
+lockfile, and reuses the persisted `VITE_BASE` — so frontend updates are a
+single command on the host.
 
 Run `update-service.sh` as the **service user, not root** (only the per-command
 `sudo` steps are elevated, so `git pull` keeps your SSH keys).

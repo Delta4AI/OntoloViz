@@ -19,7 +19,7 @@ import type { Node, Ontology } from "./ontology/types";
 
 export const DEFAULT_COUNT_SETTINGS: PropagationSettings = {
   enabled: true,
-  countMode: "all",
+  countMode: "off",
   level: 0,
 };
 

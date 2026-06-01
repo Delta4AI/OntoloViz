@@ -22,9 +22,6 @@ wheel where Node is available (CI or a dev box), copy it to the host, install.
 # Build the release artifact (frontend bundle THEN wheel — order matters):
 make build                      # → dist/ontoloviz-<ver>-py3-none-any.whl
 
-# Sub-path deployment instead? Build with the base path baked in:
-VITE_BASE=/ontoloviz/ make build
-
 # On the host (installs into /opt/ontoloviz/venv + a hardened systemd unit):
 sudo ./install-service.sh [path/to/wheel]
 
@@ -32,6 +29,11 @@ sudo ./install-service.sh [path/to/wheel]
 sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ONTOLOVIZ_PROXY_HEADERS=1 \
      ./install-service.sh
 ```
+
+The frontend builds with a **relative base** by default, so the *same* bundle
+works at the root or under any reverse-proxy sub-path (e.g. `/ontoloviz/`) with
+**no build-time config** — just have the proxy strip the prefix (trailing-slash
+`proxy_pass`). Set `VITE_BASE=/abs/path/` only to force an absolute base.
 
 Both scripts are idempotent (converge to the same state; safe to re-run) and
 run a post-deploy healthcheck that **fails loudly** if the SPA bundle isn't
@@ -51,14 +53,13 @@ sudo apt install -y nodejs && sudo corepack enable pnpm
 curl -LsSf https://astral.sh/uv/install.sh | sh        # uv
 
 cd ~/path/to/OntoloViz
-echo 'VITE_BASE=/ontoloviz/' > web/.env.production.local   # persist the sub-path base
 cd web && pnpm install                                     # node_modules (once)
 cd .. && make build                                        # build the wheel here
 sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ONTOLOVIZ_PROXY_HEADERS=1 ./install-service.sh
 ```
 
-`web/.env.production.local` is gitignored and read by Vite on every build, so
-the sub-path base is never forgotten and never committed.
+No frontend config is needed — the relative-base build works under the
+`/ontoloviz/` sub-path as-is.
 
 ### Update / rollback
 
@@ -67,9 +68,8 @@ the sub-path base is never forgotten and never committed.
 ./update-service.sh --build               # build on this host: git pull + pnpm install + make build + restart
 ```
 
-`--build` runs a toolchain preflight (node/pnpm/uv), syncs frontend deps to the
-lockfile, and reuses the persisted `VITE_BASE` — so frontend updates are a
-single command on the host.
+`--build` runs a toolchain preflight (node/pnpm/uv) and syncs frontend deps to
+the lockfile — so frontend updates are a single command on the host.
 
 Run `update-service.sh` as the **service user, not root** (only the per-command
 `sudo` steps are elevated, so `git pull` keeps your SSH keys).
@@ -134,8 +134,8 @@ curl -fsS http://127.0.0.1:8000/ | grep index-    # SPA bundle is being served
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Browser shows landing/404, API works | Stale or frontend-less bundle served | Rebuild (`make build` / `VITE_BASE=… make build`) and re-deploy; never `uv build` alone. |
-| Assets 404 behind a proxy sub-path | SPA built with base `/` | Rebuild with `VITE_BASE=/<prefix>/` and have the proxy strip the prefix (trailing-slash `proxy_pass`). |
+| Browser shows landing/404, API works | Stale or frontend-less bundle served | Rebuild with `make build` and re-deploy; never `uv build` alone. |
+| Assets 404 behind a proxy sub-path | Proxy not stripping the prefix, or `VITE_BASE` forced to an absolute path | Use a trailing-slash `proxy_pass` (strips the prefix); the default relative-base build needs no `VITE_BASE`. |
 | Handoff link 404s intermittently | Multiple workers, per-process store | Run single-worker (`ONTOLOVIZ_WORKERS=1`). |
 | Dockerized proxy can't reach the service | Bound to `127.0.0.1` | Set `ONTOLOVIZ_HOST=0.0.0.0`; control exposure upstream. |
 | Wrong scheme in redirects behind TLS proxy | Forwarded headers not trusted | Set `ONTOLOVIZ_PROXY_HEADERS=1`. |

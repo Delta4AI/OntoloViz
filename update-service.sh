@@ -47,8 +47,7 @@ if [ "${1:-}" = "--build" ]; then
     fi
     git pull
     # Sync frontend deps to the (possibly updated) lockfile before building.
-    # The sub-path base is read from web/.env.production.local (see vite.config),
-    # so no VITE_BASE needs re-passing here.
+    # The relative-base build is mount-point agnostic, so no VITE_BASE is needed.
     ( cd web && pnpm install --frozen-lockfile )
     make build   # build-web (pnpm) THEN build-wheel — order matters
     WHEEL="$(ls -t dist/*.whl 2>/dev/null | head -1 || true)"

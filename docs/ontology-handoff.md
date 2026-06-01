@@ -100,10 +100,10 @@ SPA and API are **one service** sharing one origin (default `:8000`).
 
 ### Behind a reverse proxy (sub-path)
 
-When fronted by a reverse proxy under a sub-path (e.g. `/ontoloviz/`), build
-the SPA with `VITE_BASE=/ontoloviz/ make build` so asset and `/api` URLs carry
-the prefix, and have the proxy strip it (nginx: trailing-slash `proxy_pass`).
-Everything then lives under the one prefix:
+When fronted by a reverse proxy under a sub-path (e.g. `/ontoloviz/`), no
+special build is needed — the default relative-base build resolves asset and
+`/api` URLs relative to the page. Just have the proxy strip the prefix (nginx:
+trailing-slash `proxy_pass`). Everything then lives under the one prefix:
 
 ```bash
 # Another app pushes an ontology through the proxy and builds the open link:

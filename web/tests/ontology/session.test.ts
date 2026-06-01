@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { withBase } from "../../src/lib/basePath";
 import { fetchSession } from "../../src/lib/ontology/obo";
 
 const WIRE_ONTOLOGY = {
@@ -38,7 +39,7 @@ describe("fetchSession", () => {
 
     const ontology = await fetchSession("abc123");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/ontology/abc123", {});
+    expect(fetchMock).toHaveBeenCalledWith(withBase("/api/ontology/abc123"), {});
     expect(ontology.nodeCount).toBe(2);
     expect(ontology.subtrees.get("root1")?.nodes.get("child1")?.count).toBe(12);
   });
@@ -52,7 +53,7 @@ describe("fetchSession", () => {
 
     await fetchSession("a/b c");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/ontology/a%2Fb%20c", {});
+    expect(fetchMock).toHaveBeenCalledWith(withBase("/api/ontology/a%2Fb%20c"), {});
   });
 
   it("throws with the backend detail on a 404", async () => {

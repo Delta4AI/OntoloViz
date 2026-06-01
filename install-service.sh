@@ -59,8 +59,8 @@ ERROR: no wheel found. Either:
   Build on this host first (as your normal user, NOT root):
     cd web && pnpm install            # one-time (needs node + pnpm + uv)
     make build                        # → dist/ontoloviz-<ver>-py3-none-any.whl
-  then re-run this installer with sudo.
-  Sub-path deploy? persist the base once:  echo 'VITE_BASE=/ontoloviz/' > web/.env.production.local
+  then re-run this installer with sudo. (The relative-base build works under
+  any reverse-proxy sub-path as-is — no VITE_BASE needed.)
 
   Or copy a CI/dev-built wheel into ./dist/, or pass its path:
     sudo ./install-service.sh /path/to/ontoloviz-<ver>.whl

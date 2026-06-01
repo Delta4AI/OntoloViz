@@ -24,6 +24,9 @@
     "xlsx": "^0.18.5",
     "zustand": "^4.5.5"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/d3-hierarchy": "^3.1.7",

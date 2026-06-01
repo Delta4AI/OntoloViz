@@ -15,7 +15,7 @@ set -euo pipefail
 # With no argument, the newest dist/*.whl in this repo is used.
 #
 # Deployment config is injected via env (conventional defaults otherwise):
-#   ONTOLOVIZ_HOST  bind address   (default 127.0.0.1; use 0.0.0.0 behind a proxy)
+#   ONTOLOVIZ_HOST  bind address   (default 0.0.0.0 for proxied deploys; set 127.0.0.1 for host-local only)
 #   ONTOLOVIZ_PORT  listen port    (default 8000)
 #   ONTOLOVIZ_PROXY_HEADERS  trust X-Forwarded-* (default 0; set 1 behind TLS proxy)
 # e.g. reverse-proxied deployment on a custom port:
@@ -43,7 +43,17 @@ fi
 SERVICE_GROUP="$(id -gn "$SERVICE_USER")"
 
 # Deployment config — conventional defaults; override via env at install time.
-BIND="${ONTOLOVIZ_HOST:-127.0.0.1}"
+# Default bind is 0.0.0.0 so a containerized/external reverse proxy can reach the
+# service (e.g. nginx-in-Docker via host.docker.internal); exposure is then gated
+# upstream by the firewall/VPN, not by this address. Set ONTOLOVIZ_HOST=127.0.0.1
+# explicitly for a host-local-only deployment.
+# Track whether each value was passed explicitly: an existing env file is
+# write-once, so without this a re-run override (e.g. ONTOLOVIZ_PORT=49317) is
+# silently ignored — the trap that strands the service on the wrong port/bind.
+HOST_EXPLICIT="${ONTOLOVIZ_HOST+set}"
+PORT_EXPLICIT="${ONTOLOVIZ_PORT+set}"
+PROXY_EXPLICIT="${ONTOLOVIZ_PROXY_HEADERS+set}"
+BIND="${ONTOLOVIZ_HOST:-0.0.0.0}"
 PORT="${ONTOLOVIZ_PORT:-8000}"
 PROXY_HEADERS="${ONTOLOVIZ_PROXY_HEADERS:-0}"
 
@@ -109,7 +119,23 @@ fi
 
 chown -R "$SERVICE_USER":"$SERVICE_GROUP" "$APP_HOME"
 
-# --- env file (optional, created once) -------------------------------------
+# --- env file --------------------------------------------------------------
+# Created once with the resolved values. On re-run we never clobber an
+# operator-customized file; we only reconcile keys passed explicitly THIS run,
+# so `sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ./install-service.sh`
+# actually applies even though the file already exists.
+reconcile_env_kv() {
+    local key="$1" val="$2" explicit="$3"
+    [ -n "$explicit" ] || return 0
+    if grep -qE "^${key}=" "$ENV_FILE"; then
+        grep -qxF "${key}=${val}" "$ENV_FILE" && return 0
+        sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+    else
+        printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+    fi
+    echo "  set ${key}=${val}"
+}
+
 if [ ! -f "$ENV_FILE" ]; then
     cat > "$ENV_FILE" <<EOF
 # OntoloViz server environment (written by install-service.sh).
@@ -135,6 +161,11 @@ ONTOLOVIZ_WORKERS=1
 EOF
     chown "$SERVICE_USER":"$SERVICE_GROUP" "$ENV_FILE"
     chmod 640 "$ENV_FILE"
+elif [ -n "$HOST_EXPLICIT$PORT_EXPLICIT$PROXY_EXPLICIT" ]; then
+    echo "[..] reconciling explicit overrides into existing ${ENV_FILE}:"
+    reconcile_env_kv ONTOLOVIZ_HOST "$BIND" "$HOST_EXPLICIT"
+    reconcile_env_kv ONTOLOVIZ_PORT "$PORT" "$PORT_EXPLICIT"
+    reconcile_env_kv ONTOLOVIZ_PROXY_HEADERS "$PROXY_HEADERS" "$PROXY_EXPLICIT"
 fi
 
 # --- compose the unit ------------------------------------------------------

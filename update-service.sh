@@ -84,6 +84,16 @@ if [ -n "${ONTOLOVIZ_HOST:-}" ] && [ "${ONTOLOVIZ_HOST}" != "0.0.0.0" ]; then H=
 if [ -n "${ONTOLOVIZ_PORT:-}" ]; then P="$ONTOLOVIZ_PORT"; fi
 BASE="http://${H}:${P}"
 
+# The host-local healthcheck below passes even when a containerized/external
+# reverse proxy can't reach the service. A 127.0.0.1 bind is unreachable via
+# host.docker.internal and 502s at the proxy — warn loudly so it isn't missed.
+if [ "${ONTOLOVIZ_HOST:-127.0.0.1}" = "127.0.0.1" ]; then
+    echo "WARNING: ONTOLOVIZ_HOST=127.0.0.1 — a containerized/external reverse proxy"
+    echo "         (e.g. nginx via host.docker.internal) cannot reach this and will 502."
+    echo "         For a proxied deploy set ONTOLOVIZ_HOST=0.0.0.0 in ${ENV_FILE},"
+    echo "         then: sudo systemctl restart ${SERVICE_NAME}"
+fi
+
 ok=0
 for _ in $(seq 1 15); do
     if curl -fsS "${BASE}/api/health" >/dev/null 2>&1; then ok=1; break; fi

@@ -7,7 +7,7 @@
 ---
 
 <div style="text-align:center">
-  <img src="https://github.com/Delta4AI/OntoloViz/assets/75040444/0b862f62-d0a6-4616-8021-2af2d0302ec2">
+  <img src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_banner.png">
   <p>
     OntoloViz is a user-friendly interface that enables the creation of interactive sunburst plots for 
     biomedical ontologies. It allows you to conveniently visualize your data for reports or share the 
@@ -20,80 +20,99 @@
 Quickstart
 ==========
 
-**Install OntoloViz**
-- Using pip:
-  ```bash
-  pip install ontoloviz        # Classic desktop UI (Tkinter)
-  ```
-- Using uv:
-  ```bash
-  git clone https://github.com/Delta4AI/OntoloViz.git
-  cd OntoloViz
-  uv sync                      # Classic desktop UI
-  ```
+OntoloViz ships as a single PyPI package with two ways to use it: a **desktop
+GUI** and a **browser-based web app**.
 
-**Run OntoloViz**
 ```bash
-ontoloviz       # Launch classic UI
+pip install ontoloviz
+```
+
+**Desktop GUI**
+```bash
+ontoloviz                              # launch the classic desktop UI
+```
+
+**Web app** — opens at <http://127.0.0.1:8000>
+```bash
+ontoloviz-server                       # serve the web UI
+```
+
+<img width="90%" alt="OntoloViz web app launch screen" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_web_launch_screen.png">
+
+No install? Run either straight from PyPI with [`uv`](https://docs.astral.sh/uv/):
+```bash
+uvx ontoloviz                          # desktop GUI
+uvx --from ontoloviz ontoloviz-server  # web app (server is a command of the ontoloviz package, hence --from)
 ```
 
 > **Linux note (desktop GUI only):** uv's prebuilt CPython ships a Tk build
 > that crashes the file dialog on some distros (e.g. Fedora) with
 > `[xcb] Aborting, sorry about that.` Use the distro's Python for the GUI:
 > ```bash
-> uv sync --python /usr/bin/python3
-> uv run --python /usr/bin/python3 ontoloviz
+> uvx --python /usr/bin/python3 ontoloviz
 > ```
-> Building wheels (`uv build`) and running the web app are unaffected and
-> work with either Python.
+> The web app is unaffected and works with either Python.
 
-**Web app**
+**Pre-built Windows binaries** are on the [releases page](https://github.com/Delta4AI/OntoloViz/releases)
+(not necessarily the latest version, and no new binaries will be added). For the
+newest features, install from PyPI.
 
-A browser-based version lives in `web/` (Vite + React + TS + D3 + Canvas)
-backed by a FastAPI server packaged alongside the GUI in `src/ontoloviz_server/`.
-
-Development (Vite + reloading FastAPI):
-```bash
-make install   # one-time: installs frontend and backend deps
-make dev       # runs Vite on :5173 and FastAPI on :8000
-```
-
-End-user install (bundled SPA served by the FastAPI process):
-```bash
-pip install ontoloviz
-ontoloviz-server   # serves the web UI at http://127.0.0.1:8000
-ontoloviz          # launches the legacy desktop GUI
-```
-
-Production launch:
-```bash
-ontoloviz-server --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
-# or via env vars — see .env.example
-```
-All flags have `ONTOLOVIZ_*` env-var fallbacks. Behind nginx/Caddy on the
-public edge, `--proxy-headers` makes FastAPI trust forwarded client IPs.
-
-Container:
-```bash
-docker build -t ontoloviz .
-docker run --rm -p 8000:8000 ontoloviz
-```
-The image bundles the web build, exposes :8000, runs as a non-root user,
-and ships a `/api/health` healthcheck.
-
-Another application can push a fully-built ontology to the server and hand the
-user a link that renders it live (`POST /api/ontology` → open `?session=<id>`).
-See [docs/ontology-handoff.md](docs/ontology-handoff.md).
-
-Docs: [web/README.md](web/README.md) (frontend) ·
-[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) (dev setup + commands) ·
-[docs/RUNBOOK.md](docs/RUNBOOK.md) (deploy, env vars, API surface, reverse proxy).
+**More docs**
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — deploying the server: env vars, workers, reverse proxy, Docker, API surface.
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — local dev setup (`make dev`), commands, testing, releasing.
+- [docs/ontology-handoff.md](docs/ontology-handoff.md) — push a built ontology to the server and share a live link.
+- [web/README.md](web/README.md) — frontend internals.
 
 
+---
 
-**Pre-built Windows Binaries**  
-Windows bindaries can be found in the [releases page](https://github.com/Delta4AI/OntoloViz/releases) (not necessarily the most recent version, no new binaries will be added). For the latest features, please install from PyPI.
+Screenshots and Demos
+=====================
 
+Web app
+-------
+<img width="90%" alt="OntoloViz web app summary overview of an ontology" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_web_overview.png">
+
+> **_Web 1:_** Summary view — every subtree of an ontology at a glance
+
+<img width="90%" alt="OntoloViz web app single sunburst with ring-thickness settings" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_web_wedge_tapering.png">
+
+> **_Web 2:_** Drilling into a single subtree with live display settings (color, propagation, per-ring thickness)
+
+<img width="90%" alt="OntoloViz web app publication-ready export with title and labels" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_web_publication_export.png">
+
+> **_Web 3:_** Publication-ready export — titled, labelled, downloadable as SVG or PNG
+
+Desktop GUI
+-----------
+<img width="90%" alt="demo_creation_of_template" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_creating_a_phenotype_ontology.gif">
+
+> **_Demo 1:_** Minimal example for creating a phenotype based ontology
+
+<img width="90%" alt="demo_creation_of_template" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui_loading_phenotype_ontology.gif">
+
+> **_Demo 2:_** Showcase of some of the features available in OntoloViz (used template: <a href="https://github.com/Delta4AI/OntoloViz/files/11088919/test_tree.zip">test_tree.zip</a>)
+
+<img width="90%" alt="drug_single" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui_ATC_sample.png">
+
+> **_Screenshot 1:_**  Drug sunburst plot with enabled labels, counts propagated up to level 3
+
+<img width="90%" alt="phenotype_overview" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui_MeSH_sample.png">
+
+> **_Screenshot 2:_**  Summary phenotype sunburst plot with tooltip, counts propagated up to the central node, color coded
+
+<table>
+    <tr>
+        <td>
+            <img height=300px alt="color_scale" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui_set_color_scale.png">
+        </td>
+        <td>
+            <img height=300px alt="color_scale" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui_set_border_properties.png">
+        </td>
+    </tr>
+</table>
+
+> **_Screenshot 3 & 4:_**  Left: define automatic color scales based on defined counts with thresholds and hex color codes, Right: define border properties (width, opacity, colors) or disable them entirely
 
 ---
 Usage
@@ -106,7 +125,7 @@ to integers and decimal points will be rounded.
 
 GUI Options
 -----------
-<img height=250px alt="gui_small" src="https://user-images.githubusercontent.com/75040444/228182954-fb48a953-ec56-46db-81ad-816d9f356206.png">
+<img height=250px alt="gui_small" src="https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/docs/images/ontoloviz_gui.png">
 
 **Load File**: load an `.tsv` or `.xlsx` file containing ontology data based below defined file formats
 
@@ -239,46 +258,13 @@ Templates and Examples
 
 | Filename                                                                                                                                                     | Description                                                                                                                                                                                                                                                       |
 |--------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [atc_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/web/public/templates/atc_template.tsv)                                                                 | Empty [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) drug-hierarchy template, prefilled from the curated chemical database [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads). |
-| [mesh_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/web/public/templates/mesh_template.tsv)                                                               | Empty [MeSH](https://meshb.nlm.nih.gov/treeView) `C` and `F03` subject-hierarchy template; terms are unique and mapped to all related parent nodes.                                                                              |
-| [atc_example_covid_drugs_experimental.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/web/public/templates/atc_example_covid_drugs_experimental.tsv)                 | ATC-based example with [DrugBank](https://go.drugbank.com) data marking experimental drugs related to COVID-19.                                                                                                                  |
-| [atc_example_covid_drugs_trial_summary.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/web/public/templates/atc_example_covid_drugs_trial_summary.tsv)               | ATC-based example with [publicly available clinical trial data](https://clinicaltrials.gov/) — one count per study a drug was tested in.                                                                                         |
-| [mesh_example_pubmed_mapped.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/master/web/public/templates/mesh_example_pubmed_mapped.tsv)                                     | MeSH-based example from [PubMed](https://pubmed.ncbi.nlm.nih.gov/) titles + abstracts; disease-related MeSH terms extracted and mapped onto the MeSH tree.                                                                       |
+| [atc_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/web/public/templates/atc_template.tsv)                                                                 | Empty [ATC](https://www.who.int/tools/atc-ddd-toolkit/atc-classification) drug-hierarchy template, prefilled from the curated chemical database [ChEMBL v29](https://chembl.gitbook.io/chembl-interface-documentation/downloads). |
+| [mesh_template.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/web/public/templates/mesh_template.tsv)                                                               | Empty [MeSH](https://meshb.nlm.nih.gov/treeView) `C` and `F03` subject-hierarchy template; terms are unique and mapped to all related parent nodes.                                                                              |
+| [atc_example_covid_drugs_experimental.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/web/public/templates/atc_example_covid_drugs_experimental.tsv)                 | ATC-based example with [DrugBank](https://go.drugbank.com) data marking experimental drugs related to COVID-19.                                                                                                                  |
+| [atc_example_covid_drugs_trial_summary.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/web/public/templates/atc_example_covid_drugs_trial_summary.tsv)               | ATC-based example with [publicly available clinical trial data](https://clinicaltrials.gov/) — one count per study a drug was tested in.                                                                                         |
+| [mesh_example_pubmed_mapped.tsv](https://raw.githubusercontent.com/Delta4AI/OntoloViz/main/web/public/templates/mesh_example_pubmed_mapped.tsv)                                     | MeSH-based example from [PubMed](https://pubmed.ncbi.nlm.nih.gov/) titles + abstracts; disease-related MeSH terms extracted and mapped onto the MeSH tree.                                                                       |
 
 All five files also ship inside the wheel and are reachable at `/templates/*.tsv` from the bundled web app.
-
----
-
-Screenshots and Demos
-=====================
-<img width="90%" alt="demo_creation_of_template" src="https://user-images.githubusercontent.com/75040444/228224565-af02a994-00c7-4572-b1da-f1eeec8b6f8f.gif">
-
-> **_Demo 1:_** Minimal example for creating a phenotype based ontology
-
-<img width="90%" alt="demo_creation_of_template" src="https://user-images.githubusercontent.com/75040444/228226839-2ed34f87-7a7d-498a-9f16-fd940d05c18d.gif">
-
-> **_Demo 2:_** Showcase of some of the features available in OntoloViz (used template: <a href="https://github.com/Delta4AI/OntoloViz/files/11088919/test_tree.zip">test_tree.zip</a>)
-
-<img width="90%" alt="drug_single" src="https://user-images.githubusercontent.com/75040444/228172370-a042b9d1-81af-4172-8b41-4f8c9e9287b7.png">
-
-> **_Screenshot 1:_**  Drug sunburst plot with enabled labels, counts propagated up to level 3
-
-<img width="90%" alt="phenotype_overview" src="https://user-images.githubusercontent.com/75040444/228174582-82aaad41-f3d8-4152-8161-b8f9b1dfec67.png">
-
-> **_Screenshot 2:_**  Summary phenotype sunburst plot with tooltip, counts propagated up to the central node, color coded
-
-<table>
-    <tr>
-        <td>
-            <img height=300px alt="color_scale" src="https://user-images.githubusercontent.com/75040444/228183209-6a591a3c-8729-45c9-a73b-817dce9252c1.png">
-        </td>
-        <td>
-            <img height=300px alt="color_scale" src="https://user-images.githubusercontent.com/75040444/228183234-e6aecf82-64b4-4737-b5c3-95eb87b0fb59.png">
-        </td>
-    </tr>
-</table>
-
-> **_Screenshot 3 & 4:_**  Left: define automatic color scales based on defined counts with thresholds and hex color codes, Right: define border properties (width, opacity, colors) or disable them entirely
 
 ---
 Reference

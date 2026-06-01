@@ -47,7 +47,7 @@ class _CacheEntry:
 
 
 _CacheKey = tuple[str, str | None, int | None]
-_cache: "OrderedDict[_CacheKey, _CacheEntry]" = OrderedDict()
+_cache: OrderedDict[_CacheKey, _CacheEntry] = OrderedDict()
 
 
 def _cache_get(key: _CacheKey) -> Ontology | None:

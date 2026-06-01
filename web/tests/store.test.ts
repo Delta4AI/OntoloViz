@@ -25,7 +25,7 @@ describe("useAppStore", () => {
     const state = useAppStore.getState();
     expect(state.raw).toBeNull();
     expect(state.activeRoot).toBeNull();
-    expect(state.count.countMode).toBe("all");
+    expect(state.count.countMode).toBe("off");
     expect(state.color.mode).toBe("specific");
   });
 

@@ -81,7 +81,13 @@ docker run --rm -p 8000:8000 ontoloviz
 The image bundles the web build, exposes :8000, runs as a non-root user,
 and ships a `/api/health` healthcheck.
 
-See [web/README.md](web/README.md) for frontend details.
+Another application can push a fully-built ontology to the server and hand the
+user a link that renders it live (`POST /api/ontology` → open `?session=<id>`).
+See [docs/ontology-handoff.md](docs/ontology-handoff.md).
+
+Docs: [web/README.md](web/README.md) (frontend) ·
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) (dev setup + commands) ·
+[docs/RUNBOOK.md](docs/RUNBOOK.md) (deploy, env vars, API surface, reverse proxy).
 
 
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { withBase } from "../lib/basePath";
+
 type HealthState =
   | { status: "loading" }
   | { status: "ok"; version: string }
@@ -10,7 +12,7 @@ export function HealthIndicator() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/health", { signal: controller.signal })
+    fetch(withBase("/api/health"), { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = (await res.json()) as { version: string };

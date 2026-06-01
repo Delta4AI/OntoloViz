@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Required to create the GitHub Release and upload the .exe asset.
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    name: Build Windows desktop GUI
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          # tkinter ships with the CPython that uv installs on Windows.
+          python-version: "3.12"
+          enable-cache: true
+
+      # PyInstaller analyses src/ontoloviz/__main__.py and needs the project's
+      # runtime deps (plotly, openpyxl, ...) importable to bundle them.
+      - name: Install project + PyInstaller
+        run: uv pip install --system . pyinstaller
+
+      - name: Freeze GUI (ontoloviz.spec)
+        run: pyinstaller ontoloviz.spec
+
+      # Version the asset so downloads from different releases don't collide.
+      - name: Name asset after the tag
+        run: Copy-Item dist/ontoloviz.exe "dist/ontoloviz-${{ github.ref_name }}.exe"
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ontoloviz-${{ github.ref_name }}.exe
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  linux-appimage:
+    name: Build Linux AppImage
+    # 22.04 (glibc 2.35) is an intentionally older base: an AppImage built here
+    # runs on that glibc and newer. Building on ubuntu-latest would raise the
+    # floor and break older distros, defeating AppImage's portability.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          # uv's managed CPython (python-build-standalone) bundles Tcl/Tk on
+          # Linux, so PyInstaller can freeze the tkinter GUI self-contained.
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install project + PyInstaller
+        run: uv pip install --system . pyinstaller
+
+      # The Windows .spec uses backslash paths and a .ico icon, so the Linux
+      # build drives PyInstaller via CLI flags instead.
+      - name: Freeze GUI (PyInstaller, onedir)
+        run: |
+          pyinstaller --noconfirm --name ontoloviz \
+            --collect-all plotly \
+            --collect-data ontoloviz \
+            --hidden-import ontoloviz.app \
+            src/ontoloviz/__main__.py
+
+      - name: Assemble AppDir
+        run: |
+          APPDIR=AppDir
+          mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+          cp -r dist/ontoloviz/. "$APPDIR/usr/bin/"
+          cp branding/logo.png "$APPDIR/ontoloviz.png"
+          cp branding/logo.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/ontoloviz.png"
+          cat > "$APPDIR/ontoloviz.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=OntoloViz
+          Exec=ontoloviz
+          Icon=ontoloviz
+          Categories=Science;Education;
+          Terminal=false
+          EOF
+          cat > "$APPDIR/AppRun" <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/ontoloviz" "$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+
+      - name: Package AppImage
+        env:
+          # Runners lack FUSE; extract-and-run lets appimagetool work without it.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          ARCH: x86_64
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage AppDir "ontoloviz-${{ github.ref_name }}-x86_64.AppImage"
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ontoloviz-${{ github.ref_name }}-x86_64.AppImage
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  wheel:
+    name: Build wheel (server + frontend)
+    # Pure-Python wheel (py3-none-any), so the runner OS is irrelevant. The
+    # built SPA is compiled into the wheel and served same-origin by the server.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install web deps
+        run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      # `make build` = build-web (compile SPA -> src/ontoloviz_server/web_dist)
+      # then build-wheel (uv build). Wheel version comes from the VERSION file,
+      # which `make set-version` keeps in sync with the tag before tagging.
+      - name: Build frontend + wheel
+        run: make build
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          fail_on_unmatched_files: true
+          generate_release_notes: true

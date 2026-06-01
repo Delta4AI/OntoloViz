@@ -1,3 +1,5 @@
+import { withBase } from "../../lib/basePath";
+
 interface LandingPageProps {
   readonly onUpload: () => void;
   readonly onPickObo: () => void;
@@ -101,7 +103,13 @@ export function LandingPage({ onUpload, onPickObo, version }: LandingPageProps) 
         <div className="relative z-10 w-full max-w-2xl text-center">
           <div className="mb-10">
             <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-panel">
-              <img src="/logo.svg" width="32" height="32" alt="" aria-hidden />
+              <img
+                src={withBase("/logo.svg")}
+                width="32"
+                height="32"
+                alt=""
+                aria-hidden
+              />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[28px]">
               OntoloViz
@@ -329,7 +337,7 @@ function SunburstThumb({ ontology }: { readonly ontology: Ontology }) {
 
 async function loadExample(url: string, _onUpload: () => void): Promise<void> {
   try {
-    const res = await fetch(url);
+    const res = await fetch(withBase(url));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const name = url.split("/").pop() || "example.tsv";

@@ -21,7 +21,8 @@ import { SettingsPanel } from "./components/settings/SettingsPanel";
 import { SummaryGrid } from "./components/grid/SummaryGrid";
 import { Sunburst } from "./components/sunburst/Sunburst";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { fetchObo } from "./lib/ontology/obo";
+import { withBase } from "./lib/basePath";
+import { fetchObo, fetchSession } from "./lib/ontology/obo";
 import { parseTsv } from "./lib/ontology/parse";
 import { derivePropagated, useAppStore, type ViewMode } from "./lib/store";
 
@@ -162,6 +163,42 @@ export function App() {
     }
   };
 
+  // Render an ontology another application pushed to the backend. The handoff
+  // link carries a `?session=<id>`; we resolve it through the same propagation
+  // + render pipeline as uploads and OBO fetches.
+  const handleSession = async (sessionId: string) => {
+    setFileName("shared ontology");
+    setLoading({ stage: "Loading shared ontology…", progress: 0.3 });
+    await yieldToPaint();
+    try {
+      const ontology = await fetchSession(sessionId);
+      setLoading({
+        stage: "Propagating counts & colors…",
+        detail: `${ontology.nodeCount.toLocaleString()} nodes · ${ontology.subtrees.size} subtree(s)`,
+        progress: 0.85,
+      });
+      await yieldToPaint();
+      setOntology(ontology);
+      // Drop the capability token from the URL once consumed so it doesn't
+      // linger in history/bookmarks. Like uploads, a reload starts fresh.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("session");
+      window.history.replaceState(null, "", url.toString());
+      setLoading({ stage: "Rendering sunburst…", progress: 1 });
+      await yieldToPaint();
+      setLoading(null);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "load failed";
+      setLoading({
+        stage: "Shared ontology load failed",
+        detail: message,
+        progress: 1,
+      });
+      setTimeout(() => setLoading(null), 1800);
+    }
+  };
+
   // LandingPage's "Try Example" path fetches a bundled TSV and re-dispatches
   // it through the standard upload pipeline via a custom event.
   useEffect(() => {
@@ -173,6 +210,15 @@ export function App() {
     return () => window.removeEventListener("ontoloviz:load-file", onLoadFile);
     // handleFile closes over state setters that are stable from useState —
     // re-registering on every render would be a wasteful no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On first load, resolve a `?session=<id>` handoff link if present. The id
+  // stays in the URL so a reload re-fetches while the handoff is still live.
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get("session");
+    if (sessionId) void handleSession(sessionId);
+    // Run once on mount; handleSession closes over stable useState setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -444,7 +490,7 @@ function Header({
   const brand = (
     <>
       <img
-        src="/logo.svg"
+        src={withBase("/logo.svg")}
         width="20"
         height="20"
         alt=""

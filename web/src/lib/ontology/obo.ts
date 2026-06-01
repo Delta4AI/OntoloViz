@@ -6,6 +6,7 @@
  * data model uses `Map` for O(1) lookup, so we convert on the boundary.
  */
 
+import { withBase } from "../basePath";
 import { DEFAULT_COLOR, type Node, type Ontology, type Subtree } from "./types";
 
 /** A curated OBO Foundry shortcut. URL points at the canonical .obo file. */
@@ -168,9 +169,30 @@ export async function fetchObo(
     params.set("minNodeSize", String(minNodeSize));
   }
   const res = await fetch(
-    `/api/obo/fetch?${params.toString()}`,
+    withBase(`/api/obo/fetch?${params.toString()}`),
     signal ? { signal } : {},
   );
+  return decodeOntologyResponse(res);
+}
+
+/**
+ * Load an ontology a separate application pushed to the backend via
+ * `POST /api/ontology`, addressed by the session id from the `?session=`
+ * deep link. Throws on network / HTTP errors (404 = unknown or expired).
+ */
+export async function fetchSession(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<Ontology> {
+  const res = await fetch(
+    withBase(`/api/ontology/${encodeURIComponent(sessionId)}`),
+    signal ? { signal } : {},
+  );
+  return decodeOntologyResponse(res);
+}
+
+/** Decode an ontology HTTP response, surfacing the backend `detail` on error. */
+async function decodeOntologyResponse(res: Response): Promise<Ontology> {
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {

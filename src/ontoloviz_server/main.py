@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .routers import health, models, obo
+from .routers import health, models, obo, ontology
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(obo.router, prefix="/api/obo")
+    app.include_router(ontology.router, prefix="/api/ontology")
     app.include_router(models.router, prefix="/api/models")
 
     _mount_web_frontend(app)

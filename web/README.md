@@ -60,6 +60,9 @@ web/
 - Live settings panel driving the propagation pipelines.
 - Virtualized summary grid with linked hover and search across all subtrees.
 - High-DPI PNG, SVG, and self-contained interactive HTML exports.
+- Ontology handoff: another app can `POST /api/ontology` and open
+  `?session=<id>` to render a pushed ontology live — see
+  [`../docs/ontology-handoff.md`](../docs/ontology-handoff.md).
 
 ## Parity vs the Python reference
 

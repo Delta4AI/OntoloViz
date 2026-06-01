@@ -1,0 +1,37 @@
+{
+  "format": "parent-based",
+  "countLabel": "Counts",
+  "subtrees": {
+    "root1": {
+      "rootId": "root1",
+      "nodes": {
+        "root1": {
+          "id": "root1",
+          "parent": "",
+          "label": "Example Root",
+          "description": "Top-level node of the example ontology.",
+          "count": 0,
+          "level": 0
+        },
+        "child1": {
+          "id": "child1",
+          "parent": "root1",
+          "label": "Child A",
+          "description": "First child.",
+          "count": 12,
+          "level": 1
+        },
+        "child2": {
+          "id": "child2",
+          "parent": "root1",
+          "label": "Child B",
+          "description": "Second child.",
+          "count": 7,
+          "level": 1
+        }
+      }
+    }
+  },
+  "nodeCount": 3,
+  "warnings": []
+}

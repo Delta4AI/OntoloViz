@@ -1,0 +1,5 @@
+# pnpm 10+ reads settings from here, not from the package.json "pnpm" field.
+# Approve esbuild's postinstall so non-interactive `make build` on prod
+# does not fail (or warn) on ERR_PNPM_IGNORED_BUILDS.
+onlyBuiltDependencies:
+  - esbuild

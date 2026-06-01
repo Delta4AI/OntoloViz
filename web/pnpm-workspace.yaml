@@ -1,5 +1,11 @@
-# pnpm 10+ reads settings from here, not from the package.json "pnpm" field.
-# Approve esbuild's postinstall so non-interactive `make build` on prod
-# does not fail (or warn) on ERR_PNPM_IGNORED_BUILDS.
+# pnpm reads settings from here, not from the package.json "pnpm" field.
+# Approve esbuild's postinstall so non-interactive `make build` does not fail
+# on ERR_PNPM_IGNORED_BUILDS (fatal on pnpm 11 where strictDepBuilds=true).
+#
+# pnpm 11 renamed the setting to `allowBuilds` (a map) and removed
+# `onlyBuiltDependencies`; pnpm 10 only understands `onlyBuiltDependencies`.
+# Each version ignores the key it does not recognize, so we keep both.
+allowBuilds:
+  esbuild: true
 onlyBuiltDependencies:
   - esbuild

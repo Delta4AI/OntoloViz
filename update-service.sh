@@ -4,21 +4,23 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # OntoloViz — update the running systemd service.
 #
-# Two modes:
-#   wheel  (default, no Node needed): install a freshly built or CI-produced
-#          wheel into the service venv, then restart.
-#   source (--build, needs Node+pnpm+uv): git pull + `make build` to rebuild
-#          the SPA bundle AND the wheel here, then install + restart.
+# Default: git pull + `make build` (rebuild the SPA bundle AND the wheel on this
+# host) + install into the service venv + restart. The one-command
+# "pull, rebuild, all that shebang" path. Needs Node + pnpm + uv on PATH.
 #
 # A plain `git pull && systemctl restart` would serve a STALE SPA bundle (the
 # served frontend lives inside the installed wheel, not the repo) — always go
-# through one of these paths.
+# through this script.
+#
+# To skip the build and install an already-built / CI-produced wheel instead,
+# pass a wheel path (or --wheel to pick the newest in ./dist).
 #
 # Run as the service user (NOT root); only privileged steps use sudo.
 #
 # Usage:
-#   ./update-service.sh [path/to/new.whl]   # wheel mode (newest dist/*.whl if omitted)
-#   ./update-service.sh --build             # source mode (rebuild here)
+#   ./update-service.sh                  # git pull + rebuild + restart (default)
+#   ./update-service.sh --wheel          # install newest dist/*.whl, no build
+#   ./update-service.sh path/to/new.whl  # install this wheel, no build
 
 SERVICE_NAME="ontoloviz"
 APP_HOME="${ONTOLOVIZ_APP_HOME:-/opt/ontoloviz}"
@@ -31,11 +33,19 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 WHEEL=""
-if [ "${1:-}" = "--build" ]; then
-    # --- source mode: rebuild bundle + wheel here (needs Node + pnpm + uv) --
+if [ "${1:-}" = "--wheel" ] || { [ -n "${1:-}" ] && [ "${1: -4}" = ".whl" ]; }; then
+    # --- wheel mode: install an already-built wheel, no build (no Node needed) -
+    if [ "${1:-}" = "--wheel" ]; then
+        WHEEL="$(ls -t dist/*.whl 2>/dev/null | head -1 || true)"
+    else
+        WHEEL="$1"
+    fi
+else
+    # --- default: rebuild bundle + wheel here (needs Node + pnpm + uv) --------
     for tool in git node pnpm uv; do
         command -v "$tool" >/dev/null 2>&1 || {
-            echo "ERROR: --build needs '$tool' on PATH. Install node + pnpm (corepack) + uv." >&2
+            echo "ERROR: rebuild needs '$tool' on PATH. Install node + pnpm (corepack) + uv," >&2
+            echo "       or build the wheel elsewhere and pass its path (see --help in header)." >&2
             exit 1
         }
     done
@@ -51,15 +61,10 @@ if [ "${1:-}" = "--build" ]; then
     ( cd web && pnpm install --frozen-lockfile )
     make build   # build-web (pnpm) THEN build-wheel — order matters
     WHEEL="$(ls -t dist/*.whl 2>/dev/null | head -1 || true)"
-else
-    WHEEL="${1:-}"
-    if [ -z "$WHEEL" ]; then
-        WHEEL="$(ls -t dist/*.whl 2>/dev/null | head -1 || true)"
-    fi
 fi
 
 if [ -z "$WHEEL" ] || [ ! -f "$WHEEL" ]; then
-    echo "ERROR: no wheel found. Pass a path, drop one in ./dist/, or use --build." >&2
+    echo "ERROR: no wheel found. Run with no args to build, pass a wheel path, or drop one in ./dist/." >&2
     exit 1
 fi
 echo "Installing wheel: $WHEEL"

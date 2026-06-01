@@ -1,10 +1,18 @@
 # pnpm reads settings from here, not from the package.json "pnpm" field.
-# Approve esbuild's postinstall so non-interactive `make build` does not fail
-# on ERR_PNPM_IGNORED_BUILDS (fatal on pnpm 11 where strictDepBuilds=true).
 #
-# pnpm 11 renamed the setting to `allowBuilds` (a map) and removed
-# `onlyBuiltDependencies`; pnpm 10 only understands `onlyBuiltDependencies`.
-# Each version ignores the key it does not recognize, so we keep both.
+# The problem: esbuild ships a postinstall build script. pnpm 11 blocks
+# unreviewed build scripts and, with strictDepBuilds=true (its default),
+# makes that blockage a FATAL exit-1 -- which fails `pnpm install` and, in
+# turn, `pnpm build`'s pre-run dependency check (verifyDepsBeforeRun=install).
+#
+# We do not actually need esbuild's postinstall: Vite resolves the
+# @esbuild/<platform> binary directly, so the build succeeds without it.
+# So we (a) approve it for clean installs, and (b) downgrade the gate from
+# fatal to a warning so a cached "Already up to date" install cannot block.
+#
+# Key names differ across pnpm majors: pnpm 11 uses `allowBuilds` (a map);
+# pnpm 10 used `onlyBuiltDependencies` (a list). Each ignores the other's key.
+strictDepBuilds: false
 allowBuilds:
   esbuild: true
 onlyBuiltDependencies:

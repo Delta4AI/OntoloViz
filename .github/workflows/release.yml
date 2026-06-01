@@ -60,9 +60,10 @@ jobs:
 
       - name: Install project + PyInstaller
         # uv's managed CPython is externally-managed and rejects --system, so
-        # install into a venv and put it on PATH for the later build steps.
+        # build into a venv. setup-uv already created .venv, so --clear makes
+        # this idempotent; PATH export lets later steps resolve pyinstaller.
         run: |
-          uv venv
+          uv venv --clear
           uv pip install . pyinstaller
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 

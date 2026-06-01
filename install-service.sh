@@ -70,9 +70,29 @@ fi
 echo "Using wheel: $WHEEL"
 
 # --- venv + install --------------------------------------------------------
+# Create the venv with uv when available: uv seeds pip from its own bundled
+# wheels, so this works even where the system lacks python3-venv/ensurepip
+# (Debian/Ubuntu split that into a separate package, and `sudo` uses root's
+# python, not your login shell's). --seed keeps pip inside the venv so
+# update-service.sh's `pip install` path still works. `sudo` also strips the
+# invoking user's PATH, so probe the usual per-user uv install locations.
+# Falls back to the stdlib venv module on hosts that have python3-venv but no uv.
+UV="$(command -v uv 2>/dev/null || true)"
+if [ -z "$UV" ]; then
+    USER_HOME="$(getent passwd "$SERVICE_USER" | cut -d: -f6)"
+    for c in "$USER_HOME/.local/bin/uv" "$USER_HOME/.cargo/bin/uv" /usr/local/bin/uv /usr/bin/uv; do
+        [ -x "$c" ] && { UV="$c"; break; }
+    done
+fi
+
 if [ ! -d "$VENV" ]; then
-    python3 -m venv "$VENV" || {
-        echo "ERROR: could not create venv. On Debian/Ubuntu: apt install python3-venv" >&2
+    mkdir -p "$APP_HOME"
+    if [ -n "$UV" ]; then
+        "$UV" venv --seed "$VENV"
+    else
+        python3 -m venv "$VENV"
+    fi || {
+        echo "ERROR: could not create venv. Install uv, or on Debian/Ubuntu: apt install python3-venv" >&2
         exit 1
     }
 fi

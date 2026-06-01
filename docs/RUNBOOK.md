@@ -64,12 +64,15 @@ No frontend config is needed — the relative-base build works under the
 ### Update / rollback
 
 ```bash
-./update-service.sh [path/to/new-wheel]   # wheel mode (no Node needed) + restart
-./update-service.sh --build               # build on this host: git pull + pnpm install + make build + restart
+./update-service.sh                       # default: git pull + pnpm install + make build + restart
+./update-service.sh --wheel               # install newest dist/*.whl, no build (no Node needed)
+./update-service.sh path/to/new-wheel     # install this wheel, no build + restart
 ```
 
-`--build` runs a toolchain preflight (node/pnpm/uv) and syncs frontend deps to
-the lockfile — so frontend updates are a single command on the host.
+The default runs a toolchain preflight (node/pnpm/uv), `git pull`s, and syncs
+frontend deps to the lockfile — so an update is a single command on the host.
+Pass a wheel path (or `--wheel`) only when the host has no Node and you built
+the wheel elsewhere.
 
 Run `update-service.sh` as the **service user, not root** (only the per-command
 `sudo` steps are elevated, so `git pull` keeps your SSH keys).

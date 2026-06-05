@@ -224,7 +224,10 @@ if [ "$ok" -ne 1 ]; then
     echo "ERROR: /api/health did not come up. Inspect: journalctl -u ${SERVICE_NAME} -e" >&2
     exit 1
 fi
-if ! curl -fsS "${BASE}/" 2>/dev/null | grep -q 'index-[A-Za-z0-9]*\.js'; then
+# Vite content hashes use the [A-Za-z0-9_-] alphabet, so the asset name can
+# contain '_' / '-' (e.g. index-Bz_kf-Qd.js). Match the full alphabet — a
+# narrower [A-Za-z0-9] class yields false negatives on those builds.
+if ! curl -fsS "${BASE}/" 2>/dev/null | grep -qE 'assets/index-[A-Za-z0-9_-]+\.(js|css)'; then
     echo "ERROR: server is up but the SPA bundle is NOT being served." >&2
     echo "       The wheel was likely built without the frontend (use 'make build', not 'uv build')." >&2
     exit 1

@@ -234,7 +234,7 @@ export const RUNTIME_JS = `
       for (var k=0;k<bands;k++){ acc += w[k]; b.push(acc/total); }
       return b;
     }
-    function partition(focusId, weights){
+    function partition(focusId, weights, uniform){
       var H = height(focusId);
       var bounds = ringBounds(H+1, weights);
       var out = [];
@@ -242,11 +242,13 @@ export const RUNTIME_JS = `
         out.push({id:id, parent:byId[id].parent, depth:depth, x0:x0, x1:x1, y0:bounds[depth], y1:bounds[depth+1]});
         var kids = children[id] || [];
         if (!kids.length) return;
-        var v = value(id);
+        // Uniform: split the parent's arc evenly among children (equal-among-
+        // siblings, count-blind). Count: proportional to the subtree value sum.
+        var v = uniform ? 0 : value(id);
         var dx = x1 - x0;
         var c = x0;
         for (var i=0;i<kids.length;i++){
-          var w = value(kids[i].id) / v * dx;
+          var w = uniform ? dx / kids.length : value(kids[i].id) / v * dx;
           go(kids[i].id, c, c + w, depth + 1);
           c += w;
         }
@@ -396,6 +398,7 @@ export const RUNTIME_JS = `
       var sub = opts.subtree;
       var idx = indexSubtree(sub);
       var ringWeights = opts.ringWeights || [];
+      var uniform = opts.angularMode === 'uniform';
       var focusId = opts.initialFocus && idx.byId[opts.initialFocus] ? opts.initialFocus : sub.rootId;
       var crumbHost = opts.crumbHost;
       var tip = opts.tooltip;
@@ -403,7 +406,7 @@ export const RUNTIME_JS = `
       function setFocus(id){
         if (!idx.byId[id]) return;
         focusId = id;
-        var layout = idx.partition(id, ringWeights);
+        var layout = idx.partition(id, ringWeights, uniform);
         renderInto(svg, layout, idx, width, height);
         if (crumbHost) renderCrumbs(crumbHost, idx.trail(id, sub.rootId), idx, setFocus);
       }

@@ -10,7 +10,7 @@
  * of the root layout (read-only fallback). The runtime takes over on load.
  */
 
-import { layoutSunburst } from "../ontology/layout";
+import { layoutSunburst, type AngularMode } from "../ontology/layout";
 import type { Subtree } from "../ontology/types";
 import {
   RUNTIME_CSS,
@@ -39,6 +39,11 @@ export interface HtmlExportOptions extends Omit<SvgOptions, "theme"> {
    * re-partition, so zoomed re-renders keep the same ring proportions.
    */
   readonly ringWeights?: readonly number[];
+  /**
+   * What drives wedge angular size (see `LayoutOptions.angularMode`). Applied to
+   * both the fallback SVG and the runtime's re-partition so they stay in sync.
+   */
+  readonly angularMode?: AngularMode;
 }
 
 export function buildStandaloneHtml(
@@ -47,7 +52,12 @@ export function buildStandaloneHtml(
 ): string {
   const initialFocus = options.initialFocus ?? subtree.rootId;
   const ringWeights = options.ringWeights ?? [];
-  const layout = layoutSunburst(subtree, { focusId: initialFocus, ringWeights });
+  const angularMode = options.angularMode ?? "count";
+  const layout = layoutSunburst(subtree, {
+    focusId: initialFocus,
+    ringWeights,
+    angularMode,
+  });
   // Strip the HtmlTheme-typed `theme` field before forwarding — it conflicts
   // with the static SVG renderer's `ExportTheme` slot. The HTML output drives
   // theme via the `data-theme` attribute on `<html>` instead.
@@ -61,6 +71,7 @@ export function buildStandaloneHtml(
     subtree: runtimeSubtree,
     initialFocus,
     ringWeights,
+    angularMode,
   });
 
   const theme: HtmlTheme = options.theme ?? "dark";
@@ -93,7 +104,7 @@ export function buildStandaloneHtml(
     "var stage = document.querySelector('#ov-stage figure');",
     "var crumbs = document.getElementById('ov-crumbs');",
     "var tip = document.getElementById('ov-tip');",
-    "window.OntoloViz.mount({ stage: stage, subtree: D.subtree, initialFocus: D.initialFocus, ringWeights: D.ringWeights, crumbHost: crumbs, tooltip: tip });",
+    "window.OntoloViz.mount({ stage: stage, subtree: D.subtree, initialFocus: D.initialFocus, ringWeights: D.ringWeights, angularMode: D.angularMode, crumbHost: crumbs, tooltip: tip });",
     "})();",
     "</script>",
     "</body>",

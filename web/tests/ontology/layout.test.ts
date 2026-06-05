@@ -209,6 +209,80 @@ describe("layoutSunburst ringWeights", () => {
   });
 });
 
+/**
+ * Uniform (equal-among-siblings) angular mode. On `makeSubtree`, the root has
+ * two children (A.B, A.C) and A.B has two children (A.B.1, A.B.2) — so uniform
+ * should give A.B and A.C a half-circle each despite their 10-vs-5 counts, and
+ * split A.B's half evenly between A.B.1 and A.B.2.
+ */
+describe("layoutSunburst angularMode: uniform", () => {
+  const arc = (layout: readonly LayoutNode[], id: string) => {
+    const n = layout.find((x) => x.id === id)!;
+    return n.x1 - n.x0;
+  };
+
+  it("splits siblings equally, ignoring counts", () => {
+    const layout = layoutSunburst(makeSubtree(), { angularMode: "uniform" });
+    // A.B (count-sum 10) and A.C (count 5) each get half the circle.
+    expect(arc(layout, "A.B")).toBeCloseTo(Math.PI, 10);
+    expect(arc(layout, "A.C")).toBeCloseTo(Math.PI, 10);
+  });
+
+  it("recurses: each level splits its parent's arc evenly", () => {
+    const layout = layoutSunburst(makeSubtree(), { angularMode: "uniform" });
+    // A.B's half-circle splits evenly between its two children.
+    expect(arc(layout, "A.B.1")).toBeCloseTo(Math.PI / 2, 10);
+    expect(arc(layout, "A.B.2")).toBeCloseTo(Math.PI / 2, 10);
+  });
+
+  it("differs from count mode when sibling counts are unequal", () => {
+    const count = layoutSunburst(makeSubtree(), { angularMode: "count" });
+    const uniform = layoutSunburst(makeSubtree(), { angularMode: "uniform" });
+    // Count mode gives A.B 10/15 of the circle; uniform gives it exactly half.
+    expect(arc(count, "A.B")).toBeCloseTo((10 / 15) * 2 * Math.PI, 6);
+    expect(arc(uniform, "A.B")).toBeCloseTo(Math.PI, 10);
+    expect(arc(count, "A.B")).not.toBeCloseTo(arc(uniform, "A.B"), 3);
+  });
+
+  it("defaults to count mode when angularMode is omitted", () => {
+    const omitted = layoutSunburst(makeSubtree());
+    const explicit = layoutSunburst(makeSubtree(), { angularMode: "count" });
+    for (const a of omitted) {
+      const b = explicit.find((n) => n.id === a.id)!;
+      expect(b.x0).toBeCloseTo(a.x0, 10);
+      expect(b.x1).toBeCloseTo(a.x1, 10);
+    }
+  });
+
+  it("treats zero-count siblings equally", () => {
+    const nodes = new Map<string, Node>();
+    nodes.set("R", mkNode("R", "", 0, 0));
+    nodes.set("R.x", mkNode("R.x", "R", 1, 0));
+    nodes.set("R.y", mkNode("R.y", "R", 1, 0));
+    const layout = layoutSunburst({ rootId: "R", nodes }, { angularMode: "uniform" });
+    expect(arc(layout, "R.x")).toBeCloseTo(Math.PI, 10);
+    expect(arc(layout, "R.y")).toBeCloseTo(Math.PI, 10);
+  });
+
+  it("gives the focus node a full circle when composed with focusId", () => {
+    const layout = layoutSunburst(makeSubtree(), {
+      focusId: "A.B",
+      angularMode: "uniform",
+    });
+    expect(arc(layout, "A.B")).toBeCloseTo(2 * Math.PI, 10);
+    // A.B's two children each get half the (now full) circle.
+    expect(arc(layout, "A.B.1")).toBeCloseTo(Math.PI, 10);
+    expect(arc(layout, "A.B.2")).toBeCloseTo(Math.PI, 10);
+  });
+
+  it("does not mutate the input subtree", () => {
+    const subtree = makeSubtree();
+    const before = JSON.stringify([...subtree.nodes.entries()]);
+    layoutSunburst(subtree, { angularMode: "uniform" });
+    expect(JSON.stringify([...subtree.nodes.entries()])).toBe(before);
+  });
+});
+
 describe("breadcrumbTrail", () => {
   it("walks root → focus inclusive", () => {
     const subtree = makeSubtree();

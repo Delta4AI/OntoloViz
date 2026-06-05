@@ -60,9 +60,10 @@ export function SunburstTile({ subtree, onActivate, height = 220 }: SunburstTile
   }, []);
 
   const ringWeights = useAppStore((s) => s.layout.ringWeights);
+  const angularMode = useAppStore((s) => s.layout.angularMode);
   const layout = useMemo(
-    () => layoutSunburst(subtree, { ringWeights }),
-    [subtree, ringWeights],
+    () => layoutSunburst(subtree, { ringWeights, angularMode }),
+    [subtree, ringWeights, angularMode],
   );
 
   useEffect(() => {

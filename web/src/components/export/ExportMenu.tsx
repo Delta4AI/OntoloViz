@@ -61,6 +61,7 @@ export function ExportMenu({
   // the surface the user just clicked the export from.
   const theme = useTheme();
   const ringWeights = useAppStore((s) => s.layout.ringWeights);
+  const angularMode = useAppStore((s) => s.layout.angularMode);
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +86,7 @@ export function ExportMenu({
       ? layoutSunburst(subtree, {
           ...(focusId !== undefined ? { focusId } : {}),
           ringWeights,
+          angularMode,
         })
       : null;
 
@@ -138,6 +140,7 @@ export function ExportMenu({
         caption: `Subtree ${subtree.rootId} — ${subtree.nodes.size.toLocaleString()} nodes`,
         theme,
         ringWeights,
+        angularMode,
         ...(focusId !== undefined ? { initialFocus: focusId } : {}),
       });
       downloadBlob(
@@ -159,6 +162,7 @@ export function ExportMenu({
         scale,
         title: "OntoloViz · overview",
         ringWeights,
+        angularMode,
       });
       if (blob) downloadBlob(blob, filename(`overview-${scale}x.png`));
     } finally {
@@ -174,6 +178,7 @@ export function ExportMenu({
       const svg = overviewToSvg(ontology, {
         title: "OntoloViz · overview",
         ringWeights,
+        angularMode,
       });
       downloadBlob(
         new Blob([svg], { type: "image/svg+xml" }),
@@ -194,6 +199,7 @@ export function ExportMenu({
         documentTitle: "OntoloViz · overview",
         htmlTheme: theme,
         ringWeights,
+        angularMode,
       });
       downloadBlob(
         new Blob([html], { type: "text/html;charset=utf-8" }),

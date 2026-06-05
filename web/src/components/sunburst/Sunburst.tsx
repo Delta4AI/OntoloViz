@@ -50,6 +50,7 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
   const externalHoverId = useAppStore((s) => s.hoveredId);
   const setExternalHoverId = useAppStore((s) => s.setHoveredId);
   const ringWeights = useAppStore((s) => s.layout.ringWeights);
+  const angularMode = useAppStore((s) => s.layout.angularMode);
 
   // Repaint when the user toggles dark/light so the canvas background matches
   // the surrounding panel instead of staying stuck on the dark-mode value.
@@ -88,8 +89,8 @@ export function Sunburst({ subtree, height = 560 }: SunburstProps) {
 
   // Single full partition; the focus frame slides over this geometry.
   const fullLayout = useMemo(
-    () => layoutSunburst(subtree, { ringWeights }),
-    [subtree, ringWeights],
+    () => layoutSunburst(subtree, { ringWeights, angularMode }),
+    [subtree, ringWeights, angularMode],
   );
 
   // Mutable lens state. The rAF tick mutates this in place and bumps

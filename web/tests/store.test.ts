@@ -151,6 +151,27 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().layout.ringWeights).toEqual([]);
   });
 
+  it("defaults angularMode to count", () => {
+    expect(useAppStore.getState().layout.angularMode).toBe("count");
+  });
+
+  it("setAngularMode switches the wedge-size mode", () => {
+    useAppStore.getState().setAngularMode("uniform");
+    expect(useAppStore.getState().layout.angularMode).toBe("uniform");
+  });
+
+  it("setAngularMode preserves ring weights", () => {
+    useAppStore.getState().setRingWeights([0.5, 1, 2]);
+    useAppStore.getState().setAngularMode("uniform");
+    expect(useAppStore.getState().layout.ringWeights).toEqual([0.5, 1, 2]);
+  });
+
+  it("reset restores angularMode to count", () => {
+    useAppStore.getState().setAngularMode("uniform");
+    useAppStore.getState().reset();
+    expect(useAppStore.getState().layout.angularMode).toBe("count");
+  });
+
   it("setHoveredId / setSearchQuery update independently", () => {
     useAppStore.getState().setHoveredId("X.Y");
     useAppStore.getState().setSearchQuery("abc");

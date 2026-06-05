@@ -24,6 +24,18 @@ import { hierarchy, partition, type HierarchyRectangularNode } from "d3-hierarch
 
 import type { Node, Subtree } from "./types";
 
+/**
+ * What drives a wedge's angular size (its arc).
+ *
+ * - `count`: arc ∝ summed leaf counts — the quantitative, part-of-whole view
+ *   the legacy Plotly app produces (`branchvalues="total"`). The default.
+ * - `uniform`: every node splits its parent's arc evenly among its children,
+ *   ignoring counts — a pure-topology view. A space-filling sunburst can only
+ *   honestly encode magnitude or structure on the angular axis; these are the
+ *   two modes. Anything in between (log, sqrt) would break child-fills-parent.
+ */
+export type AngularMode = "count" | "uniform";
+
 export interface LayoutNode {
   /** Original node id (canonical form, same as `Node.id`). */
   readonly id: string;
@@ -66,6 +78,10 @@ export interface LayoutOptions {
    * untouched, so quantitative meaning is preserved.
    */
   readonly ringWeights?: readonly number[];
+  /**
+   * What drives angular (wedge) size. Defaults to `count`. See {@link AngularMode}.
+   */
+  readonly angularMode?: AngularMode;
 }
 
 /**
@@ -136,11 +152,34 @@ export function layoutSunburst(
   };
   const rootShell = buildShell(focusNode);
 
+  // Uniform mode: each node splits its parent's arc evenly among children, so a
+  // leaf's angular weight is the product of 1/childCount over its ancestors.
+  // Summing those bottom-up reproduces equal-among-siblings at every level — and
+  // since the weights still roll up through d3's partition, the rest of the
+  // pipeline is untouched. Built only when asked; `count` mode keeps the legacy
+  // leaf-count sum verbatim.
+  const angularMode = options.angularMode ?? "count";
+  let uniformWeight: Map<string, number> | null = null;
+  if (angularMode === "uniform") {
+    uniformWeight = new Map<string, number>();
+    const assign = (shell: TreeShell, share: number): void => {
+      if (shell.children.length === 0) {
+        uniformWeight!.set(shell.node.id, share);
+        return;
+      }
+      const childShare = share / shell.children.length;
+      for (const child of shell.children) assign(child, childShare);
+    };
+    assign(rootShell, 1);
+  }
+
   const root = hierarchy<TreeShell>(rootShell, (d) => d.children).sum((d) => {
     // Sum only over leaves; internal nodes derive their value from descendants.
-    // A leaf with count 0 gets a sentinel of 1 so it remains visible.
     const isLeaf = d.children.length === 0;
     if (!isLeaf) return 0;
+    // Uniform: the precomputed equal-among-siblings share. Count (default): the
+    // leaf's count, floored to a sentinel 1 so a zero-count leaf stays visible.
+    if (uniformWeight) return uniformWeight.get(d.node.id) ?? 0;
     return d.node.count > 0 ? d.node.count : 1;
   });
 

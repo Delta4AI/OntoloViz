@@ -16,7 +16,7 @@
  * borderless grid.
  */
 
-import { layoutSunburst, type LayoutNode } from "../ontology/layout";
+import { layoutSunburst, type AngularMode, type LayoutNode } from "../ontology/layout";
 import { renderSunburst } from "../ontology/render";
 import { proportionalStrokeWidth } from "./png";
 import type { Ontology, Subtree } from "../ontology/types";
@@ -86,6 +86,11 @@ export interface OverviewExportOptions {
    * to every static grid tile so the export matches the on-screen overview.
    */
   readonly ringWeights?: readonly number[];
+  /**
+   * What drives wedge angular size (see `LayoutOptions.angularMode`). Applied to
+   * every static grid tile so the export matches the on-screen overview.
+   */
+  readonly angularMode?: AngularMode;
 }
 
 export interface OverviewPngOptions extends OverviewExportOptions {
@@ -275,10 +280,10 @@ function compose(ontology: Ontology, options: OverviewExportOptions): Compositio
   );
 
   const tiles: Tile[] = subtrees.map((subtree) => {
-    const layout = layoutSunburst(
-      subtree,
-      options.ringWeights ? { ringWeights: options.ringWeights } : {},
-    );
+    const layout = layoutSunburst(subtree, {
+      ...(options.ringWeights ? { ringWeights: options.ringWeights } : {}),
+      ...(options.angularMode ? { angularMode: options.angularMode } : {}),
+    });
     const rootNode = subtree.nodes.get(subtree.rootId);
     const sublabel = labels.count ? `${subtree.nodes.size.toLocaleString()} nodes` : "";
     const title = labels.name ? rootNode?.label?.trim() || subtree.rootId : "";
@@ -745,7 +750,13 @@ export function overviewToHtml(
   for (const subtree of ontology.subtrees.values()) {
     subtreesData[subtree.rootId] = toRuntimeSubtree(subtree);
   }
-  const dataJson = encodeRuntimeJson({ subtrees: subtreesData });
+  // Geometry settings are global across tiles; ship them once so the runtime's
+  // drill-in re-partition matches the static grid (and the on-screen app).
+  const dataJson = encodeRuntimeJson({
+    subtrees: subtreesData,
+    ringWeights: options.ringWeights ?? [],
+    angularMode: options.angularMode ?? "count",
+  });
 
   // Detail-view SVG dimensions — square viewport scales to whatever the
   // browser window can fit. The runtime never touches the viewBox.
@@ -804,7 +815,7 @@ export function overviewToHtml(
       " + '\" height=\"' + " +
       detailSize +
       " + '\"></svg>';",
-    "  window.OntoloViz.mount({ stage: stageFigure, subtree: sub, crumbHost: crumbs, tooltip: tip });",
+    "  window.OntoloViz.mount({ stage: stageFigure, subtree: sub, ringWeights: D.ringWeights, angularMode: D.angularMode, crumbHost: crumbs, tooltip: tip });",
     "}",
     "back.addEventListener('click', showGrid);",
     "grid.addEventListener('click', function(e){",

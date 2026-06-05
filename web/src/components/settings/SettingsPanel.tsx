@@ -7,6 +7,7 @@ import {
   useAppStore,
 } from "@/lib/store";
 import type { ColorPropagationMode } from "@/lib/ontology/color";
+import type { AngularMode } from "@/lib/ontology/layout";
 import type { CountPropagationMode } from "@/lib/ontology/propagate";
 import {
   TAPER_DEFAULT,
@@ -38,6 +39,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const count = useAppStore((s) => s.count);
   const color = useAppStore((s) => s.color);
   const ringWeights = useAppStore((s) => s.layout.ringWeights);
+  const angularMode = useAppStore((s) => s.layout.angularMode);
+  const setAngularMode = useAppStore((s) => s.setAngularMode);
   const setCountSettings = useAppStore((s) => s.setCountSettings);
   const setColorSettings = useAppStore((s) => s.setColorSettings);
   const setRingWeight = useAppStore((s) => s.setRingWeight);
@@ -106,6 +109,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           explain={rollUpExplanation}
         />
       ),
+    },
+  ];
+
+  const angularChoices: readonly Choice<AngularMode>[] = [
+    {
+      value: "count",
+      label: "By count",
+      hint: "Wedge width is proportional to its summed counts — bigger counts, wider wedges.",
+    },
+    {
+      value: "uniform",
+      label: "Equal siblings",
+      hint: "Every branch splits its parent's arc evenly, ignoring counts — shows structure, not magnitude.",
     },
   ];
 
@@ -181,6 +197,20 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             value={countChoice}
             choices={countChoices}
             onChange={onCountChoice}
+          />
+        </Section>
+
+        <Divider />
+
+        <Section
+          title="Wedge size"
+          hint="Choose what a wedge's angular size represents — magnitude or structure."
+        >
+          <OptionList
+            name="What drives wedge size"
+            value={angularMode}
+            choices={angularChoices}
+            onChange={setAngularMode}
           />
         </Section>
 
@@ -328,11 +358,7 @@ function TaperSlider({
       <span className="flex items-center justify-between text-[11px]">
         <span className="text-muted">Taper</span>
         <span className="text-[10px] text-muted">
-          {display === 0
-            ? "uniform"
-            : display > 0
-              ? "fatten edge"
-              : "fatten center"}
+          {display === 0 ? "uniform" : display > 0 ? "fatten edge" : "fatten center"}
         </span>
       </span>
       <input

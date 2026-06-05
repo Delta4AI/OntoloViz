@@ -14,6 +14,7 @@
 import { create } from "zustand";
 
 import { propagateColors, type ColorPropagationSettings } from "./ontology/color";
+import type { AngularMode } from "./ontology/layout";
 import { propagateCounts, type PropagationSettings } from "./ontology/propagate";
 import type { Node, Ontology } from "./ontology/types";
 
@@ -49,6 +50,12 @@ export interface LayoutSettings {
    * far as the user has touched a ring; unset depths render at weight 1.
    */
   readonly ringWeights: readonly number[];
+  /**
+   * What drives a wedge's angular size: `count` (proportional to summed
+   * counts, the default) or `uniform` (equal split among siblings — topology
+   * only). See {@link AngularMode}.
+   */
+  readonly angularMode: AngularMode;
 }
 
 /** Allowed range for a single ring's thickness multiplier. */
@@ -58,6 +65,7 @@ export const RING_WEIGHT_DEFAULT = 1;
 
 export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   ringWeights: [],
+  angularMode: "count",
 };
 
 /**
@@ -111,6 +119,8 @@ interface AppState {
   setRingWeights(weights: readonly number[]): void;
   /** Restore every ring to the uniform baseline. */
   resetRingWeights(): void;
+  /** Choose what drives wedge angular size (count vs. equal siblings). */
+  setAngularMode(mode: AngularMode): void;
   setHoveredId(id: string | null): void;
   setSearchQuery(query: string): void;
   /**
@@ -196,6 +206,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   resetRingWeights: () =>
     set((state) => ({ layout: { ...state.layout, ringWeights: [] } })),
+
+  setAngularMode: (mode) =>
+    set((state) => ({ layout: { ...state.layout, angularMode: mode } })),
 
   setHoveredId: (id) => set(() => ({ hoveredId: id })),
 

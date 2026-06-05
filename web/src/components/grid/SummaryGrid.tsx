@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { filterRows, flattenRows, useAppStore, type GridRow } from "@/lib/store";
+import {
+  filterRows,
+  flattenRows,
+  sortRows,
+  useAppStore,
+  type GridRow,
+  type SortKey,
+  type SortState,
+} from "@/lib/store";
 import type { Node, Ontology } from "@/lib/ontology/types";
 
 type NodePatch = Partial<Pick<Node, "count" | "color" | "label">>;
@@ -59,6 +67,19 @@ export function SummaryGrid({
   );
   const isFiltering = searchQuery.trim().length > 0;
 
+  // Sort is view-only local state; null restores the natural flatten order.
+  const [sort, setSort] = useState<SortState | null>(null);
+  const sorted = useMemo(() => sortRows(filtered, sort), [filtered, sort]);
+
+  // Click cycles a column: asc → desc → off. Switching columns starts at asc.
+  const toggleSort = (key: SortKey) => {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  };
+
   const handlePatch = (rootId: string, nodeId: string, patch: NodePatch) => {
     if (onEdit) onEdit(rootId, nodeId, patch);
     else updateNode(rootId, nodeId, patch);
@@ -70,17 +91,17 @@ export function SummaryGrid({
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    if (el.scrollTop > filtered.length * ROW_HEIGHT) {
+    if (el.scrollTop > sorted.length * ROW_HEIGHT) {
       el.scrollTop = 0;
       setScrollTop(0);
     }
-  }, [filtered.length]);
+  }, [sorted.length]);
 
-  const totalHeight = filtered.length * ROW_HEIGHT;
+  const totalHeight = sorted.length * ROW_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const visibleCount = Math.ceil(height / ROW_HEIGHT) + OVERSCAN * 2;
-  const endIndex = Math.min(filtered.length, startIndex + visibleCount);
-  const visible = filtered.slice(startIndex, endIndex);
+  const endIndex = Math.min(sorted.length, startIndex + visibleCount);
+  const visible = sorted.slice(startIndex, endIndex);
 
   return (
     <div className="flex flex-col">
@@ -123,10 +144,26 @@ export function SummaryGrid({
 
           <div className="overflow-hidden rounded-lg border border-border">
             <div className="grid grid-cols-[80px_180px_1fr_120px_60px] gap-2 border-b border-border bg-elevated px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted">
-              <span>Subtree</span>
-              <span>ID</span>
-              <span>Label</span>
-              <span className="text-right">Count</span>
+              <SortHeader
+                label="Subtree"
+                sortKey="subtree"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader label="ID" sortKey="id" sort={sort} onSort={toggleSort} />
+              <SortHeader
+                label="Label"
+                sortKey="label"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader
+                label="Count"
+                sortKey="count"
+                sort={sort}
+                onSort={toggleSort}
+                align="right"
+              />
               <span className="text-center">Color</span>
             </div>
             <div
@@ -162,6 +199,38 @@ export function SummaryGrid({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = "left",
+}: {
+  readonly label: string;
+  readonly sortKey: SortKey;
+  readonly sort: SortState | null;
+  readonly onSort: (key: SortKey) => void;
+  readonly align?: "left" | "right";
+}) {
+  const active = sort?.key === sortKey;
+  const indicator = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      className={`flex items-center gap-1 uppercase tracking-widest hover:text-ink ${
+        align === "right" ? "justify-end" : ""
+      } ${active ? "text-ink" : ""}`}
+    >
+      <span>{label}</span>
+      <span aria-hidden className="text-[8px] text-accent">
+        {indicator}
+      </span>
+    </button>
   );
 }
 

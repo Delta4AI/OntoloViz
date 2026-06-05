@@ -4,6 +4,7 @@ import {
   derivePropagated,
   filterRows,
   flattenRows,
+  sortRows,
   useAppStore,
   type GridRow,
 } from "@/lib/store";
@@ -185,14 +186,14 @@ describe("useAppStore", () => {
 /* Grid row selectors                                                          */
 /* -------------------------------------------------------------------------- */
 
-function mkRow(rootId: string, id: string, label: string): GridRow {
+function mkRow(rootId: string, id: string, label: string, count = 0): GridRow {
   const node: Node = {
     id,
     parent: "",
     label,
     description: "",
     comment: "",
-    count: 0,
+    count,
     color: "#FFFFFF",
     level: 0,
     meshId: "",
@@ -245,6 +246,55 @@ describe("filterRows", () => {
 
   it("returns [] when nothing matches", () => {
     expect(filterRows(rows, "zzz")).toEqual([]);
+  });
+});
+
+describe("sortRows", () => {
+  const rows = [
+    mkRow("B", "B01", "Blood", 5),
+    mkRow("A", "A02", "antacids", 30),
+    mkRow("A", "A01", "Alimentary", 2),
+  ];
+
+  it("returns input unchanged and same reference for null sort", () => {
+    expect(sortRows(rows, null)).toBe(rows);
+  });
+
+  it("does not mutate the input array", () => {
+    const snapshot = [...rows];
+    sortRows(rows, { key: "count", dir: "asc" });
+    expect(rows).toEqual(snapshot);
+  });
+
+  it("sorts by count ascending and descending", () => {
+    expect(
+      sortRows(rows, { key: "count", dir: "asc" }).map((r) => r.node.count),
+    ).toEqual([2, 5, 30]);
+    expect(
+      sortRows(rows, { key: "count", dir: "desc" }).map((r) => r.node.count),
+    ).toEqual([30, 5, 2]);
+  });
+
+  it("sorts by id ascending", () => {
+    expect(sortRows(rows, { key: "id", dir: "asc" }).map((r) => r.node.id)).toEqual([
+      "A01",
+      "A02",
+      "B01",
+    ]);
+  });
+
+  it("sorts by label case-insensitively", () => {
+    expect(
+      sortRows(rows, { key: "label", dir: "asc" }).map((r) => r.node.label),
+    ).toEqual(["Alimentary", "antacids", "Blood"]);
+  });
+
+  it("sorts by subtree, tie-breaking on id", () => {
+    expect(
+      sortRows(rows, { key: "subtree", dir: "asc" }).map(
+        (r) => `${r.rootId}:${r.node.id}`,
+      ),
+    ).toEqual(["A:A01", "A:A02", "B:B01"]);
   });
 });
 

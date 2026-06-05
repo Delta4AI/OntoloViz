@@ -301,3 +301,40 @@ export function filterRows(
       r.node.id.toLowerCase().includes(q) || r.node.label.toLowerCase().includes(q),
   );
 }
+
+/** Column the grid can be sorted by. `color` is not orderable. */
+export type SortKey = "subtree" | "id" | "label" | "count";
+export type SortDir = "asc" | "desc";
+export interface SortState {
+  readonly key: SortKey;
+  readonly dir: SortDir;
+}
+
+function compareRows(a: GridRow, b: GridRow, key: SortKey): number {
+  switch (key) {
+    case "subtree":
+      // Tie-break on id so equal subtrees keep a stable, readable order.
+      return a.rootId === b.rootId
+        ? a.node.id.localeCompare(b.node.id)
+        : a.rootId.localeCompare(b.rootId);
+    case "id":
+      return a.node.id.localeCompare(b.node.id);
+    case "label":
+      return a.node.label.localeCompare(b.node.label);
+    case "count":
+      return a.node.count - b.node.count;
+  }
+}
+
+/**
+ * Return a new array of `rows` ordered by `sort`. Pure; never mutates input.
+ * `null` sort restores the caller's incoming (flatten) order unchanged.
+ */
+export function sortRows(
+  rows: readonly GridRow[],
+  sort: SortState | null,
+): readonly GridRow[] {
+  if (!sort) return rows;
+  const factor = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => factor * compareRows(a, b, sort.key));
+}

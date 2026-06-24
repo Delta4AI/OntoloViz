@@ -25,6 +25,7 @@ import { withBase } from "./lib/basePath";
 import { fetchObo, fetchSession } from "./lib/ontology/obo";
 import { parseTsv } from "./lib/ontology/parse";
 import { derivePropagated, useAppStore, type ViewMode } from "./lib/store";
+import type { Ontology } from "./lib/ontology/types";
 
 interface LoadingState {
   readonly stage: string;
@@ -43,6 +44,16 @@ const formatBytes = (n: number): string => {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+/** True if any node carries a non-empty color override (a pre-colored handoff). */
+const hasExplicitColors = (ontology: Ontology): boolean => {
+  for (const subtree of ontology.subtrees.values()) {
+    for (const node of subtree.nodes.values()) {
+      if (node.color) return true;
+    }
+  }
+  return false;
+};
+
 export function App() {
   const raw = useAppStore((s) => s.raw);
   const count = useAppStore((s) => s.count);
@@ -52,6 +63,7 @@ export function App() {
   const setOntology = useAppStore((s) => s.setOntology);
   const setActiveRoot = useAppStore((s) => s.setActiveRoot);
   const setViewMode = useAppStore((s) => s.setViewMode);
+  const setColorSettings = useAppStore((s) => s.setColorSettings);
   const updateNode = useAppStore((s) => s.updateNode);
   const reset = useAppStore((s) => s.reset);
 
@@ -178,6 +190,11 @@ export function App() {
         progress: 0.85,
       });
       await yieldToPaint();
+      // A handoff that ships explicit per-node colors (e.g. d4-clustering's
+      // cluster coloring) owns its palette — turn count-based color propagation
+      // off so those colors survive. Handoffs without colors (d4-similarity
+      // sends color:"") keep the default count ramp.
+      if (hasExplicitColors(ontology)) setColorSettings({ enabled: false });
       setOntology(ontology);
       // Drop the capability token from the URL once consumed so it doesn't
       // linger in history/bookmarks. Like uploads, a reload starts fresh.

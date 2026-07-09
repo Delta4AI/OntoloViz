@@ -1,7 +1,7 @@
 {
   "name": "ontoloviz-web",
   "private": true,
-  "version": "3.0.3",
+  "version": "3.0.4",
   "type": "module",
   "description": "OntoloViz — browser-based ontology visualization (React + D3 + Canvas)",
   "scripts": {
@@ -21,7 +21,6 @@
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "xlsx": "^0.18.5",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -34,7 +33,7 @@
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
-    "@vitejs/plugin-react": "^4.3.3",
+    "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
@@ -46,7 +45,15 @@
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.5"
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "comment": "Pin patched versions of transitive dev-only deps flagged by Dependabot; all are minor/patch bumps within the dependents' accepted major range.",
+    "overrides": {
+      "form-data": ">=4.0.6",
+      "ws": ">=8.21.0",
+      "js-yaml": ">=4.2.0"
+    }
   }
 }

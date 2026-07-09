@@ -17,3 +17,12 @@ allowBuilds:
   esbuild: true
 onlyBuiltDependencies:
   - esbuild
+
+# Pin patched versions of transitive dev-only deps flagged by Dependabot.
+# All are minor/patch bumps within each dependent's accepted major range.
+# Lives here (not package.json "pnpm.overrides") because pnpm 11 no longer
+# reads that field.
+overrides:
+  form-data: ">=4.0.6"
+  ws: ">=8.21.0"
+  js-yaml: ">=4.2.0"

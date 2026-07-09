@@ -33,7 +33,7 @@
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
@@ -45,15 +45,7 @@
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "comment": "Pin patched versions of transitive dev-only deps flagged by Dependabot; all are minor/patch bumps within the dependents' accepted major range.",
-    "overrides": {
-      "form-data": ">=4.0.6",
-      "ws": ">=8.21.0",
-      "js-yaml": ">=4.2.0"
-    }
+    "vite": "^6.4.3",
+    "vitest": "^3.2.6"
   }
 }

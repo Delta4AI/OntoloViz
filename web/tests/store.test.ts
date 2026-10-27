@@ -333,4 +333,15 @@ describe("derivePropagated", () => {
     // from the synthesized parent), "all" rolls the leaf's 4 up.
     expect(allRoot).toBeGreaterThan(offRoot);
   });
+
+  it("keeps a manually picked color over the propagated color scale", () => {
+    const ont = parseTsv(TSV);
+    const store = useAppStore.getState();
+    store.setOntology(ont);
+    store.updateNode("A", "A01AA01", { color: "#123456" });
+    const { raw, count, color, colorOverrides } = useAppStore.getState();
+    expect(color.enabled).toBe(true);
+    const out = derivePropagated(raw, count, color, colorOverrides)!;
+    expect(out.subtrees.get("A")!.nodes.get("A01AA01")!.color).toBe("#123456");
+  });
 });

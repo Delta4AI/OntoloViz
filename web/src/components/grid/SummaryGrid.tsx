@@ -424,19 +424,38 @@ function ColorCell({
   readonly value: string;
   readonly onCommit: (next: string) => void;
 }) {
+  // Local draft previews the swatch while the picker is dragged. React's
+  // onChange fires on every `input` tick, so the store commit (which shows the
+  // loading overlay and re-propagates) hangs off the native `change` event,
+  // which fires once when the picker closes.
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const commit = () => {
+      const next = el.value.toUpperCase();
+      if (next !== value.toUpperCase()) onCommit(next);
+    };
+    el.addEventListener("change", commit);
+    return () => el.removeEventListener("change", commit);
+  }, [value, onCommit]);
+
   // The browser color input requires a 7-char #RRGGBB; pass white as fallback.
-  const safe = /^#[0-9A-Fa-f]{6}$/.test(value) ? value : "#FFFFFF";
+  const safe = /^#[0-9A-Fa-f]{6}$/.test(draft) ? draft : "#FFFFFF";
   return (
     <label className="mx-auto flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm border border-border hover:border-accent">
       <span
         aria-hidden
         className="block h-full w-full rounded-sm"
-        style={{ background: value || "#FFFFFF" }}
+        style={{ background: draft || "#FFFFFF" }}
       />
       <input
+        ref={inputRef}
         type="color"
         value={safe}
-        onChange={(e) => onCommit(e.currentTarget.value.toUpperCase())}
+        onChange={(e) => setDraft(e.currentTarget.value.toUpperCase())}
         className="sr-only"
         aria-label="Edit node color"
       />

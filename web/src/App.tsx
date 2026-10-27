@@ -58,6 +58,7 @@ export function App() {
   const raw = useAppStore((s) => s.raw);
   const count = useAppStore((s) => s.count);
   const color = useAppStore((s) => s.color);
+  const colorOverrides = useAppStore((s) => s.colorOverrides);
   const activeRoot = useAppStore((s) => s.activeRoot);
   const viewMode = useAppStore((s) => s.viewMode);
   const setOntology = useAppStore((s) => s.setOntology);
@@ -83,8 +84,8 @@ export function App() {
   const deferredCount = useDeferredValue(count);
   const deferredColor = useDeferredValue(color);
   const propagated = useMemo(
-    () => derivePropagated(raw, deferredCount, deferredColor),
-    [raw, deferredCount, deferredColor],
+    () => derivePropagated(raw, deferredCount, deferredColor, colorOverrides),
+    [raw, deferredCount, deferredColor, colorOverrides],
   );
   const isRecomputing = count !== deferredCount || color !== deferredColor;
 

@@ -8,7 +8,7 @@ This repo holds three things in one package:
 
 ## Prerequisites
 
-- **Python ≥ 3.10** with [`uv`](https://docs.astral.sh/uv/) (dependency + venv management).
+- **Python ≥ 3.11** with [`uv`](https://docs.astral.sh/uv/) (dependency + venv management).
 - **Node + [`pnpm`](https://pnpm.io/)** for the web frontend.
 
 ## One-time setup

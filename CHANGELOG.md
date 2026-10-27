@@ -2,7 +2,7 @@
 
 ## 3.0.5 — 2026-10-27
 
-* **Breaking (deploy):** Replaced `install-service.sh` and `update-service.sh` with `just deploy`, which pulls `main`, builds the SPA and wheel on the host, installs the versioned unit `deploy/ontoloviz.service` and runs the healthcheck. The host now needs `just`, Node, pnpm and uv; installing a prebuilt wheel is no longer supported (roll back by deploying an older commit). Server config stays in `/etc/ontoloviz.env`, see `docs/RUNBOOK.md`.
+* **Breaking (deploy):** Replaced `install-service.sh` and `update-service.sh` with `just deploy`, which pulls `main`, builds the SPA and wheel on the host, installs the versioned unit `deploy/ontoloviz.service` and runs the healthcheck. The host now needs `just`, Node ≥ 22.13 (pnpm 11, pinned via `packageManager` in `web/package.json`) and uv; installing a prebuilt wheel is no longer supported (roll back by deploying an older commit). Server config stays in `/etc/ontoloviz.env`, see `docs/RUNBOOK.md`.
 * **Breaking:** Dropped Python 3.10, which reached end of life on 2026-10-01; OntoloViz now requires Python ≥ 3.11 and is tested on 3.11–3.15.
 * Upgraded server dependencies past known advisories: `anyio` (TLS host-name spoofing), `starlette` (form-limit DoS), `urllib3` (unbounded chunk buffering, ignored HTTPS-proxy TLS config) and `certifi`.
 * Moved the web test runner to Vitest 4 and bumped Vite to 6.4.5 and PostCSS to 8.5.31, clearing the critical `tinypool` RCE advisories plus the Vitest mocker, Vite `launch-editor`/`server.fs.allow` and transitive build-tool advisories. Dev and build tooling only; nothing shipped to the browser changed.

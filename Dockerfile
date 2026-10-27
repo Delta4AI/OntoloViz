@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # --- Stage 1: build the web frontend ---------------------------------------
-FROM node:20-bookworm-slim AS web-builder
+FROM node:22-bookworm-slim AS web-builder
 
 WORKDIR /web
 RUN corepack enable

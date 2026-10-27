@@ -78,6 +78,11 @@ export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
  */
 export type ViewMode = "overview" | "detail";
 
+/** Manually picked node colors, rootId → nodeId → `#RRGGBB`. */
+export type ColorOverrides = ReadonlyMap<string, ReadonlyMap<string, string>>;
+
+const NO_COLOR_OVERRIDES: ColorOverrides = new Map();
+
 interface AppState {
   /** The raw parsed ontology, before any propagation. */
   readonly raw: Ontology | null;
@@ -91,6 +96,11 @@ interface AppState {
   readonly color: ColorPropagationSettings;
   /** Sunburst ring-geometry settings (purely visual). */
   readonly layout: LayoutSettings;
+  /**
+   * Colors set by hand in the data table. Applied after color propagation so
+   * a manual pick wins over the count-based scale.
+   */
+  readonly colorOverrides: ColorOverrides;
   /**
    * Cross-surface hover. The sunburst sets this when the user mouses over a
    * slice; the grid sets this when the user hovers a row. Both surfaces
@@ -143,13 +153,20 @@ export const useAppStore = create<AppState>((set) => ({
   count: DEFAULT_COUNT_SETTINGS,
   color: DEFAULT_COLOR_SETTINGS,
   layout: DEFAULT_LAYOUT_SETTINGS,
+  colorOverrides: NO_COLOR_OVERRIDES,
   hoveredId: null,
   searchQuery: "",
 
   setOntology: (ontology) =>
     set(() => {
       if (!ontology) {
-        return { raw: null, activeRoot: null, hoveredId: null, viewMode: "overview" };
+        return {
+          raw: null,
+          activeRoot: null,
+          hoveredId: null,
+          viewMode: "overview",
+          colorOverrides: NO_COLOR_OVERRIDES,
+        };
       }
       // Single-subtree ontologies skip overview — the grid would render one
       // tile which adds zero information vs. the full sunburst.
@@ -158,7 +175,13 @@ export const useAppStore = create<AppState>((set) => ({
       // In overview, leave activeRoot null so the data table shows all nodes
       // and the sunburst grid isn't anchored to an arbitrary subtree.
       const activeRoot = multi ? null : (ontology.subtrees.keys().next().value ?? null);
-      return { raw: ontology, activeRoot, hoveredId: null, viewMode };
+      return {
+        raw: ontology,
+        activeRoot,
+        hoveredId: null,
+        viewMode,
+        colorOverrides: NO_COLOR_OVERRIDES,
+      };
     }),
 
   setActiveRoot: (rootId) => set(() => ({ activeRoot: rootId })),
@@ -228,7 +251,14 @@ export const useAppStore = create<AppState>((set) => ({
       const nextSubtree = { ...subtree, nodes: nextNodes };
       const nextSubtrees = new Map(raw.subtrees);
       nextSubtrees.set(rootId, nextSubtree);
-      return { raw: { ...raw, subtrees: nextSubtrees } };
+      const nextRaw = { ...raw, subtrees: nextSubtrees };
+      if (patch.color === undefined) return { raw: nextRaw };
+      const overrides = new Map(state.colorOverrides);
+      overrides.set(
+        rootId,
+        new Map(state.colorOverrides.get(rootId)).set(nodeId, patch.color),
+      );
+      return { raw: nextRaw, colorOverrides: overrides };
     }),
 
   reset: () =>
@@ -239,6 +269,7 @@ export const useAppStore = create<AppState>((set) => ({
       count: DEFAULT_COUNT_SETTINGS,
       color: DEFAULT_COLOR_SETTINGS,
       layout: DEFAULT_LAYOUT_SETTINGS,
+      colorOverrides: NO_COLOR_OVERRIDES,
       hoveredId: null,
       searchQuery: "",
     })),
@@ -249,16 +280,28 @@ export const useAppStore = create<AppState>((set) => ({
  *
  * Pure function — pass in a state snapshot. Returns null when no ontology
  * has been loaded. Memoization is the caller's responsibility (`useMemo`
- * keyed on `raw`, `count`, `color`).
+ * keyed on `raw`, `count`, `color`, `colorOverrides`).
  */
 export function derivePropagated(
   raw: Ontology | null,
   count: PropagationSettings,
   color: ColorPropagationSettings,
+  colorOverrides: ColorOverrides = NO_COLOR_OVERRIDES,
 ): Ontology | null {
   if (!raw) return null;
   const withCounts = propagateCounts(raw, count);
-  return propagateColors(withCounts, color);
+  const colored = propagateColors(withCounts, color);
+  if (colorOverrides.size === 0) return colored;
+  // propagateColors returns fresh node maps, so patching them in place is safe.
+  for (const [rootId, picks] of colorOverrides) {
+    const nodes = colored.subtrees.get(rootId)?.nodes as Map<string, Node> | undefined;
+    if (!nodes) continue;
+    for (const [nodeId, pick] of picks) {
+      const node = nodes.get(nodeId);
+      if (node) nodes.set(nodeId, { ...node, color: pick });
+    }
+  }
+  return colored;
 }
 
 /** One row in the summary grid — a flattened view across all subtrees. */

@@ -9,15 +9,17 @@ readme = "README.md"
 classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Operating System :: OS Independent",
 ]
 license = "MIT"
 keywords = ["MeSH", "ATC", "ontology", "visualization", "sunburst", "drug", "phenotype", "GUI"]
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "plotly>=5.15.0",
     "openpyxl>=3.1.2",
@@ -66,7 +68,7 @@ ontoloviz_server = ["web_dist/**/*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 # Legacy desktop GUI (src/ontoloviz/) predates the ruff config and is not
 # style-managed by ruff; only the server + tests participate in lint.
 extend-exclude = ["src/ontoloviz", "templates"]

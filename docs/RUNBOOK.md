@@ -13,73 +13,55 @@ production (`:5173` is the Vite dev server only). The handoff API and the SPA
 therefore live behind the same origin (and the same reverse-proxy prefix, if
 any).
 
-## Deployment (systemd, wheel-based)
+## Deployment (systemd, `just deploy`)
 
-The host needs **no Node/pnpm** — the wheel embeds the prebuilt SPA. Build the
-wheel where Node is available (CI or a dev box), copy it to the host, install.
+The host builds the SPA bundle and the wheel itself, installs the wheel into
+`/opt/ontoloviz/venv`, and runs it under the versioned unit
+`deploy/ontoloviz.service`. Run `just` as your normal user (not root); only
+individual steps use `sudo`, so `git pull` keeps your SSH keys. The service
+runs as the user who deployed it.
+
+| Recipe | Meaning |
+|--------|---------|
+| `just deploy` | `git pull --ff-only` on `main` → `pnpm install` → `make build` → install wheel → refresh unit → restart → healthcheck |
+| `just status` | `systemctl status ontoloviz` |
+| `just logs` | Follow the journal |
+| `just down` | Stop the service (asks first) |
+
+`deploy` is idempotent: a rerun rebuilds, reinstalls and restarts, nothing
+else. It refuses to run as root, off `main`, or with local edits on the
+server. It ends with a healthcheck that **fails loudly** if `/api/health`
+doesn't come up or the SPA bundle isn't served (a wheel built without the
+frontend).
+
+### First install
 
 ```bash
-# Build the release artifact (frontend bundle THEN wheel — order matters):
-make build                      # → dist/ontoloviz-<ver>-py3-none-any.whl
+# Toolchain (Debian/Ubuntu): just + Node (gives corepack) + pnpm + uv
+sudo apt install -y just nodejs && sudo corepack enable pnpm
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# On the host (installs into /opt/ontoloviz/venv + a hardened systemd unit):
-sudo ./install-service.sh [path/to/wheel]
+# Server config (optional; the server defaults to 127.0.0.1:8000). Behind a
+# dockerized reverse proxy, bind 0.0.0.0 and trust forwarded headers:
+sudo install -m640 -o "$USER" .env.example /etc/ontoloviz.env
+sudoedit /etc/ontoloviz.env      # ONTOLOVIZ_HOST=0.0.0.0, ONTOLOVIZ_PORT, ONTOLOVIZ_PROXY_HEADERS=1
 
-# Custom bind/port (e.g. behind a reverse proxy on a non-default port):
-sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ONTOLOVIZ_PROXY_HEADERS=1 \
-     ./install-service.sh
+just deploy
 ```
+
+Config changes: edit `/etc/ontoloviz.env`, then `sudo systemctl restart ontoloviz`
+(or `just deploy`).
 
 The frontend builds with a **relative base** by default, so the *same* bundle
 works at the root or under any reverse-proxy sub-path (e.g. `/ontoloviz/`) with
-**no build-time config** — just have the proxy strip the prefix (trailing-slash
+**no build-time config**: just have the proxy strip the prefix (trailing-slash
 `proxy_pass`). Set `VITE_BASE=/abs/path/` only to force an absolute base.
 
-Both scripts are idempotent (converge to the same state; safe to re-run) and
-run a post-deploy healthcheck that **fails loudly** if the SPA bundle isn't
-served — guarding against a wheel built without the frontend.
-
-### Building on the prod host (instead of shipping a wheel)
-
-Valid for a single internal host if you'd rather not build + copy elsewhere.
-The frontend build is a full toolchain, so this is a deliberate trade-off
-(more to patch; a `pnpm install` hiccup can break a deploy).
-
-One-time on the host:
-
-```bash
-# Toolchain (Debian/Ubuntu): Node (gives corepack) + pnpm + uv
-sudo apt install -y nodejs && sudo corepack enable pnpm
-curl -LsSf https://astral.sh/uv/install.sh | sh        # uv
-
-cd ~/path/to/OntoloViz
-cd web && pnpm install                                     # node_modules (once)
-cd .. && make build                                        # build the wheel here
-sudo ONTOLOVIZ_HOST=0.0.0.0 ONTOLOVIZ_PORT=49317 ONTOLOVIZ_PROXY_HEADERS=1 ./install-service.sh
-```
-
-No frontend config is needed — the relative-base build works under the
-`/ontoloviz/` sub-path as-is.
-
-### Update / rollback
-
-```bash
-./update-service.sh                       # default: git pull + pnpm install + make build + restart
-./update-service.sh --wheel               # install newest dist/*.whl, no build (no Node needed)
-./update-service.sh path/to/new-wheel     # install this wheel, no build + restart
-```
-
-The default runs a toolchain preflight (node/pnpm/uv), `git pull`s, and syncs
-frontend deps to the lockfile — so an update is a single command on the host.
-Pass a wheel path (or `--wheel`) only when the host has no Node and you built
-the wheel elsewhere.
-
-Run `update-service.sh` as the **service user, not root** (only the per-command
-`sudo` steps are elevated, so `git pull` keeps your SSH keys).
-
-**Rollback:** re-run `./update-service.sh /path/to/previous-version.whl`. The
-two-step `pip install` reinstalls the package files even on a same-version
-wheel, so a known-good artifact always overwrites a bad one.
+**Rollback:** check out the previous release's commit on the server and rerun
+the build + install steps (`git checkout v<ver> && make build`), or revert on
+`main` and `just deploy`. The two-step `pip install` reinstalls the package
+files even on a same-version wheel, so a known-good build always overwrites a
+bad one.
 
 ## Run directly (no systemd, no proxy)
 

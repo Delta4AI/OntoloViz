@@ -114,8 +114,8 @@ echo "https://your-host/ontoloviz/?session=$ID"
 ```
 
 A server-to-server POST needs no CORS. Only a browser POST from a *different*
-origin does — set `ONTOLOVIZ_CORS_ORIGINS` then. See `install-service.sh` and
-the repo deployment notes for the systemd + proxy wiring.
+origin does — set `ONTOLOVIZ_CORS_ORIGINS` then. See `justfile`,
+`deploy/ontoloviz.service` and [RUNBOOK.md](./RUNBOOK.md) for the systemd + proxy wiring.
 
 ## Constraints
 

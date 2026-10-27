@@ -4,7 +4,7 @@
 
 * **Breaking (deploy):** Replaced `install-service.sh` and `update-service.sh` with `just deploy`, which pulls `main`, builds the SPA and wheel on the host, installs the versioned unit `deploy/ontoloviz.service` and runs the healthcheck. The host now needs `just`, Node, pnpm and uv; installing a prebuilt wheel is no longer supported (roll back by deploying an older commit). Server config stays in `/etc/ontoloviz.env`, see `docs/RUNBOOK.md`.
 * Upgraded server dependencies past known advisories: `anyio` (TLS host-name spoofing), `starlette` (form-limit DoS), `urllib3` (unbounded chunk buffering, ignored HTTPS-proxy TLS config) and `certifi`.
-* Moved the web test runner to Vitest 4 and bumped Vite to 6.4.5 and PostCSS to 8.5.32, clearing the critical `tinypool` RCE advisories plus the Vitest mocker, Vite `launch-editor`/`server.fs.allow` and transitive build-tool advisories. Dev and build tooling only; nothing shipped to the browser changed.
+* Moved the web test runner to Vitest 4 and bumped Vite to 6.4.5 and PostCSS to 8.5.31, clearing the critical `tinypool` RCE advisories plus the Vitest mocker, Vite `launch-editor`/`server.fs.allow` and transitive build-tool advisories. Dev and build tooling only; nothing shipped to the browser changed.
 * Node colors picked by hand in the data table now override the count-based color scale instead of being recolored straight away. They are cleared when a new ontology is loaded or the app is reset.
 * Fixed the data table's color picker raising the loading overlay and recomputing the tree on every drag tick. The swatch now previews live, and the color is applied once when the picker closes.
 

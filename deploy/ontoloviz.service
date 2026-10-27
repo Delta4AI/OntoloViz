@@ -1,0 +1,24 @@
+[Unit]
+Description=OntoloViz web server (FastAPI + bundled SPA)
+After=network.target
+
+[Service]
+Type=simple
+# `just deploy` replaces @USER@ with the deploying user; Group defaults to
+# that user's primary group.
+User=@USER@
+WorkingDirectory=/opt/ontoloviz
+EnvironmentFile=-/etc/ontoloviz.env
+ExecStart=/opt/ontoloviz/venv/bin/ontoloviz-server
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ontoloviz
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

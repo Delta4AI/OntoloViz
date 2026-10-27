@@ -37,7 +37,9 @@ frontend).
 ### First install
 
 ```bash
-# Toolchain (Debian/Ubuntu): just + Node (gives corepack) + pnpm + uv
+# Toolchain: just + Node >= 22.13 (gives corepack) + uv. Distro nodejs
+# packages are often older; check `node --version`. corepack installs the
+# pnpm version pinned in web/package.json ("packageManager").
 sudo apt install -y just nodejs && sudo corepack enable pnpm
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
